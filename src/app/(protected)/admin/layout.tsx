@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { seedPeriodsForCurrentYear } from '@/lib/actions/period-actions'
 import type { Profile } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -27,9 +26,6 @@ export default async function AdminLayout({
   if (!profile || profile.role !== 'HR_ADMIN') {
     redirect('/dashboard')
   }
-
-  // Auto-seed Q1-Q4 periods for current year (idempotent)
-  await seedPeriodsForCurrentYear()
 
   return <>{children}</>
 }

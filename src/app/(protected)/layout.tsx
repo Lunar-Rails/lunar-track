@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient, getOrProvisionProfile } from '@/lib/supabase/server'
 import StandardLayout from '@/components/layout/StandardLayout'
+import { ensureCurrentPeriod } from '@/lib/actions/period-actions'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,6 +26,9 @@ export default async function ProtectedLayout({
   if (profile.role === 'EMPLOYEE' && !profile.is_onboarded) {
     redirect('/onboarding')
   }
+
+  // Auto-create and auto-advance performance periods based on the calendar year
+  await ensureCurrentPeriod()
 
   // Inbox badge count for managers/HR
   let inboxCount = 0

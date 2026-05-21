@@ -7,7 +7,6 @@ import {
   Users,
   UserCog,
   Network,
-  Calendar,
   BookOpen,
   ClipboardList,
   CalendarCheck,
@@ -47,7 +46,6 @@ export default function Sidebar({ role }: SidebarProps) {
   const adminNav: NavItem[] = role === 'HR_ADMIN' ? [
     { href: '/admin/users', label: 'Users', icon: UserCog },
     { href: '/admin/org', label: 'Org Chart', icon: Network },
-    { href: '/admin/periods', label: 'Periods', icon: Calendar },
     { href: '/admin/scores', label: 'Scores', icon: BarChart2 },
     { href: '/admin/scores/calibration', label: 'Calibration', icon: SlidersHorizontal },
   ] : []
