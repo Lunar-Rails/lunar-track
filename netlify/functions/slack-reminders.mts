@@ -1,4 +1,4 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Config } from '@netlify/functions'
 import {
   isReminderDay,
@@ -96,7 +96,7 @@ export default async function handler(): Promise<Response> {
 }
 
 async function fetchSubmittedEmployeeIds(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient,
   type: ReminderType,
   period: ReminderPeriod,
 ): Promise<Set<string>> {
