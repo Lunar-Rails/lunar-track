@@ -125,7 +125,7 @@ export default function EmployeeCheckinForm({
           <h3 className="text-card-title text-lr-accent">Next Month</h3>
           <p className="text-xs text-lr-muted mt-1">These MITs will carry over to the review section of next month&apos;s check-in.</p>
         </div>
-        <MitPlanList value={nextMits} onChange={setNextMits} linkOptions={okrOptions} linkLabel="Quarterly OKR" noLinkLabel="Unrelated to quarterly OKRs" disabled={readOnly || isPending} />
+        <MitPlanList value={nextMits} onChange={setNextMits} linkOptions={okrOptions} linkLabel="Quarterly Goal" noLinkLabel="Unrelated to quarterly goals" disabled={readOnly || isPending} />
       </section>
 
       {error && (
