@@ -163,6 +163,18 @@ export default async function DashboardPage() {
     }
   }
 
+  // My own OKR count for current period (all roles — managers/HR also set goals)
+  let myOwnGoalCount = 0
+  if (openPeriod && profile.role !== 'EMPLOYEE') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count } = await (supabase as any)
+      .from('okrs')
+      .select('id', { count: 'exact', head: true })
+      .eq('employee_id', user.id)
+      .eq('period_id', openPeriod.id)
+    myOwnGoalCount = (count as number) ?? 0
+  }
+
   // Company values + usage data
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: valuesRaw } = await (supabase as any).from('company_values').select('*').order('sort_order')
@@ -316,10 +328,18 @@ export default async function DashboardPage() {
       {(profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') && (
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 shadow-[var(--shadow-lr-card)]">
           <h2 className="text-card-title mb-4">Pending actions</h2>
-          {pendingCheckins === 0 && pendingOkrs === 0 ? (
+          {pendingCheckins === 0 && pendingOkrs === 0 && myOwnGoalCount > 0 ? (
             <p className="text-sm text-lr-cyan">All caught up — no pending reviews or approvals.</p>
           ) : (
             <div className="space-y-2">
+              {openPeriod && myOwnGoalCount === 0 && (
+                <Link href="/okrs">
+                  <div className="flex items-center justify-between rounded-[var(--radius-lr)] border border-lr-gold/30 bg-lr-gold-dim px-3 py-2.5 hover:bg-lr-gold/10 transition-colors">
+                    <span className="text-sm text-lr-gold">🎯 No goals set for {openPeriod.name}</span>
+                    <span className="text-xs text-lr-gold/70">Set goals →</span>
+                  </div>
+                </Link>
+              )}
               {pendingCheckins > 0 && (
                 <Link href="/inbox">
                   <div className="flex items-center justify-between rounded-[var(--radius-lr)] border border-lr-gold/30 bg-lr-gold-dim px-3 py-2.5 hover:bg-lr-gold/10 transition-colors">
