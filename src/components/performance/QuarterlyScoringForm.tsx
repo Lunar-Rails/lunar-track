@@ -53,14 +53,14 @@ function ScoreSelector({
           type="button"
           disabled={disabled}
           onClick={() => onChange(n)}
-          className={`flex flex-col items-center rounded-[var(--radius-lr-lg)] border px-3 py-2 text-sm transition-colors min-w-[80px] ${
+          title={SCORE_LABELS[n]}
+          className={`flex flex-col items-center rounded-[var(--radius-lr-lg)] border px-4 py-2.5 transition-colors min-w-[56px] ${
             value === n
               ? 'border-lr-accent bg-lr-accent-dim text-lr-accent'
               : 'border-lr-border bg-lr-surface text-lr-muted hover:bg-lr-surface-2'
           }`}
         >
           <span className="text-lg font-bold">{n}</span>
-          <span className="text-xs text-center leading-tight mt-0.5">{SCORE_LABELS[n]}</span>
         </button>
       ))}
     </div>
