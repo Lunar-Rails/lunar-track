@@ -134,8 +134,8 @@ export default async function NewQuarterlyCheckinPage({
         <h1 className="text-page-title mt-1">
           Q{period.quarter} {period.year} Quarterly Check-in
         </h1>
-        <p className="text-body text-lr-muted mt-1">
-          Self-assess OKR progress, reflect on continue/stop/start, and surface needs for next quarter.
+        <p className="text-body text-lr-text/70 mt-1">
+          Reflect on your goals, what went well, and plan the quarter ahead.
         </p>
       </div>
 

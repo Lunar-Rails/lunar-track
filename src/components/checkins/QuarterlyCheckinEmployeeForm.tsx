@@ -159,20 +159,26 @@ export default function QuarterlyCheckinEmployeeForm({
       )}
 
       {/* Tab header */}
-      <div className="flex gap-1 border-b border-lr-border">
-        {tabs.map((tab) => (
+      <div className="flex border-b border-lr-border">
+        {tabs.map((tab, i) => (
           <button
             key={tab.key}
             type="button"
             onClick={() => setStep(tab.key)}
             className={[
-              'px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
+              'flex-1 text-center py-3 text-sm font-semibold transition-colors border-b-2 -mb-px',
               step === tab.key
                 ? 'border-lr-accent text-lr-accent'
-                : 'border-transparent text-lr-muted hover:text-lr-text',
+                : 'border-transparent text-lr-text/50 hover:text-lr-text',
             ].join(' ')}
           >
-            {tab.label}
+            <span className="inline-flex items-center gap-2">
+              <span className={[
+                'inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold',
+                step === tab.key ? 'bg-lr-accent text-white' : 'bg-lr-border text-lr-text/50',
+              ].join(' ')}>{i + 1}</span>
+              {tab.label}
+            </span>
           </button>
         ))}
       </div>
@@ -181,20 +187,27 @@ export default function QuarterlyCheckinEmployeeForm({
       {step === 'review' && (
         <div className="space-y-5">
           <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-6">
-            <div className="space-y-2">
-              <p className="text-section-label">Goal Achievements</p>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-lr-text">Goal Achievements</p>
+                <p className="text-xs text-lr-text/50 mt-0.5">Mark each goal as achieved or not</p>
+              </div>
               <GoalAchievementList value={goals} onChange={setGoals} disabled={readOnly || isPending} />
             </div>
 
-            <div className="space-y-2">
-              <p className="text-section-label">Done Well / Done Differently</p>
-              <p className="text-xs text-lr-muted">Auto-pulled from your last 3 monthly check-ins</p>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-lr-text">Done Well / Done Differently</p>
+                <p className="text-xs text-lr-text/50 mt-0.5">Auto-pulled from your last 3 monthly check-ins</p>
+              </div>
               <MonthlyDoneWellSummary reflections={monthlyReflections} />
             </div>
 
-            <div className="space-y-2">
-              <p className="text-section-label">Values</p>
-              <p className="text-xs text-lr-muted">Select the values you demonstrated this quarter and describe how</p>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-lr-text">Values</p>
+                <p className="text-xs text-lr-text/50 mt-0.5">Select the values you demonstrated this quarter and describe how</p>
+              </div>
               <ValueChipSelector companyValues={companyValues} value={valueAssessments} onChange={setValueAssessments} disabled={readOnly || isPending} />
             </div>
           </div>
@@ -218,7 +231,10 @@ export default function QuarterlyCheckinEmployeeForm({
         <div className="space-y-5">
           <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-6">
             <div className="space-y-3">
-              <p className="text-section-label">Goals</p>
+              <div>
+                <p className="text-sm font-semibold text-lr-text">Goals</p>
+                <p className="text-xs text-lr-text/50 mt-0.5">What do you want to achieve next quarter?</p>
+              </div>
               <div className="space-y-3">
                 {nextGoals.map((goal, index) => (
                   <div key={goal.id} className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface p-4 space-y-3">
@@ -250,8 +266,10 @@ export default function QuarterlyCheckinEmployeeForm({
             </div>
 
             <div className="space-y-2">
-              <p className="text-section-label">First Month MITs</p>
-              <p className="text-xs text-lr-muted">These will carry over to the review section of your first monthly check-in next quarter.</p>
+              <div>
+                <p className="text-sm font-semibold text-lr-text">First Month MITs</p>
+                <p className="text-xs text-lr-text/50 mt-0.5">These carry over to the review section of your first monthly check-in next quarter.</p>
+              </div>
               <MitPlanList value={nextMits} onChange={setNextMits} linkOptions={goalLinkOptions} linkLabel="Quarterly goal" noLinkLabel="Unrelated to quarterly goals" disabled={readOnly || isPending} />
             </div>
           </div>

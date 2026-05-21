@@ -126,20 +126,26 @@ export default function EmployeeCheckinForm({
       )}
 
       {/* Tab header */}
-      <div className="flex gap-1 border-b border-lr-border">
-        {tabs.map((tab) => (
+      <div className="flex border-b border-lr-border">
+        {tabs.map((tab, i) => (
           <button
             key={tab.key}
             type="button"
             onClick={() => setStep(tab.key)}
             className={[
-              'px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
+              'flex-1 text-center py-3 text-sm font-semibold transition-colors border-b-2 -mb-px',
               step === tab.key
                 ? 'border-lr-accent text-lr-accent'
-                : 'border-transparent text-lr-muted hover:text-lr-text',
+                : 'border-transparent text-lr-text/50 hover:text-lr-text',
             ].join(' ')}
           >
-            {tab.label}
+            <span className="inline-flex items-center gap-2">
+              <span className={[
+                'inline-flex items-center justify-center w-5 h-5 rounded-full text-xs font-bold',
+                step === tab.key ? 'bg-lr-accent text-white' : 'bg-lr-border text-lr-text/50',
+              ].join(' ')}>{i + 1}</span>
+              {tab.label}
+            </span>
           </button>
         ))}
       </div>
@@ -148,17 +154,20 @@ export default function EmployeeCheckinForm({
       {step === 'review' && (
         <div className="space-y-5">
           <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-5">
-            <div className="space-y-2">
-              <p className="text-section-label">What We Committed Last Month</p>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-lr-text">What We Committed Last Month</p>
+                <p className="text-xs text-lr-text/50 mt-0.5">Mark each commitment as achieved or not</p>
+              </div>
               <MitReviewList value={reviewMits} onChange={setReviewMits} disabled={readOnly || isPending} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label htmlFor="done_well" className="text-caption">Done well</Label>
+                <Label htmlFor="done_well" className="text-sm font-semibold text-lr-text">Done well</Label>
                 <Textarea id="done_well" value={doneWell} onChange={(e) => setDoneWell(e.target.value)} disabled={readOnly || isPending} placeholder="What went well this month?" className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[100px] resize-y" />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="do_differently" className="text-caption">Done differently</Label>
+                <Label htmlFor="do_differently" className="text-sm font-semibold text-lr-text">Done differently</Label>
                 <Textarea id="do_differently" value={doDifferently} onChange={(e) => setDoDifferently(e.target.value)} disabled={readOnly || isPending} placeholder="What would you change?" className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[100px] resize-y" />
               </div>
             </div>
@@ -182,7 +191,10 @@ export default function EmployeeCheckinForm({
       {step === 'plan' && (
         <div className="space-y-5">
           <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-4">
-            <p className="text-xs text-lr-muted">These MITs will carry over to the review section of next month&apos;s check-in.</p>
+            <div>
+              <p className="text-sm font-semibold text-lr-text">Commitments for Next Month</p>
+              <p className="text-xs text-lr-text/50 mt-0.5">These carry over to the review section of next month&apos;s check-in.</p>
+            </div>
             <MitPlanList value={nextMits} onChange={setNextMits} linkOptions={okrOptions} linkLabel="Quarterly Goal" noLinkLabel="Unrelated to quarterly goals" disabled={readOnly || isPending} />
           </div>
 
