@@ -129,6 +129,15 @@ export async function upsertQuarterlyCheckinEmployee(formData: FormData): Promis
     checkinId = (newCheckin as { id: string }).id
   }
 
+  // Sync next quarter goals to okrs table whenever there are goals to save
+  if (nextQuarterGoals.length > 0) {
+    await syncNextQuarterGoalsToOkrs(supabase, {
+      employeeId: caller.id,
+      currentPeriodId: parsed.data.periodId,
+      nextQuarterGoals,
+    })
+  }
+
   if (isSubmit && nextQuarterMits.some((m) => m.title.trim())) {
     await carryMitsToFirstMonthOfNextQuarter(supabase, {
       employeeId: caller.id,
@@ -141,6 +150,7 @@ export async function upsertQuarterlyCheckinEmployee(formData: FormData): Promis
   revalidatePath('/quarterly-checkins')
   revalidatePath(`/quarterly-checkins/${checkinId}`)
   revalidatePath('/dashboard')
+  revalidatePath('/okrs')
 
   if (isSubmit && caller.manager_id) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -218,6 +228,64 @@ async function carryMitsToFirstMonthOfNextQuarter(
       year: nextYear,
       mits: carriedMits,
     })
+  }
+}
+
+async function syncNextQuarterGoalsToOkrs(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  opts: { employeeId: string; currentPeriodId: string; nextQuarterGoals: QuarterlyGoal[] }
+) {
+  const { employeeId, currentPeriodId, nextQuarterGoals } = opts
+
+  // Find the next period
+  const { data: currentPeriod } = await supabase
+    .from('performance_periods').select('year, quarter').eq('id', currentPeriodId).single()
+  if (!currentPeriod) return
+
+  const nextQuarter = currentPeriod.quarter === 4 ? 1 : currentPeriod.quarter + 1
+  const nextYear = currentPeriod.quarter === 4 ? currentPeriod.year + 1 : currentPeriod.year
+
+  const { data: nextPeriod } = await supabase
+    .from('performance_periods')
+    .select('id')
+    .eq('year', nextYear)
+    .eq('quarter', nextQuarter)
+    .maybeSingle()
+  if (!nextPeriod) return
+
+  // Fetch existing OKRs for next period so we can decide insert vs update
+  const { data: existingOkrs } = await supabase
+    .from('okrs')
+    .select('id')
+    .eq('employee_id', employeeId)
+    .eq('period_id', nextPeriod.id)
+    .is('deleted_at', null)
+
+  const existingIds = new Set((existingOkrs ?? []).map((o: { id: string }) => o.id))
+  const incomingIds = new Set(nextQuarterGoals.map((g) => g.id))
+
+  // Soft-delete OKRs that were removed from the form
+  const toDelete = ([...existingIds] as string[]).filter((id) => !incomingIds.has(id))
+  if (toDelete.length > 0) {
+    await supabase.from('okrs')
+      .update({ deleted_at: new Date().toISOString() })
+      .in('id', toDelete)
+      .eq('employee_id', employeeId)
+  }
+
+  // Upsert each goal as an OKR using the goal's id as the OKR id
+  for (const goal of nextQuarterGoals) {
+    if (!goal.title.trim()) continue
+    await supabase.from('okrs').upsert({
+      id: goal.id,
+      employee_id: employeeId,
+      period_id: nextPeriod.id,
+      title: goal.title.trim(),
+      description: goal.description ?? '',
+      deleted_at: null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' })
   }
 }
 
