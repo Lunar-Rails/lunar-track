@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { format } from 'date-fns'
 import AddEntryButton from '@/components/okrs/AddEntryButton'
+import DeleteGoalButton from '@/components/okrs/DeleteGoalButton'
 import type { Okr, PerformancePeriod } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -71,16 +72,19 @@ export default async function OkrsPage() {
           </div>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-4">
           {activeOkrs.map(okr => (
-            <Link key={okr.id} href={`/okrs/${okr.id}`}>
-              <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 hover:bg-lr-surface transition-colors cursor-pointer shadow-[var(--shadow-lr-card)]">
+            <div key={okr.id} className="group flex items-start gap-3 rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 hover:bg-lr-surface transition-colors shadow-[var(--shadow-lr-card)]">
+              <Link href={`/okrs/${okr.id}`} className="flex-1 min-w-0">
                 <h3 className="text-card-title">{okr.title}</h3>
                 {okr.description && (
                   <p className="text-body text-lr-muted mt-1 line-clamp-2">{okr.description}</p>
                 )}
+              </Link>
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <DeleteGoalButton okrId={okr.id} iconOnly />
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}

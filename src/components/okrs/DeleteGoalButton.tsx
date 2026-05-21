@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Trash2 } from 'lucide-react'
 import { deleteOkr } from '@/lib/actions/okr-actions'
 
-export default function DeleteGoalButton({ okrId }: { okrId: string }) {
+export default function DeleteGoalButton({ okrId, iconOnly = false }: { okrId: string; iconOnly?: boolean }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -22,6 +22,20 @@ export default function DeleteGoalButton({ okrId }: { okrId: string }) {
         router.push('/okrs')
       }
     })
+  }
+
+  if (iconOnly) {
+    return (
+      <button
+        type="button"
+        onClick={handleDelete}
+        disabled={isPending}
+        aria-label="Delete goal"
+        className="p-1.5 rounded text-lr-muted hover:text-lr-error hover:bg-lr-error/10 transition-colors disabled:opacity-50"
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    )
   }
 
   return (
