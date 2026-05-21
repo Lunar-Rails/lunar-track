@@ -90,6 +90,7 @@ export default async function DashboardPage() {
         .select('id, title, status')
         .eq('employee_id', user.id)
         .eq('period_id', openPeriod.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: true }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any)

@@ -172,6 +172,27 @@ export async function updateOkr(formData: FormData): Promise<ActionResult> {
   return { success: true }
 }
 
+export async function deleteOkr(formData: FormData): Promise<ActionResult> {
+  const supabase = await createClient()
+  const caller = await getCallerProfile(supabase)
+  if (!caller) return { error: 'Not authenticated' }
+
+  const okrId = formData.get('okrId') as string
+  if (!okrId) return { error: 'Missing OKR id' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: okrRaw } = await (supabase as any).from('okrs').select('employee_id').eq('id', okrId).single()
+  const okr = okrRaw as { employee_id: string } | null
+  if (!okr || okr.employee_id !== caller.id) return { error: 'OKR not found' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any).from('okrs').update({ deleted_at: new Date().toISOString() }).eq('id', okrId)
+
+  revalidatePath('/okrs')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
 export async function transitionOkrStatus(formData: FormData): Promise<ActionResult> {
   const supabase = await createClient()
   const caller = await getCallerProfile(supabase)
