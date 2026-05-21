@@ -102,7 +102,61 @@ LunarTrack is an internal performance management tool for BCOMM employees. It en
 <!-- GSD:conventions-start source:CONVENTIONS.md -->
 ## Conventions
 
-Conventions not yet established. Will populate as patterns emerge during development.
+### Check-in v2 Model
+
+#### Monthly Check-in (two-section layout)
+
+**Section 1 — Review**
+- `mits: ReviewMit[]` — carried from prior month's `next_mits` (or quarterly `next_quarter_mits` for the first month of a quarter). Each MIT has: `title`, `description`, `okr_id | null`, `okr_label | null`, `status: 'achieved' | 'not_achieved'`.
+- Employee can add extra MITs with the "+ Add MIT" button.
+- `done_well: string` and `do_differently: string` — free-text fields.
+
+**Section 2 — Next Month**
+- `next_mits: PlanMit[]` — MITs the employee plans for the coming month. Each MIT has: `title`, `description`, `okr_id | null`, `okr_label | null` (no status).
+- OKR link dropdown shows the employee's active quarterly OKRs plus "Unrelated to quarterly OKRs" option.
+- **Auto-carry:** on submit, `next_mits` are written as `mits` (status `not_achieved`) into the following month's check-in draft.
+
+**Key types:**
+```typescript
+interface ReviewMit { title: string; description: string; okr_id: string | null; okr_label: string | null; status: 'achieved' | 'not_achieved' }
+interface PlanMit    { title: string; description: string; okr_id: string | null; okr_label: string | null }
+```
+
+**Key components:** `MitReviewList` (achieved/not-achieved toggle pills, stacked vertically), `MitPlanList` (OKR link dropdown, always opens downward).
+
+---
+
+#### Quarterly Check-in (two-section layout)
+
+**Section 1 — Review**
+- `goals: QuarterlyGoalReview[]` — carried from previous quarter's `next_quarter_goals`. Each goal: `id`, `title`, `description`, `status: 'achieved' | 'not_achieved' | null`.
+- Done well / Done differently — read-only panel auto-aggregated from the 3 monthly check-ins of the quarter (`MonthlyDoneWellSummary` component, labelled by month).
+- `value_assessments: ValueAssessment[]` — employee selects which company values they demonstrated (chip multi-select) and writes a short description per value. No numeric rating.
+
+**Section 2 — Next Quarter**
+- `next_quarter_goals: QuarterlyGoal[]` — simple goals (no OKR system), each with `id` (uuid), `title`, `description`.
+- `next_quarter_mits: PlanMit[]` — MITs for the first month of the new quarter. OKR link dropdown is populated from `next_quarter_goals` (not the OKR table).
+- **Auto-carry:** on submit, `next_quarter_goals` seeds next quarter's `goals`; `next_quarter_mits` seeds the first monthly check-in of the new quarter.
+
+**Key types:**
+```typescript
+interface QuarterlyGoal       { id: string; title: string; description: string }
+interface QuarterlyGoalReview { id: string; title: string; description: string; status: 'achieved' | 'not_achieved' | null }
+interface ValueAssessment     { value_id: string; value_name: string; description: string }
+```
+
+**Key components:** `GoalAchievementList`, `MonthlyDoneWellSummary`, `ValueChipSelector`, `MitPlanList` (goal link).
+
+---
+
+#### Dropdown UI conventions
+- All `SelectContent` must use `side="bottom" position="popper" sideOffset={4}` to force downward opening.
+- Background override: `className="bg-[#13111f] border border-white/10 shadow-2xl backdrop-blur-none"` — the glass design system's `bg-popover` token is semi-transparent and blends with the page.
+- Items use `pl-3 pr-8` padding for left-aligned text.
+
+#### Forms
+- Monthly and quarterly employee check-in forms use plain `useState` (not React Hook Form) — the MIT list is a controlled array of objects, which RHF's field-array API handles poorly with nested nullable fields.
+- Server Actions receive MIT arrays as JSON-stringified form fields (`review_mits`, `next_mits`, etc.) and parse them with Zod.
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->

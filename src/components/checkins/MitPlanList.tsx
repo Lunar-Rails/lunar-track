@@ -72,12 +72,12 @@ export default function MitPlanList({
                     side="bottom"
                     position="popper"
                     sideOffset={4}
-                    className="bg-[#13111f] border border-white/10 shadow-2xl backdrop-blur-none"
+                    className="bg-[#13111f] border border-white/10 shadow-2xl backdrop-blur-none min-w-[var(--radix-select-trigger-width)]"
                   >
                     {linkOptions.map((opt) => (
-                      <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>
+                      <SelectItem key={opt.id} value={opt.id} className="text-lr-text text-sm py-2.5 pl-3 pr-8 cursor-pointer">{opt.label}</SelectItem>
                     ))}
-                    <SelectItem value={UNRELATED}><span className="text-lr-muted italic">{noLinkLabel}</span></SelectItem>
+                    <SelectItem value={UNRELATED} className="text-sm py-2.5 pl-3 pr-8 cursor-pointer"><span className="text-lr-muted italic">{noLinkLabel}</span></SelectItem>
                   </SelectContent>
                 </Select>
               </div>
