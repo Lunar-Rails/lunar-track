@@ -3,27 +3,75 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { KrStatusPill } from '@/components/okrs/OkrProgressControls'
 import { format } from 'date-fns'
-import type { Checkin, Initiative, KeyResult, Okr, PerformancePeriod, Profile, SubordinateRow, QuarterlyScore } from '@/lib/types/database'
+import type {
+  Checkin,
+  Initiative,
+  KeyResult,
+  Okr,
+  PerformancePeriod,
+  PeriodStatus,
+  Profile,
+  QuarterlyCheckin,
+  QuarterlyScore,
+  SubordinateRow,
+} from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
 function getInitials(name: string | null, email: string): string {
   if (name) return name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
   return email.slice(0, 2).toUpperCase()
 }
 
-const OKR_STATUS_BADGE: Record<string, string> = {
-  DRAFT: 'bg-lr-surface text-lr-muted border-lr-border',
-  PENDING_REVIEW: 'bg-lr-gold-dim text-lr-gold border-lr-gold/20',
-  APPROVED: 'bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20',
-  REVISION_REQUESTED: 'bg-red-500/10 text-red-400 border-red-500/20',
+type PipStatus = 'done' | 'late' | 'pending' | 'future'
+
+function Pip({ label, status }: { label: string; status: PipStatus }) {
+  const cls =
+    status === 'done' ? 'bg-green-500/15 text-green-400 border-green-500/25' :
+    status === 'late' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+    status === 'future' ? 'bg-lr-surface/40 text-lr-muted/40 border-lr-border/30' :
+    'bg-lr-surface text-lr-muted border-lr-border'
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none ${cls}`}>
+      {label}
+    </span>
+  )
 }
 
-type CheckinWithPeriod = Checkin & { period: Pick<PerformancePeriod, 'id' | 'name'> }
+type OkrWithProgress = Okr & {
+  key_results: (KeyResult & { initiatives: Initiative[] })[]
+}
+
+function quarterMonths(quarter: number): number[] {
+  return [1, 2, 3].map((i) => (quarter - 1) * 3 + i)
+}
+
+function monthPipStatus(
+  checkin: Checkin | undefined,
+  month: number,
+  periodStatus: PeriodStatus,
+  periodYear: number,
+  currentYear: number,
+  currentMonth: number,
+): PipStatus {
+  if (checkin?.employee_submitted_at) return 'done'
+  if (periodStatus === 'closed') return 'late'
+  // Open period
+  if (periodYear < currentYear) return 'late'
+  if (periodYear > currentYear) return 'future'
+  if (month > currentMonth) return 'future'
+  if (month < currentMonth) return 'late'
+  return 'pending'
+}
+
+function quarterlyPipStatus(qCheckin: QuarterlyCheckin | undefined, periodStatus: PeriodStatus): PipStatus {
+  if (qCheckin?.employee_submitted_at) return 'done'
+  if (periodStatus === 'closed') return 'late'
+  return 'pending'
+}
 
 export default async function TeamMemberPage({
   params,
@@ -35,91 +83,89 @@ export default async function TeamMemberPage({
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Verify caller is manager/HR_ADMIN
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: callerRaw } = await (supabase as any)
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+    .from('profiles').select('role').eq('id', user.id).single()
   const caller = callerRaw as Pick<Profile, 'role'> | null
-  if (!caller || (caller.role !== 'MANAGER' && caller.role !== 'HR_ADMIN')) {
-    redirect('/dashboard')
-  }
+  if (!caller || (caller.role !== 'MANAGER' && caller.role !== 'HR_ADMIN')) redirect('/dashboard')
 
-  // Verify employeeId is actually a subordinate
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: subsRaw } = await (supabase as any).rpc('get_subordinates', { manager_uuid: user.id })
   const subIds = new Set(((subsRaw ?? []) as SubordinateRow[]).map((s) => s.id))
   if (!subIds.has(employeeId)) notFound()
 
-  // Fetch employee profile
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: employeeRaw } = await (supabase as any)
-    .from('profiles')
-    .select('*')
-    .eq('id', employeeId)
-    .single()
+    .from('profiles').select('*').eq('id', employeeId).single()
   const employee = employeeRaw as Profile | null
   if (!employee) notFound()
 
-  // Fetch employee's OKRs (all time) with KRs + initiatives for progress
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: okrsRaw } = await (supabase as any)
-    .from('okrs')
-    .select('*, period:performance_periods!period_id(id,name,status), key_results(*, initiatives(*))')
-    .eq('employee_id', employeeId)
-    .order('created_at', { ascending: false })
-  type OkrWithProgress = Okr & {
-    period: Pick<PerformancePeriod, 'id' | 'name'> & { status: PerformancePeriod['status'] }
-    key_results: (KeyResult & { initiatives: Initiative[] })[]
-  }
-  const okrs = (okrsRaw ?? []) as OkrWithProgress[]
-  // Sort children
-  okrs.forEach((o) => {
+  // Fetch all data in parallel
+  const [periodsResult, checkinsResult, qCheckinsResult, scoresResult, okrsResult] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('performance_periods').select('*')
+      .order('year', { ascending: false }).order('quarter', { ascending: false }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('checkins').select('*').eq('employee_id', employeeId),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('quarterly_checkins').select('*').eq('employee_id', employeeId),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('quarterly_scores').select('*').eq('employee_id', employeeId),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('okrs').select('*, key_results(*, initiatives(*))').eq('employee_id', employeeId),
+  ])
+
+  const allPeriods = (periodsResult.data ?? []) as PerformancePeriod[]
+  const allCheckins = (checkinsResult.data ?? []) as Checkin[]
+  const allQCheckins = (qCheckinsResult.data ?? []) as QuarterlyCheckin[]
+  const allScores = (scoresResult.data ?? []) as QuarterlyScore[]
+  const allOkrs = (okrsResult.data ?? []) as OkrWithProgress[]
+
+  // Sort OKR children
+  allOkrs.forEach((o) => {
     o.key_results = [...(o.key_results ?? [])].sort((a, b) => a.sort_order - b.sort_order)
     o.key_results.forEach((kr) => {
       kr.initiatives = [...(kr.initiatives ?? [])].sort((a, b) => a.sort_order - b.sort_order)
     })
   })
 
-  // Fetch employee's submitted check-ins (manager can only see submitted ones via RLS)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: checkinsRaw } = await (supabase as any)
-    .from('checkins')
-    .select('*, period:performance_periods!period_id(id,name)')
-    .eq('employee_id', employeeId)
-    .order('year', { ascending: false })
-    .order('month', { ascending: false })
-  const checkins = (checkinsRaw ?? []) as CheckinWithPeriod[]
+  // Build lookup maps
+  const checkinByPeriodMonth = new Map<string, Checkin>()
+  for (const c of allCheckins) checkinByPeriodMonth.set(`${c.period_id}-${c.month}`, c)
 
-  // Fetch open periods for quick action links
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: openPeriodsRaw } = await (supabase as any)
-    .from('performance_periods')
-    .select('id, name, year, quarter')
-    .eq('status', 'open')
-    .order('year', { ascending: false })
-    .order('quarter', { ascending: false })
-  const openPeriods = (openPeriodsRaw ?? []) as Pick<PerformancePeriod, 'id' | 'name' | 'year' | 'quarter'>[]
+  const qCheckinByPeriod = new Map<string, QuarterlyCheckin>()
+  for (const q of allQCheckins) qCheckinByPeriod.set(q.period_id, q)
 
-  // Fetch existing quarterly scores for this employee
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: qscoresRaw } = await (supabase as any)
-    .from('quarterly_scores')
-    .select('period_id')
-    .eq('employee_id', employeeId)
-  const scoredPeriodIds = new Set(((qscoresRaw ?? []) as Pick<QuarterlyScore, 'period_id'>[]).map((s) => s.period_id))
+  const scoreByPeriod = new Map<string, QuarterlyScore>()
+  for (const s of allScores) scoreByPeriod.set(s.period_id, s)
+
+  const okrsByPeriod = new Map<string, OkrWithProgress[]>()
+  for (const o of allOkrs) {
+    if (!okrsByPeriod.has(o.period_id)) okrsByPeriod.set(o.period_id, [])
+    okrsByPeriod.get(o.period_id)!.push(o)
+  }
+
+  // Only show periods that are open OR have some activity
+  const activePeriodIds = new Set([
+    ...allCheckins.map((c) => c.period_id),
+    ...allQCheckins.map((q) => q.period_id),
+    ...allScores.map((s) => s.period_id),
+    ...allOkrs.map((o) => o.period_id),
+  ])
+  const periods = allPeriods.filter((p) => p.status === 'open' || activePeriodIds.has(p.id))
+
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
 
   return (
-    <div className="space-y-8 max-w-3xl">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/team" className="text-sm text-lr-muted hover:text-lr-text transition-colors">
-          ← Team
-        </Link>
-      </div>
+    <div className="space-y-6 max-w-3xl">
+      {/* Back nav */}
+      <Link href="/team" className="inline-block text-sm text-lr-muted hover:text-lr-text transition-colors">
+        ← Team
+      </Link>
 
+      {/* Employee header */}
       <div className="flex items-center gap-4">
         <Avatar className="h-14 w-14">
           <AvatarImage src={employee.avatar_url ?? undefined} />
@@ -136,132 +182,181 @@ export default async function TeamMemberPage({
         </div>
       </div>
 
-      {/* Quick actions for open periods */}
-      {openPeriods.length > 0 && (
-        <section>
-          <h2 className="text-card-title mb-3">Performance Actions</h2>
-          <div className="space-y-2">
-            {openPeriods.map((period) => (
-              <div key={period.id} className="flex items-center justify-between gap-4 rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface p-3">
-                <span className="text-sm text-lr-text">{period.name}</span>
-                <div className="flex gap-2">
-                  <Link
-                    href={`/scoring/${employeeId}/${period.id}`}
-                    className={`text-xs rounded-[var(--radius-lr)] border px-3 py-1.5 transition-colors ${
-                      scoredPeriodIds.has(period.id)
-                        ? 'border-lr-cyan/20 bg-lr-cyan-dim text-lr-cyan hover:bg-lr-cyan/20'
-                        : 'border-lr-accent/20 bg-lr-accent-dim text-lr-accent hover:bg-lr-accent/20'
-                    }`}
-                  >
-                    {scoredPeriodIds.has(period.id) ? 'Edit Score' : 'Score'}
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-          {/* Annual score link */}
-          <Link
-            href={`/annual-scores/${employeeId}?year=${new Date().getFullYear()}`}
-            className="mt-2 inline-block text-xs text-lr-muted hover:text-lr-text transition-colors"
-          >
-            → Finalize {new Date().getFullYear()} Annual Score
-          </Link>
-        </section>
+      {periods.length === 0 && (
+        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass p-12 text-center">
+          <p className="text-body text-lr-muted">No performance data yet.</p>
+        </div>
       )}
 
-      {/* OKRs */}
-      <section>
-        <h2 className="text-card-title mb-4">Goals</h2>
-        {okrs.length === 0 ? (
-          <p className="text-body text-lr-muted">No Goals yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {okrs.map((okr) => {
-              const allInitiatives = okr.key_results.flatMap((kr) => kr.initiatives)
-              const total = allInitiatives.length
-              const done = allInitiatives.filter((i) => i.completed).length
-              const pct = total > 0 ? Math.round((done / total) * 100) : 0
-              const showProgress = okr.status === 'APPROVED' && okr.period.status === 'open'
-              return (
-                <Link key={okr.id} href={`/okrs/${okr.id}`}>
-                  <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-4 hover:bg-lr-surface transition-colors cursor-pointer">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-caption text-lr-muted">{okr.period.name}</p>
-                        <p className="text-sm font-medium text-lr-text mt-0.5">{okr.title}</p>
-                      </div>
-                      <Badge variant="outline" className={`text-xs shrink-0 ${OKR_STATUS_BADGE[okr.status] ?? ''}`}>
-                        {okr.status.replace('_', ' ')}
-                      </Badge>
-                    </div>
+      {/* Quarter cards — newest first */}
+      {periods.map((period) => {
+        const isOpen = period.status === 'open'
+        const months = quarterMonths(period.quarter)
+        const qCheckin = qCheckinByPeriod.get(period.id)
+        const score = scoreByPeriod.get(period.id)
+        const periodOkrs = okrsByPeriod.get(period.id) ?? []
+        const approvedOkrs = periodOkrs.filter((o) => o.status === 'APPROVED')
 
-                    {showProgress && total > 0 && (
-                      <div className="mt-3 space-y-2 border-t border-lr-border pt-3">
-                        <div className="flex items-center justify-between">
-                          <p className="text-caption text-lr-muted">
-                            {done}/{total} initiatives done
-                          </p>
-                          <p className="text-caption text-lr-muted">{pct}%</p>
+        // Latest submitted monthly check-in for MIT preview
+        const latestSubmitted = months
+          .map((m) => checkinByPeriodMonth.get(`${period.id}-${m}`))
+          .filter((c): c is Checkin => !!c?.employee_submitted_at)
+          .at(-1)
+        const latestMits = (latestSubmitted?.mits ?? []).filter((m) => m.title.trim())
+
+        return (
+          <section
+            key={period.id}
+            className={`rounded-[var(--radius-lr-lg)] border bg-lr-glass backdrop-blur-[8px] overflow-hidden ${
+              isOpen ? 'border-lr-accent/30' : 'border-lr-border'
+            }`}
+          >
+            {/* Period header */}
+            <div className={`flex items-center justify-between gap-4 px-5 py-4 border-b ${
+              isOpen ? 'bg-lr-accent-dim/20 border-lr-accent/20' : 'bg-lr-surface/40 border-lr-border'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-card-title">{period.name}</h2>
+                {isOpen && (
+                  <Badge variant="outline" className="text-[10px] bg-lr-accent-dim text-lr-accent border-lr-accent/20">
+                    Current
+                  </Badge>
+                )}
+              </div>
+
+              {/* Score summary or CTA */}
+              {score ? (
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-xs text-lr-muted">PM <span className="font-bold text-lr-accent">{score.professional_mastery ?? '—'}</span></span>
+                  <span className="text-xs text-lr-muted">Goals <span className="font-bold text-lr-accent">{score.okrs_stretch_goals ?? '—'}</span></span>
+                  <span className="text-xs text-lr-muted">B&amp;V <span className="font-bold text-lr-accent">{score.behaviours_values ?? '—'}</span></span>
+                  <Link
+                    href={`/scoring/${employeeId}/${period.id}`}
+                    className="text-xs text-lr-accent hover:text-lr-accent/80 transition-colors"
+                  >
+                    Edit →
+                  </Link>
+                </div>
+              ) : (
+                <Link
+                  href={`/scoring/${employeeId}/${period.id}`}
+                  className="text-xs shrink-0 rounded-[var(--radius-lr)] border border-lr-accent/20 bg-lr-accent-dim text-lr-accent px-3 py-1.5 hover:bg-lr-accent/20 transition-colors"
+                >
+                  Score →
+                </Link>
+              )}
+            </div>
+
+            <div className="px-5 py-4 space-y-4">
+              {/* Check-in pips + quarterly link */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {months.map((m) => {
+                  const checkin = checkinByPeriodMonth.get(`${period.id}-${m}`)
+                  return (
+                    <Pip
+                      key={m}
+                      label={MONTH_NAMES[m - 1]}
+                      status={monthPipStatus(checkin, m, period.status, period.year, currentYear, currentMonth)}
+                    />
+                  )
+                })}
+                <span className="w-px h-3 bg-lr-border mx-0.5" />
+                <Pip
+                  label={`Q${period.quarter}`}
+                  status={quarterlyPipStatus(qCheckin, period.status)}
+                />
+                {qCheckin ? (
+                  <Link
+                    href={`/quarterly-checkins/${qCheckin.id}`}
+                    className="text-[11px] text-lr-muted hover:text-lr-text transition-colors ml-1"
+                  >
+                    View quarterly →
+                  </Link>
+                ) : isOpen ? (
+                  <span className="text-[11px] text-lr-muted/50 ml-1">Quarterly not started</span>
+                ) : null}
+              </div>
+
+              {/* Goal progress bars */}
+              {approvedOkrs.length > 0 && (
+                <div className="space-y-2.5">
+                  {approvedOkrs.map((okr) => {
+                    const inits = okr.key_results.flatMap((kr) => kr.initiatives)
+                    const done = inits.filter((i) => i.completed).length
+                    const pct = inits.length > 0 ? Math.round((done / inits.length) * 100) : 0
+                    return (
+                      <div key={okr.id}>
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-xs text-lr-text truncate flex-1 min-w-0 mr-3">{okr.title}</p>
+                          <span className="text-[10px] text-lr-muted shrink-0">{done}/{inits.length}</span>
                         </div>
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-lr-surface">
-                          <div
-                            className="h-full bg-lr-accent transition-all"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        {okr.key_results.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            {okr.key_results.map((kr, ki) => (
-                              <div key={kr.id} className="flex items-center gap-1">
-                                <span className="text-xs font-mono text-lr-accent">KR{ki + 1}</span>
-                                <KrStatusPill status={kr.progress_status} />
-                              </div>
-                            ))}
+                        {inits.length > 0 && (
+                          <div className="h-1 w-full overflow-hidden rounded-full bg-lr-surface">
+                            <div className="h-full bg-lr-accent transition-all" style={{ width: `${pct}%` }} />
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* Check-ins */}
-      <section>
-        <h2 className="text-card-title mb-4">Check-ins</h2>
-        {checkins.length === 0 ? (
-          <p className="text-body text-lr-muted">No submitted check-ins yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {checkins.map((checkin) => (
-              <Link key={checkin.id} href={`/checkins/${checkin.id}`}>
-                <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-4 hover:bg-lr-surface transition-colors cursor-pointer">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-lr-text">
-                        {MONTH_NAMES[checkin.month - 1]} {checkin.year}
-                      </p>
-                      <p className="text-caption text-lr-muted">{checkin.period.name}</p>
-                    </div>
-                    {checkin.manager_submitted_at ? (
-                      <Badge variant="outline" className="text-xs bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20">
-                        Complete
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-xs bg-lr-gold-dim text-lr-gold border-lr-gold/20">
-                        Needs Review
-                      </Badge>
-                    )}
-                  </div>
+                    )
+                  })}
                 </div>
-              </Link>
-            ))}
-          </div>
-        )}
-      </section>
+              )}
+
+              {/* Latest MITs preview */}
+              {latestMits.length > 0 && (
+                <div className="rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface/40 p-3 space-y-1.5">
+                  <p className="text-[10px] font-semibold text-lr-muted uppercase tracking-wide">
+                    MITs — {MONTH_NAMES[latestSubmitted!.month - 1]}
+                  </p>
+                  {latestMits.slice(0, 3).map((mit, i) => (
+                    <div key={i} className="flex items-start gap-2">
+                      <span className={`mt-1 h-1.5 w-1.5 rounded-full shrink-0 ${
+                        mit.status === 'achieved' ? 'bg-green-400' : 'bg-red-400/70'
+                      }`} />
+                      <p className="text-xs text-lr-text leading-snug">{mit.title}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Monthly check-in links */}
+              {months.some((m) => checkinByPeriodMonth.has(`${period.id}-${m}`)) && (
+                <div className="space-y-1">
+                  {months.map((m) => {
+                    const checkin = checkinByPeriodMonth.get(`${period.id}-${m}`)
+                    if (!checkin) return null
+                    return (
+                      <Link
+                        key={m}
+                        href={`/checkins/${checkin.id}`}
+                        className="flex items-center justify-between rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface/30 px-3 py-2 hover:bg-lr-surface transition-colors"
+                      >
+                        <span className="text-xs text-lr-text">{MONTH_NAMES[m - 1]} check-in</span>
+                        {checkin.manager_submitted_at ? (
+                          <Badge variant="outline" className="text-[10px] bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20">Complete</Badge>
+                        ) : checkin.employee_submitted_at ? (
+                          <Badge variant="outline" className="text-[10px] bg-lr-gold-dim text-lr-gold border-lr-gold/20">Needs review</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] bg-lr-surface text-lr-muted border-lr-border">Draft</Badge>
+                        )}
+                      </Link>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+        )
+      })}
+
+      {/* Annual score link */}
+      <div className="pt-2 text-center">
+        <Link
+          href={`/annual-scores/${employeeId}?year=${currentYear}`}
+          className="text-xs text-lr-muted hover:text-lr-text transition-colors"
+        >
+          → Finalize {currentYear} Annual Score
+        </Link>
+      </div>
     </div>
   )
 }
