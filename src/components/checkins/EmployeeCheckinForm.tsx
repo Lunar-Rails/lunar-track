@@ -105,7 +105,7 @@ export default function EmployeeCheckinForm({
       <section className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-5">
         <h3 className="text-card-title text-lr-accent">Review</h3>
         <div className="space-y-2">
-          <p className="text-section-label">MITs — Last Month</p>
+          <p className="text-section-label">What We Committed Last Month</p>
           <MitReviewList value={reviewMits} onChange={setReviewMits} disabled={readOnly || isPending} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
