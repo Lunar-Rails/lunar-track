@@ -230,6 +230,7 @@ export async function upsertQuarterlyCheckinManager(formData: FormData): Promise
     mgr_css_feedback: z.string().max(3000).optional(),
     mgr_adjustments_notes: z.string().max(3000).optional(),
     mgr_support_plan: z.string().max(3000).optional(),
+    mgr_private_note: z.string().max(3000).optional(),
     submit: z.string().optional(),
   })
 
@@ -239,6 +240,7 @@ export async function upsertQuarterlyCheckinManager(formData: FormData): Promise
     mgr_css_feedback: formData.get('mgr_css_feedback') || undefined,
     mgr_adjustments_notes: formData.get('mgr_adjustments_notes') || undefined,
     mgr_support_plan: formData.get('mgr_support_plan') || undefined,
+    mgr_private_note: formData.get('mgr_private_note') || undefined,
     submit: formData.get('submit') || undefined,
   })
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
@@ -276,6 +278,9 @@ export async function upsertQuarterlyCheckinManager(formData: FormData): Promise
     mgr_adjustments_notes: parsed.data.mgr_adjustments_notes ?? null,
     mgr_support_plan: parsed.data.mgr_support_plan ?? null,
     updated_at: new Date().toISOString(),
+  }
+  if (formData.get('mgr_private_note') !== null) {
+    update.mgr_private_note = (formData.get('mgr_private_note') as string) || null
   }
   if (isSubmit) update.manager_submitted_at = new Date().toISOString()
 
