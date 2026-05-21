@@ -14,6 +14,7 @@ import type {
   Okr,
   QuarterlyCheckin,
   QuarterlyScore,
+  ValueAssessment,
   ValueSelfAssessment,
 } from '@/lib/types/database'
 
@@ -151,10 +152,17 @@ export default function QuarterlyScoringForm({
   const [pmNotes, setPmNotes] = useState(existing?.professional_mastery_notes ?? '')
   const [okrNotes, setOkrNotes] = useState(existing?.okrs_stretch_goals_notes ?? '')
   const [bvNotes, setBvNotes] = useState(existing?.behaviours_values_notes ?? '')
+  const [aiBuilderActive, setAiBuilderActive] = useState<boolean>(
+    employeeQuarterlyCheckin?.ai_builder_active ?? false
+  )
 
   function onSave() {
     setError(null)
     setSaved(false)
+    if (!aiBuilderActive && behavioursValues > 4) {
+      setError('Behaviours/Values score cannot exceed 4 when AI Builder is not active this quarter.')
+      return
+    }
     startTransition(async () => {
       const fd = new FormData()
       fd.append('employeeId', employeeId)
@@ -165,7 +173,7 @@ export default function QuarterlyScoringForm({
       if (pmNotes) fd.append('professional_mastery_notes', pmNotes)
       if (okrNotes) fd.append('okrs_stretch_goals_notes', okrNotes)
       if (bvNotes) fd.append('behaviours_values_notes', bvNotes)
-      fd.append('ai_builder_active', 'false')
+      fd.append('ai_builder_active', String(aiBuilderActive))
       fd.append('value_ratings', JSON.stringify([]))
       const result = await upsertQuarterlyScore(fd)
       if ('error' in result) setError(result.error)
@@ -178,10 +186,36 @@ export default function QuarterlyScoringForm({
 
   const submittedCheckins = checkins.filter((c) => c.employee_submitted_at)
   const qGoals = (employeeQuarterlyCheckin?.goals as QuarterlyGoalReview[] | null | undefined) ?? []
+  const valueAssessments = (employeeQuarterlyCheckin?.value_assessments as ValueAssessment[] | null | undefined) ?? []
   const valueSelfAssessments = (employeeQuarterlyCheckin?.value_self_assessments as ValueSelfAssessment[] | null | undefined) ?? []
+  const empAiDescription = employeeQuarterlyCheckin?.ai_builder_description
 
   return (
     <div className="space-y-6">
+      {/* AI Builder toggle */}
+      <div className="flex items-start gap-3 rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface p-4">
+        <input
+          type="checkbox"
+          id="ai_builder_active"
+          checked={aiBuilderActive}
+          onChange={(e) => setAiBuilderActive(e.target.checked)}
+          disabled={isPending}
+          className="mt-0.5 h-4 w-4 accent-[#7c5cfc]"
+        />
+        <div className="space-y-0.5">
+          <Label htmlFor="ai_builder_active" className="text-sm text-lr-text font-medium cursor-pointer">
+            AI Builder active this quarter
+          </Label>
+          {!aiBuilderActive ? (
+            <p className="text-xs text-lr-gold">
+              Note: Behaviours/Values score cannot exceed 4 without an active AI Builder project.
+            </p>
+          ) : empAiDescription ? (
+            <p className="text-xs text-lr-cyan">&ldquo;{empAiDescription}&rdquo;</p>
+          ) : null}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {/* Professional Mastery */}
@@ -284,7 +318,18 @@ export default function QuarterlyScoringForm({
           notesPlaceholder="Notes on Behaviours & Values…"
           disabled={isPending}
         >
-          {valueSelfAssessments.length > 0 ? (
+          {valueAssessments.length > 0 ? (
+            <div className="space-y-2.5">
+              {valueAssessments.map((va, i) => (
+                <div key={i} className="space-y-0.5">
+                  <p className="text-xs font-medium text-lr-text">{va.value_name}</p>
+                  {va.description && (
+                    <p className="text-xs text-lr-muted italic leading-snug">{va.description}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : valueSelfAssessments.length > 0 ? (
             <div className="space-y-2.5">
               {valueSelfAssessments.map((sa) => {
                 const cv = companyValues.find((v) => v.id === sa.value_id)

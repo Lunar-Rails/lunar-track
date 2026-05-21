@@ -65,6 +65,8 @@ export default function QuarterlyCheckinEmployeeForm({
   const [valueAssessments, setValueAssessments] = useState<ValueAssessment[]>(() => initValueAssessments(checkin))
   const [nextGoals, setNextGoals] = useState<QuarterlyGoal[]>(() => initNextGoals(checkin))
   const [nextMits, setNextMits] = useState<PlanMit[]>(() => initNextMits(checkin))
+  const [aiBuilderActive, setAiBuilderActive] = useState<boolean>(checkin?.ai_builder_active ?? false)
+  const [aiBuilderDescription, setAiBuilderDescription] = useState<string>(checkin?.ai_builder_description ?? '')
 
   const goalLinkOptions: LinkOption[] = nextGoals
     .filter((g) => g.title.trim())
@@ -102,6 +104,8 @@ export default function QuarterlyCheckinEmployeeForm({
     fd.append('next_quarter_goals', JSON.stringify(nextGoals.filter((g) => g.title.trim())))
     fd.append('next_quarter_mits', JSON.stringify(nextMits.filter((m) => m.title.trim())))
     fd.append('value_assessments', JSON.stringify(valueAssessments))
+    fd.append('ai_builder_active', String(aiBuilderActive))
+    if (aiBuilderDescription) fd.append('ai_builder_description', aiBuilderDescription)
     if (submit) fd.append('submit', 'true')
     return fd
   }
@@ -209,6 +213,37 @@ export default function QuarterlyCheckinEmployeeForm({
                 <p className="text-xs text-lr-text/50 mt-0.5">Select the values you demonstrated this quarter and describe how</p>
               </div>
               <ValueChipSelector companyValues={companyValues} value={valueAssessments} onChange={setValueAssessments} disabled={readOnly || isPending} />
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-lr-text">AI Builder</p>
+                <p className="text-xs text-lr-text/50 mt-0.5">Did you work on AI-related projects or initiatives this quarter?</p>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="ai_builder_active"
+                    checked={aiBuilderActive}
+                    onChange={(e) => setAiBuilderActive(e.target.checked)}
+                    disabled={readOnly || isPending}
+                    className="h-4 w-4 accent-[#7c5cfc]"
+                  />
+                  <Label htmlFor="ai_builder_active" className="text-sm text-lr-text cursor-pointer">
+                    I worked on AI-related initiatives this quarter
+                  </Label>
+                </div>
+                {aiBuilderActive && (
+                  <Textarea
+                    value={aiBuilderDescription}
+                    onChange={(e) => setAiBuilderDescription(e.target.value)}
+                    disabled={readOnly || isPending}
+                    placeholder="Describe what you built, used, or contributed using AI…"
+                    className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[80px] resize-y"
+                  />
+                )}
+              </div>
             </div>
           </div>
 
