@@ -74,7 +74,7 @@ export default function MitReviewList({ value, onChange, disabled = false }: Mit
                   <Trash2 className="h-4 w-4" />
                 </button>
               )}
-              <div className="flex gap-1.5">
+              <div className="flex flex-col gap-1.5">
                 <button
                   type="button"
                   onClick={() => !disabled && update(index, { status: 'achieved' })}
