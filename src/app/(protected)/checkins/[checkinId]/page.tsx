@@ -104,8 +104,8 @@ export default async function CheckinDetailPage({
           </div>
         </div>
         <ScheduleCallButton
-          title={`Monthly Check-in — ${MONTH_NAMES[checkin.month - 1]} ${checkin.year}`}
-          description={`Monthly performance check-in for ${checkin.period.name}.`}
+          title={`${profile?.full_name ?? 'Monthly'} — Monthly Check-in — ${MONTH_NAMES[checkin.month - 1]} ${checkin.year}`}
+          description={`Monthly performance check-in for ${checkin.period.name}. Review commitments from last month and plan next month's priorities.${process.env.NEXT_PUBLIC_SITE_URL ? `\n\nOpen check-in: ${process.env.NEXT_PUBLIC_SITE_URL}/checkins/${checkin.id}` : ''}`}
           managerEmail={managerEmail}
           recurrenceLabel="Monthly"
           recurrenceRule="RRULE:FREQ=MONTHLY"

@@ -78,7 +78,7 @@ export default async function NewCheckinPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: profileRaw } = await (supabase as any)
     .from('profiles')
-    .select('manager_id')
+    .select('manager_id, full_name')
     .eq('id', user.id)
     .single()
   let managerEmail: string | null = null
@@ -117,8 +117,8 @@ export default async function NewCheckinPage({
         </div>
         <div className="flex items-center gap-2">
           <ScheduleCallButton
-            title={`Monthly Check-in — ${MONTH_NAMES[month - 1]} ${year}`}
-            description={`Monthly performance check-in for ${period.name}. Review commitments from last month and plan next month's priorities.`}
+            title={`${(profileRaw as any)?.full_name ?? 'Monthly'} — Monthly Check-in — ${MONTH_NAMES[month - 1]} ${year}`}
+            description={`Monthly performance check-in for ${period.name}. Review commitments from last month and plan next month's priorities.${process.env.NEXT_PUBLIC_SITE_URL ? `\n\nOpen check-in: ${process.env.NEXT_PUBLIC_SITE_URL}/checkins` : ''}`}
             managerEmail={managerEmail}
             recurrenceLabel="Monthly"
             recurrenceRule="RRULE:FREQ=MONTHLY"

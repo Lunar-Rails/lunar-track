@@ -94,8 +94,8 @@ export default async function QuarterlyCheckinDetailPage({
           </div>
         </div>
         <ScheduleCallButton
-          title={`Q${checkin.period.quarter} ${checkin.period.year} Quarterly Check-in`}
-          description={`Quarterly performance check-in for ${checkin.period.name}. Review goal achievements and plan the quarter ahead.`}
+          title={`${profile?.full_name ?? 'Quarterly'} — Q${checkin.period.quarter} ${checkin.period.year} Quarterly Check-in`}
+          description={`Quarterly performance check-in for ${checkin.period.name}. Review goal achievements, reflect on the quarter, and plan goals for next quarter.${process.env.NEXT_PUBLIC_SITE_URL ? `\n\nOpen check-in: ${process.env.NEXT_PUBLIC_SITE_URL}/quarterly-checkins/${checkin.id}` : ''}`}
           managerEmail={managerEmail}
           recurrenceLabel="Quarterly"
           recurrenceRule="RRULE:FREQ=MONTHLY;INTERVAL=3"

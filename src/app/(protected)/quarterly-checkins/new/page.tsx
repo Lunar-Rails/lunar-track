@@ -19,10 +19,10 @@ export default async function NewQuarterlyCheckinPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: profileRaw } = await (supabase as any)
     .from('profiles')
-    .select('id, manager_id')
+    .select('id, manager_id, full_name')
     .eq('id', user.id)
     .single()
-  const profile = profileRaw as { id: string; manager_id: string | null } | null
+  const profile = profileRaw as { id: string; manager_id: string | null; full_name: string | null } | null
   if (!profile) redirect('/login')
 
   let managerEmail: string | null = null
@@ -152,8 +152,8 @@ export default async function NewQuarterlyCheckinPage({
           </p>
         </div>
         <ScheduleCallButton
-          title={`Q${period.quarter} ${period.year} Quarterly Check-in`}
-          description={`Quarterly performance check-in for ${period.name}. Review goal achievements, reflect on the quarter, and plan goals for next quarter.`}
+          title={`${profile?.full_name ?? 'Quarterly'} — Q${period.quarter} ${period.year} Quarterly Check-in`}
+          description={`Quarterly performance check-in for ${period.name}. Review goal achievements, reflect on the quarter, and plan goals for next quarter.${process.env.NEXT_PUBLIC_SITE_URL ? `\n\nOpen check-in: ${process.env.NEXT_PUBLIC_SITE_URL}/quarterly-checkins` : ''}`}
           managerEmail={managerEmail}
           recurrenceLabel="Quarterly"
           recurrenceRule="RRULE:FREQ=MONTHLY;INTERVAL=3"
