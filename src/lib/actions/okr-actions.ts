@@ -58,7 +58,7 @@ export async function createOkr(formData: FormData): Promise<ActionResult> {
       period_id: parsed.periodId,
       title: parsed.title,
       description: parsed.description ?? null,
-      status: 'DRAFT',
+      status: 'APPROVED',
     })
     .select('id')
     .single()

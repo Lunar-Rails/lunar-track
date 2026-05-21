@@ -48,7 +48,7 @@ export default async function OkrsPage() {
   const okrs = (okrsRaw ?? []) as Pick<Okr, 'id' | 'title' | 'description' | 'status' | 'manager_comment' | 'created_at'>[]
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-page-title">Goals</h1>

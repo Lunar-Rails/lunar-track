@@ -1,14 +1,8 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import OkrForm from '@/components/okrs/OkrForm'
-import OkrStatusActions from '@/components/okrs/OkrStatusActions'
 import { Badge } from '@/components/ui/badge'
-import {
-  KrStatusPill,
-  KrStatusSelect,
-  InitiativeCheckbox,
-} from '@/components/okrs/OkrProgressControls'
-import type { Okr, KeyResult, Initiative, PerformancePeriod, Profile } from '@/lib/types/database'
+import type { Okr, KeyResult, Initiative, PerformancePeriod } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,29 +40,15 @@ export default async function OkrDetailPage({ params }: { params: Promise<{ okrI
   })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: callerRaw } = await (supabase as any).from('profiles').select('*').eq('id', user.id).single()
-  const caller = callerRaw as Profile
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: periodsRaw } = await (supabase as any).from('performance_periods').select('*')
   const periods = (periodsRaw ?? []) as PerformancePeriod[]
   const period = periods.find(p => p.id === okr.period_id)
 
   const isOwner = okr.employee_id === user.id
-  const canEdit = isOwner && (okr.status === 'DRAFT' || okr.status === 'REVISION_REQUESTED')
-
-  // Only the OKR owner (employee) can update progress.
-  // Managers and HR Admin view progress read-only — they review and score based on what the employee reports.
-  const canEditProgress = okr.status === 'APPROVED' && isOwner
-
-  // Aggregate initiative counts
-  const allInitiatives = okr.key_results.flatMap((kr) => kr.initiatives)
-  const totalInitiatives = allInitiatives.length
-  const doneInitiatives = allInitiatives.filter((i) => i.completed).length
-  const progressPct = totalInitiatives > 0 ? Math.round((doneInitiatives / totalInitiatives) * 100) : 0
+  const canEdit = isOwner
 
   return (
-    <div className="space-y-6 max-w-2xl">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <p className="text-kicker">{period?.name ?? 'Unknown Period'}</p>
@@ -95,73 +75,9 @@ export default async function OkrDetailPage({ params }: { params: Promise<{ okrI
         </div>
       )}
 
-      {/* Progress bar (only when approved so progress is meaningful) */}
-      {okr.status === 'APPROVED' && totalInitiatives > 0 && (
-        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass px-5 py-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-section-label">Progress</p>
-            <p className="text-caption text-lr-muted">
-              {doneInitiatives} of {totalInitiatives} initiatives done · {progressPct}%
-            </p>
-          </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-lr-surface">
-            <div
-              className="h-full bg-lr-accent transition-all"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
-        </div>
-      )}
+      {/* Edit form */}
+      {canEdit && <OkrForm periods={periods} existing={okr} />}
 
-      {/* Edit form or read-only view */}
-      {canEdit ? (
-        <OkrForm periods={periods} existing={okr} />
-      ) : (
-        <div className="space-y-4">
-          {okr.key_results.map((kr, ki) => (
-            <div
-              key={kr.id}
-              className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass overflow-hidden shadow-[var(--shadow-lr-card)]"
-            >
-              {/* KR header */}
-              <div className="flex items-start gap-3 px-5 py-4 bg-lr-surface/60 border-b border-lr-border">
-                <span className="text-xs font-mono font-bold text-lr-accent mt-0.5 shrink-0">KR{ki + 1}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-card-title">{kr.title}</p>
-                </div>
-                <div className="shrink-0">
-                  {canEditProgress ? (
-                    <KrStatusSelect keyResultId={kr.id} status={kr.progress_status} />
-                  ) : (
-                    <KrStatusPill status={kr.progress_status} />
-                  )}
-                </div>
-              </div>
-
-              {/* Initiatives */}
-              {kr.initiatives.length > 0 && (
-                <ul className="divide-y divide-lr-border">
-                  {kr.initiatives.map((init, ii) => (
-                    <li key={init.id} className="flex items-start gap-3 px-5 py-3">
-                      <InitiativeCheckbox
-                        initiativeId={init.id}
-                        completed={init.completed}
-                        disabled={!canEditProgress}
-                      />
-                      <span className="text-section-label mt-0.5 w-5 shrink-0 text-center">{ii + 1}</span>
-                      <p className={`text-body flex-1 ${init.completed ? 'line-through text-lr-muted' : ''}`}>
-                        {init.title}
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-
-      <OkrStatusActions okr={okr} caller={caller} />
     </div>
   )
 }

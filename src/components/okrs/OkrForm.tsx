@@ -53,7 +53,7 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-5 max-w-2xl">
+    <form onSubmit={onSubmit} className="space-y-5">
       <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass p-5 space-y-4">
         <div className="space-y-1.5">
           <label className="text-section-label">Goal</label>
