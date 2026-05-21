@@ -164,7 +164,7 @@ export default function EmployeeCheckinForm({
                 <p className="text-sm font-semibold text-lr-text">What We Committed Last Month</p>
                 <p className="text-xs text-lr-text/50 mt-0.5">Mark each commitment as achieved or not</p>
               </div>
-              <MitReviewList value={reviewMits} onChange={setReviewMits} disabled={readOnly || isPending} />
+              <MitReviewList value={reviewMits} onChange={setReviewMits} linkOptions={okrOptions} disabled={readOnly || isPending} />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1">

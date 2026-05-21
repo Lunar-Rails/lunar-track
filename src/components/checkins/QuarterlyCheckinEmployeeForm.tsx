@@ -3,10 +3,7 @@
 import { useTransition, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Label } from '@/components/ui/label'
-import { Plus, Trash2, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import GoalAchievementList from '@/components/checkins/GoalAchievementList'
 import MonthlyDoneWellSummary, { type MonthlyReflection } from '@/components/checkins/MonthlyDoneWellSummary'
 import MoodTrendSummary, { type MonthlyMood } from '@/components/checkins/MoodTrendSummary'
@@ -16,7 +13,6 @@ import { upsertQuarterlyCheckinEmployee } from '@/lib/actions/quarterly-checkin-
 import type {
   QuarterlyCheckin,
   CompanyValue,
-  QuarterlyGoal,
   QuarterlyGoalReview,
   ValueAssessment,
   PlanMit,
@@ -29,33 +25,30 @@ interface QuarterlyCheckinEmployeeFormProps {
   monthlyReflections: MonthlyReflection[]
   monthlyMoods?: MonthlyMood[]
   initialGoals: QuarterlyGoalReview[]
+  okrOptions: LinkOption[]
   readOnly?: boolean
 }
 
 function initGoals(checkin: QuarterlyCheckin | null, initialGoals: QuarterlyGoalReview[]): QuarterlyGoalReview[] {
-  if (checkin?.goals && checkin.goals.length > 0) return checkin.goals
+  // Prefer the JSONB snapshot (has saved achievement statuses) but fall back to live okrs
+  if (checkin?.goals && checkin.goals.length > 0) return checkin.goals as QuarterlyGoalReview[]
   return initialGoals
 }
 
-function initNextGoals(checkin: QuarterlyCheckin | null): QuarterlyGoal[] {
-  if (checkin?.next_quarter_goals && checkin.next_quarter_goals.length > 0) return checkin.next_quarter_goals
-  return [{ id: crypto.randomUUID(), title: '', description: '' }]
-}
-
 function initNextMits(checkin: QuarterlyCheckin | null): PlanMit[] {
-  if (checkin?.next_quarter_mits && checkin.next_quarter_mits.length > 0) return checkin.next_quarter_mits
+  if (checkin?.next_quarter_mits && checkin.next_quarter_mits.length > 0) return checkin.next_quarter_mits as PlanMit[]
   return [{ title: '', description: '', okr_id: null, okr_label: null }]
 }
 
 function initValueAssessments(checkin: QuarterlyCheckin | null): ValueAssessment[] {
-  if (checkin?.value_assessments && checkin.value_assessments.length > 0) return checkin.value_assessments
+  if (checkin?.value_assessments && checkin.value_assessments.length > 0) return checkin.value_assessments as ValueAssessment[]
   return []
 }
 
 type Step = 'review' | 'plan'
 
 export default function QuarterlyCheckinEmployeeForm({
-  periodId, checkin, companyValues, monthlyReflections, monthlyMoods = [], initialGoals, readOnly = false,
+  periodId, checkin, companyValues, monthlyReflections, monthlyMoods = [], initialGoals, okrOptions, readOnly = false,
 }: QuarterlyCheckinEmployeeFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -65,45 +58,14 @@ export default function QuarterlyCheckinEmployeeForm({
 
   const [goals, setGoals] = useState<QuarterlyGoalReview[]>(() => initGoals(checkin, initialGoals))
   const [valueAssessments, setValueAssessments] = useState<ValueAssessment[]>(() => initValueAssessments(checkin))
-  const [nextGoals, setNextGoals] = useState<QuarterlyGoal[]>(() => initNextGoals(checkin))
   const [nextMits, setNextMits] = useState<PlanMit[]>(() => initNextMits(checkin))
   const [aiBuilderActive, setAiBuilderActive] = useState<boolean>(checkin?.ai_builder_active ?? false)
   const [aiBuilderDescription, setAiBuilderDescription] = useState<string>(checkin?.ai_builder_description ?? '')
-
-  const goalLinkOptions: LinkOption[] = nextGoals
-    .filter((g) => g.title.trim())
-    .map((g) => ({ id: g.id, label: g.title }))
-
-  function addNextGoal() {
-    setNextGoals((prev) => [...prev, { id: crypto.randomUUID(), title: '', description: '' }])
-  }
-
-  function removeNextGoal(index: number) {
-    const removed = nextGoals[index]
-    setNextGoals((prev) => prev.filter((_, i) => i !== index))
-    setNextMits((prev) => prev.map((m) =>
-      m.okr_id === removed.id ? { ...m, okr_id: null, okr_label: null } : m
-    ))
-  }
-
-  function updateNextGoal(index: number, patch: Partial<QuarterlyGoal>) {
-    setNextGoals((prev) => prev.map((g, i) => {
-      if (i !== index) return g
-      const updated = { ...g, ...patch }
-      if (patch.title !== undefined) {
-        setNextMits((mits) => mits.map((m) =>
-          m.okr_id === g.id ? { ...m, okr_label: patch.title! } : m
-        ))
-      }
-      return updated
-    }))
-  }
 
   function buildFormData(submit: boolean): FormData {
     const fd = new FormData()
     fd.append('periodId', periodId)
     fd.append('goals', JSON.stringify(goals))
-    fd.append('next_quarter_goals', JSON.stringify(nextGoals.filter((g) => g.title.trim())))
     fd.append('next_quarter_mits', JSON.stringify(nextMits.filter((m) => m.title.trim())))
     fd.append('value_assessments', JSON.stringify(valueAssessments))
     fd.append('ai_builder_active', String(aiBuilderActive))
@@ -159,7 +121,7 @@ export default function QuarterlyCheckinEmployeeForm({
   return (
     <div className="space-y-6">
       {readOnly && (
-        <div className="max-w-3xl rounded-[var(--radius-lr)] border border-lr-accent/20 bg-lr-accent-dim px-4 py-3 text-sm text-lr-accent">
+        <div className="rounded-[var(--radius-lr)] border border-lr-accent/20 bg-lr-accent-dim px-4 py-3 text-sm text-lr-accent">
           You submitted this check-in. Editing is locked.
         </div>
       )}
@@ -198,7 +160,11 @@ export default function QuarterlyCheckinEmployeeForm({
                 <p className="text-sm font-semibold text-lr-text">Goal Achievements</p>
                 <p className="text-xs text-lr-text/50 mt-0.5">Mark each goal as achieved or not</p>
               </div>
-              <GoalAchievementList value={goals} onChange={setGoals} disabled={readOnly || isPending} />
+              {goals.length === 0 ? (
+                <p className="text-xs text-lr-muted/60 italic">No goals set for this quarter. Add goals in the Goals tab first.</p>
+              ) : (
+                <GoalAchievementList value={goals} onChange={setGoals} disabled={readOnly || isPending} />
+              )}
             </div>
 
             <div className="space-y-3">
@@ -240,17 +206,17 @@ export default function QuarterlyCheckinEmployeeForm({
                     disabled={readOnly || isPending}
                     className="h-4 w-4 accent-[#7c5cfc]"
                   />
-                  <Label htmlFor="ai_builder_active" className="text-sm text-lr-text cursor-pointer">
+                  <label htmlFor="ai_builder_active" className="text-sm text-lr-text cursor-pointer">
                     I worked on AI-related initiatives this quarter
-                  </Label>
+                  </label>
                 </div>
                 {aiBuilderActive && (
-                  <Textarea
+                  <textarea
                     value={aiBuilderDescription}
                     onChange={(e) => setAiBuilderDescription(e.target.value)}
                     disabled={readOnly || isPending}
                     placeholder="Describe what you built, used, or contributed using AI…"
-                    className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[80px] resize-y"
+                    className="w-full bg-lr-surface border border-lr-border text-lr-text text-sm rounded-[var(--radius-lr)] px-3 py-2 min-h-[80px] resize-y focus:outline-none focus:ring-2 focus:ring-lr-accent/50"
                   />
                 )}
               </div>
@@ -274,49 +240,24 @@ export default function QuarterlyCheckinEmployeeForm({
       {/* Next Quarter tab */}
       {step === 'plan' && (
         <div className="space-y-5">
-          <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-6">
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm font-semibold text-lr-text">Goals</p>
-                <p className="text-xs text-lr-text/50 mt-0.5">What do you want to achieve next quarter?</p>
-              </div>
-              <div className="space-y-3">
-                {nextGoals.map((goal, index) => (
-                  <div key={goal.id} className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface p-4 space-y-3">
-                    <div className="flex items-start gap-3">
-                      <div className="flex-1 space-y-3">
-                        <div className="space-y-1">
-                          <Label className="text-caption">Goal</Label>
-                          <Input value={goal.title} onChange={(e) => updateNextGoal(index, { title: e.target.value })} disabled={readOnly || isPending} placeholder="What do you want to achieve next quarter?" className="bg-lr-surface border-lr-border text-lr-text text-sm h-9" />
-                        </div>
-                        <div className="space-y-1">
-                          <Label className="text-caption">Description</Label>
-                          <Textarea value={goal.description} onChange={(e) => updateNextGoal(index, { description: e.target.value })} disabled={readOnly || isPending} placeholder="Brief description or success criteria…" className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[72px] resize-y" />
-                        </div>
-                      </div>
-                      {!readOnly && nextGoals.length > 1 && (
-                        <button type="button" onClick={() => removeNextGoal(index)} className="mt-1 text-lr-muted hover:text-lr-error transition-colors flex-shrink-0" aria-label="Remove goal">
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {!readOnly && (
-                  <Button type="button" variant="outline" size="sm" onClick={addNextGoal} className="w-full gap-1.5 border-lr-accent text-lr-accent hover:bg-lr-accent-dim text-xs">
-                    <Plus className="h-3.5 w-3.5" /> New goal
-                  </Button>
-                )}
-              </div>
+          <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-4">
+            <div>
+              <p className="text-sm font-semibold text-lr-text">Upcoming Month MITs</p>
+              <p className="text-xs text-lr-text/50 mt-0.5">Plan your first MITs for next quarter. These carry over to your first monthly check-in.</p>
             </div>
-
-            <div className="space-y-2">
-              <div>
-                <p className="text-sm font-semibold text-lr-text">Upcoming Month MITs</p>
-                <p className="text-xs text-lr-text/50 mt-0.5">These carry over to the review section of your first monthly check-in next quarter.</p>
+            {okrOptions.length === 0 && (
+              <div className="rounded-[var(--radius-lr)] border border-lr-gold/30 bg-lr-gold-dim px-3 py-2.5">
+                <p className="text-xs text-lr-gold">No goals set yet — add goals in the Goals tab to link them to your MITs.</p>
               </div>
-              <MitPlanList value={nextMits} onChange={setNextMits} linkOptions={goalLinkOptions} linkLabel="Quarterly goal" noLinkLabel="Unrelated to quarterly goals" disabled={readOnly || isPending} />
-            </div>
+            )}
+            <MitPlanList
+              value={nextMits}
+              onChange={setNextMits}
+              linkOptions={okrOptions}
+              linkLabel="Quarterly goal"
+              noLinkLabel="Unrelated to quarterly goals"
+              disabled={readOnly || isPending}
+            />
           </div>
 
           {error && (

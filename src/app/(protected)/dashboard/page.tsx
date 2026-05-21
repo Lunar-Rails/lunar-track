@@ -308,7 +308,7 @@ export default async function DashboardPage() {
             <div className="rounded-[var(--radius-lr)] border border-lr-gold/30 bg-lr-gold-dim p-4 flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-lr-gold">No goals set for {openPeriod.name}</p>
-                <p className="text-xs text-lr-gold/70 mt-0.5">Set your quarterly goals so your manager can review and approve them</p>
+                <p className="text-xs text-lr-gold/70 mt-0.5">Set your quarterly goals for {openPeriod.name}</p>
               </div>
               <Link
                 href="/okrs"
@@ -320,8 +320,7 @@ export default async function DashboardPage() {
           ) : (
             <div className="flex items-center justify-between text-sm">
               <span className="text-lr-muted">
-                {`${myOkrCounts.approved} of ${myOkrCounts.total} goal${myOkrCounts.total !== 1 ? 's' : ''} approved`}
-                {myOkrCounts.pending > 0 && <span className="text-lr-gold ml-1">· {myOkrCounts.pending} pending</span>}
+                {myOkrCounts.total} goal{myOkrCounts.total !== 1 ? 's' : ''} set for {openPeriod.name}
               </span>
               <Link href="/okrs" className="text-xs text-lr-accent hover:underline">View goals →</Link>
             </div>
@@ -411,36 +410,42 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* My Values — sized by personal usage */}
+      {/* My Values — bar-of-squares per value */}
       {companyValues.length > 0 && (
         <div className="rounded-[var(--radius-lr-lg)] overflow-hidden border border-lr-border shadow-[var(--shadow-lr-card)] bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.12),transparent_60%),radial-gradient(ellipse_at_bottom_left,rgba(6,182,212,0.08),transparent_60%)] bg-lr-glass backdrop-blur-[8px]">
-          <div className="px-6 pt-6 pb-2">
+          <div className="px-6 pt-6 pb-4">
             <p className="text-kicker">My Values</p>
           </div>
-          <div className="px-6 pb-7 flex flex-wrap items-end gap-x-5 gap-y-1">
+          <div className="px-6 pb-6 space-y-3">
             {(() => {
+              const TOTAL_SQUARES = 8
               const sorted = [...companyValues].sort((a, b) => (valueUsage.get(b.id) ?? 0) - (valueUsage.get(a.id) ?? 0))
               const maxUse = Math.max(1, ...companyValues.map((v) => valueUsage.get(v.id) ?? 0))
-              const SIZES = ['text-3xl', 'text-4xl', 'text-5xl', 'text-6xl', 'text-7xl'] as const
-              const COLORS = [
-                'text-lr-muted/40',
-                'text-lr-muted/70',
-                'text-lr-text/60',
-                'text-lr-cyan',
-                'text-lr-accent',
-              ] as const
-              const WEIGHTS = ['font-semibold', 'font-bold', 'font-bold', 'font-extrabold', 'font-black'] as const
-              return sorted.map((v, i) => {
+              return sorted.map((v) => {
                 const use = valueUsage.get(v.id) ?? 0
-                const rank = maxUse === 0 ? Math.max(0, 4 - i) : Math.min(4, Math.round((use / maxUse) * 4))
+                const filled = use === 0 ? 0 : Math.max(1, Math.round((use / maxUse) * TOTAL_SQUARES))
                 return (
-                  <span
-                    key={v.id}
-                    title={v.description}
-                    className={`leading-tight cursor-default select-none tracking-tight ${SIZES[rank]} ${COLORS[rank]} ${WEIGHTS[rank]}`}
-                  >
-                    {v.name}
-                  </span>
+                  <div key={v.id} className="flex items-center gap-3">
+                    <span className="text-sm text-lr-text w-36 shrink-0 truncate" title={v.description}>{v.name}</span>
+                    <div className="flex items-center gap-1 flex-1">
+                      {Array.from({ length: TOTAL_SQUARES }).map((_, i) => (
+                        <div
+                          key={i}
+                          className={[
+                            'h-4 flex-1 rounded-[2px] transition-all',
+                            i < filled
+                              ? i >= TOTAL_SQUARES * 0.75
+                                ? 'bg-lr-accent'
+                                : i >= TOTAL_SQUARES * 0.375
+                                  ? 'bg-lr-accent/70'
+                                  : 'bg-lr-accent/40'
+                              : 'bg-lr-border/50',
+                          ].join(' ')}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-xs text-lr-muted w-6 text-right shrink-0">{use > 0 ? `×${use}` : ''}</span>
+                  </div>
                 )
               })
             })()}

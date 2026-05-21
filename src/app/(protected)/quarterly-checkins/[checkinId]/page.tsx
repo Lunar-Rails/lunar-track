@@ -3,7 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import QuarterlyCheckinEmployeeForm from '@/components/checkins/QuarterlyCheckinEmployeeForm'
 import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
-import type { CompanyValue, QuarterlyCheckin, PerformancePeriod, Profile } from '@/lib/types/database'
+import type { CompanyValue, QuarterlyCheckin, PerformancePeriod, Profile, QuarterlyGoalReview } from '@/lib/types/database'
+import type { LinkOption } from '@/components/checkins/MitPlanList'
 import type { MonthlyMood } from '@/components/checkins/MoodTrendSummary'
 
 export const dynamic = 'force-dynamic'
@@ -89,6 +90,35 @@ export default async function QuarterlyCheckinDetailPage({
     managerEmail = mgr?.email ?? null
   }
 
+  // Load goals from okrs table — single source of truth, merge with saved achievement statuses
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: okrsRaw } = await (supabase as any)
+    .from('okrs')
+    .select('id, title, description')
+    .eq('employee_id', checkin.employee_id)
+    .eq('period_id', checkin.period_id)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: true })
+
+  const okrsForPeriod = (okrsRaw ?? []) as { id: string; title: string; description: string | null }[]
+
+  // Merge saved achievement statuses from JSONB with live okrs list
+  const savedGoalStatus = new Map(
+    ((checkin.goals as QuarterlyGoalReview[] | null) ?? []).map((g) => [g.id, g.status])
+  )
+
+  const initialGoals: QuarterlyGoalReview[] = okrsForPeriod.map((o) => ({
+    id: o.id,
+    title: o.title,
+    description: o.description ?? '',
+    status: savedGoalStatus.get(o.id) ?? null,
+  }))
+
+  const okrOptions: LinkOption[] = okrsForPeriod.map((o) => ({
+    id: o.id,
+    label: o.title,
+  }))
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -122,7 +152,8 @@ export default async function QuarterlyCheckinDetailPage({
         companyValues={companyValues}
         monthlyReflections={[]}
         monthlyMoods={monthlyMoods}
-        initialGoals={[]}
+        initialGoals={initialGoals}
+        okrOptions={okrOptions}
         readOnly={!isOwner || employeeSubmitted}
       />
     </div>
