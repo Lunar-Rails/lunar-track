@@ -225,12 +225,15 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
       {/* Table with sticky header */}
       <div className="rounded-[var(--radius-lr-lg)] border border-lr-border overflow-hidden">
         <div className="max-h-[60vh] overflow-y-auto">
-          <Table>
-            <TableHeader className="sticky top-0 z-10">
+          <Table className="border-separate border-spacing-0">
+            <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="border-b border-lr-border hover:bg-transparent">
+                <TableRow key={headerGroup.id} className="hover:bg-transparent">
                   {headerGroup.headers.map((header) => (
-                    <TableHead key={header.id} className="text-section-label bg-lr-surface py-3">
+                    <TableHead
+                      key={header.id}
+                      className="sticky top-0 z-10 text-section-label bg-lr-surface py-3 border-b border-lr-border shadow-[0_1px_0_0_var(--color-lr-border)]"
+                    >
                       {flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   ))}
