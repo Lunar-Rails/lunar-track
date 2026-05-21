@@ -11,6 +11,7 @@ import {
   ClipboardList,
   CalendarCheck,
   Star,
+  BarChart2,
 } from 'lucide-react'
 import type { UserRole } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
@@ -44,6 +45,7 @@ export default function Sidebar({ role }: SidebarProps) {
   ] : []
 
   const adminNav: NavItem[] = role === 'HR_ADMIN' ? [
+    { href: '/analytics', label: 'Analytics', icon: BarChart2 },
     { href: '/admin/users', label: 'Users', icon: UserCog },
     { href: '/admin/values', label: 'Company Values', icon: Star },
   ] : []
