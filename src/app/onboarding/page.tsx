@@ -41,7 +41,7 @@ export default async function OnboardingPage() {
       <div className="w-full max-w-md rounded-[var(--radius-lr-xl)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-8 shadow-[var(--shadow-lr-card)]">
         {/* Header */}
         <div className="mb-8 text-center">
-          <h1 className="text-hero-title mb-1">Welcome to LunarTrack</h1>
+          <h1 className="text-hero-title mb-1">Welcome to CiaoBob</h1>
           <p className="text-body text-lr-muted">Let's get you set up.</p>
         </div>
 

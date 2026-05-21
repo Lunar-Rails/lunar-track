@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import EmployeeCheckinForm from '@/components/checkins/EmployeeCheckinForm'
 import MonthSelector from '@/components/checkins/MonthSelector'
+import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
 import type { PerformancePeriod } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -73,27 +74,69 @@ export default async function NewCheckinPage({
     year = free.year
   }
 
+  // Fetch profile + manager email for calendar invite
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: profileRaw } = await (supabase as any)
+    .from('profiles')
+    .select('manager_id, full_name')
+    .eq('id', user.id)
+    .single()
+  let managerEmail: string | null = null
+  if (profileRaw?.manager_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: mgr } = await (supabase as any)
+      .from('profiles')
+      .select('email')
+      .eq('id', profileRaw.manager_id)
+      .single()
+    managerEmail = mgr?.email ?? null
+  }
+
+  // fetch approved OKRs for okrOptions dropdown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: okrsRaw } = await (supabase as any)
+    .from('okrs')
+    .select('id, title')
+    .eq('employee_id', user.id)
+    .eq('period_id', period.id)
+    .eq('status', 'APPROVED')
+
+  const okrOptions = (okrsRaw ?? []).map((o: { id: string; title: string }) => ({
+    id: o.id,
+    label: o.title,
+  }))
+
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-kicker">{period.name}</p>
           <h1 className="text-page-title mt-1">
             {MONTH_NAMES[month - 1]} {year} Check-in
           </h1>
         </div>
-        <MonthSelector
-          periodId={periodId}
-          selectedMonth={month}
-          selectedYear={year}
-          options={monthOptions}
-        />
+        <div className="flex items-center gap-2">
+          <ScheduleCallButton
+            title={`${(profileRaw as any)?.full_name ?? 'Monthly'} — Monthly Check-in — ${MONTH_NAMES[month - 1]} ${year}`}
+            description={`Monthly performance check-in for ${period.name}. Review commitments from last month and plan next month's priorities.${process.env.NEXT_PUBLIC_SITE_URL ? `\n\nOpen check-in: ${process.env.NEXT_PUBLIC_SITE_URL}/checkins` : ''}`}
+            managerEmail={managerEmail}
+            recurrenceLabel="Monthly"
+            recurrenceRule="RRULE:FREQ=MONTHLY"
+          />
+          <MonthSelector
+            periodId={periodId}
+            selectedMonth={month}
+            selectedYear={year}
+            options={monthOptions}
+          />
+        </div>
       </div>
       <EmployeeCheckinForm
         periodId={periodId}
         month={month}
         year={year}
         checkin={null}
+        okrOptions={okrOptions}
         readOnly={false}
       />
     </div>

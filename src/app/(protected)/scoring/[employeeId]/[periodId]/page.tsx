@@ -129,9 +129,9 @@ export default async function QuarterlyScoringPage({
       {okrsWithProgress.length > 0 && (
         <section className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass p-5 space-y-4">
           <div>
-            <h2 className="text-card-title">OKR / Deliverables / Goals Progress</h2>
+            <h2 className="text-card-title">Goals Progress</h2>
             <p className="text-caption text-lr-muted mt-1">
-              Concrete completion evidence to inform your OKRs score.
+              Concrete completion evidence to inform your Goals score.
             </p>
           </div>
           <div className="space-y-4">

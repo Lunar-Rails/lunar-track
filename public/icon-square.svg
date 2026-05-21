@@ -1,0 +1,15 @@
+<svg width="400" height="256" viewBox="0 0 400 256" xmlns="http://www.w3.org/2000/svg">
+    
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="110%" y2="110%">
+      <stop offset="0%" stop-color="#8B3FFF"/>
+      <stop offset="50%" stop-color="#D42FA0"/>
+      <stop offset="100%" stop-color="#FF6B00"/>
+    </linearGradient>
+  </defs>
+
+    <rect x="0" y="0" width="400" height="200" rx="44" fill="url(#g)"/>
+    <polygon points="72,200 32,256 176,200" fill="url(#g)"/>
+    <text x="200" y="130" text-anchor="middle"
+      style="fill:#fff;font-size:76px;font-weight:800;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;letter-spacing:-1px">Ciao</text>
+  </svg>

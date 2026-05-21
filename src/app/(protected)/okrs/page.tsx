@@ -46,7 +46,7 @@ export default async function OkrsPage() {
     <div className="space-y-6 max-w-2xl">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-page-title">OKR / Deliverables / Goals</h1>
+          <h1 className="text-page-title">Goals</h1>
           <p className="text-body text-lr-muted mt-1">Objectives, Deliverables & Goals</p>
         </div>
         {openPeriod && <AddEntryButton />}

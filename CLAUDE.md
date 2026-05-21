@@ -3,7 +3,7 @@
 
 **LunarTrack**
 
-LunarTrack is an internal performance management tool for BCOMM employees. It enables structured monthly check-ins and quarterly OKR reviews between managers and their reports, tracks performance across three dimensions (professional mastery, OKRs, and behaviours/values), and surfaces a manager-driven 1–5 quarterly rating that aggregates into an annual performance score.
+LunarTrack is an internal performance management tool for BCOMM employees. It enables structured monthly check-ins and quarterly reviews between managers and their reports, tracks performance across three dimensions (professional mastery, goals, and behaviours/values), and surfaces a manager-driven 1–5 quarterly rating that aggregates into an annual performance score.
 
 **Core Value:** A manager can complete a full performance cycle — check-ins, quarterly scoring, and annual review — for every direct report, with all context in one place.
 
@@ -34,7 +34,7 @@ LunarTrack is an internal performance management tool for BCOMM employees. It en
 ### Database
 | Technology | Version | Purpose | Why |
 |------------|---------|---------|-----|
-| Supabase PostgreSQL | Managed | Primary data store | Confirmed by BCOMM IT. All structured data: users, org hierarchy, check-ins, OKRs, scores. |
+| Supabase PostgreSQL | Managed | Primary data store | Confirmed by BCOMM IT. All structured data: users, org hierarchy, check-ins, goals, scores. |
 | Supabase RLS | Built-in | Row-level access control | Enforces the three-tier access model (Employee / Manager / HR Admin) at the database layer, not just application layer. Defense in depth. |
 ### UI
 | Technology | Version | Purpose | Why |
@@ -102,7 +102,73 @@ LunarTrack is an internal performance management tool for BCOMM employees. It en
 <!-- GSD:conventions-start source:CONVENTIONS.md -->
 ## Conventions
 
-Conventions not yet established. Will populate as patterns emerge during development.
+### Check-in v2 Model
+
+#### Monthly Check-in (two-tab layout)
+
+**Tab 1 — Review**
+- `mits: ReviewMit[]` — carried from prior month's `next_mits` (or quarterly `next_quarter_mits` for the first month of a quarter). Each MIT has: `title`, `description`, `okr_id | null`, `okr_label | null`, `status: 'achieved' | 'not_achieved'`. (Field names use `okr_id`/`okr_label` internally — user-facing label is "Goal".)
+- Employee can add extra MITs with the "+ Add MIT" button.
+- `done_well: string` and `do_differently: string` — free-text reflection fields.
+
+**Tab 2 — Next Month**
+- `next_mits: PlanMit[]` — MITs the employee plans for the coming month. Each MIT has: `title`, `description`, `okr_id | null`, `okr_label | null` (no status).
+- Goal link dropdown shows the employee's active quarterly goals plus "Unrelated to quarterly goals" option.
+- **Auto-carry:** on submit, `next_mits` are written as `mits` (status `not_achieved`) into the following month's check-in draft.
+- Advancing from Tab 1 → Tab 2 auto-saves a draft.
+
+**Key types:**
+```typescript
+interface ReviewMit { title: string; description: string; okr_id: string | null; okr_label: string | null; status: 'achieved' | 'not_achieved' }
+interface PlanMit    { title: string; description: string; okr_id: string | null; okr_label: string | null }
+```
+
+**Key components:** `MitReviewList` (achieved/not-achieved toggle pills), `MitPlanList` (goal link dropdown, always opens downward).
+
+---
+
+#### Quarterly Check-in (two-tab layout)
+
+**Tab 1 — Review**
+- `goals: QuarterlyGoalReview[]` — carried from previous quarter's `next_quarter_goals`. Each goal: `id`, `title`, `description`, `status: 'achieved' | 'not_achieved' | null`.
+- Done well / Done differently — read-only panel auto-aggregated from the 3 monthly check-ins of the quarter (`MonthlyDoneWellSummary` component, labelled by month).
+- `value_assessments: ValueAssessment[]` — employee selects which company values they demonstrated (chip multi-select) and writes a short description per value. No numeric rating.
+
+**Tab 2 — Next Quarter**
+- `next_quarter_goals: QuarterlyGoal[]` — goals for the coming quarter, each with `id` (uuid), `title`, `description`.
+- `next_quarter_mits: PlanMit[]` — MITs for the first month of the new quarter. Goal link dropdown is populated from `next_quarter_goals`.
+- **Auto-carry:** on submit, `next_quarter_goals` seeds next quarter's `goals`; `next_quarter_mits` seeds the first monthly check-in of the new quarter.
+- Advancing from Tab 1 → Tab 2 auto-saves a draft.
+
+**Key types:**
+```typescript
+interface QuarterlyGoal       { id: string; title: string; description: string }
+interface QuarterlyGoalReview { id: string; title: string; description: string; status: 'achieved' | 'not_achieved' | null }
+interface ValueAssessment     { value_id: string; value_name: string; description: string }
+```
+
+**Key components:** `GoalAchievementList`, `MonthlyDoneWellSummary`, `ValueChipSelector`, `MitPlanList` (goal link).
+
+---
+
+#### Quarterly Scoring (manager-only)
+
+Three dimensions, each rated 1–5. Labels are tooltips only — not shown in the UI buttons.
+- **Professional Mastery** — technical skills, domain knowledge, craft quality.
+- **Goals / Stretch Goals** — progress on committed goals and stretch objectives. DB column: `okrs_stretch_goals`.
+- **Behaviours & Values** — rounded average of per-value ratings. Cannot exceed 4 unless AI Builder is active.
+
+---
+
+#### Dropdown UI conventions
+- All `SelectContent` must use `side="bottom" position="popper" sideOffset={4}` to force downward opening.
+- Background override: `className="bg-lr-bg border-lr-border shadow-lg"` — the glass design system's `bg-popover` token is semi-transparent and blends with the page.
+- Items use `pl-3 pr-8` padding for left-aligned text.
+
+#### Forms
+- Monthly and quarterly employee check-in forms use plain `useState` (not React Hook Form) — the MIT list is a controlled array of objects, which RHF's field-array API handles poorly with nested nullable fields.
+- Server Actions receive MIT arrays as JSON-stringified form fields (`review_mits`, `next_mits`, etc.) and parse them with Zod.
+- "Goal" is the user-facing term throughout. Internal DB columns and TypeScript field names retain `okr_id`/`okr_label` to avoid migrations.
 <!-- GSD:conventions-end -->
 
 <!-- GSD:architecture-start source:ARCHITECTURE.md -->

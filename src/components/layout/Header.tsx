@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import SignOutButton from '@/components/auth/SignOutButton'
+import ThemeToggle from '@/components/theme/ThemeToggle'
 import type { Profile } from '@/lib/types/database'
 
 interface HeaderProps {
@@ -37,14 +38,15 @@ export default function Header({ profile, inboxCount = 0 }: HeaderProps) {
       <div className="flex h-full items-center justify-between px-4">
         {/* Left: Logo */}
         <div className="flex items-center gap-2">
-          <Image src="/lunar-rails-icon.svg" alt="Lunar Rails" width={28} height={28} />
+          <Image src="/icon-circle.svg" alt="CiaoBob" width={28} height={28} />
           <span className="font-display font-bold text-lg text-lr-text tracking-tight">
-            LunarTrack
+            CiaoBob
           </span>
         </div>
 
-        {/* Right: Inbox + User pill */}
+        {/* Right: Theme toggle + Inbox + User pill */}
         <div className="flex items-center gap-2">
+          <ThemeToggle />
         {(profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') && (
           <Link
             href="/inbox"

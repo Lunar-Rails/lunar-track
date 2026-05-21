@@ -63,7 +63,7 @@ export default async function ScoresAdminPage() {
                   <th className="text-section-label text-left px-4 py-3">Employee</th>
                   <th className="text-section-label text-left px-4 py-3">Year</th>
                   <th className="text-section-label text-center px-4 py-3">PM</th>
-                  <th className="text-section-label text-center px-4 py-3">OKRs</th>
+                  <th className="text-section-label text-center px-4 py-3">Goals</th>
                   <th className="text-section-label text-center px-4 py-3">B/V</th>
                   <th className="text-section-label text-center px-4 py-3">Overall</th>
                 </tr>
@@ -102,7 +102,7 @@ export default async function ScoresAdminPage() {
                   <th className="text-section-label text-left px-4 py-3">Employee</th>
                   <th className="text-section-label text-left px-4 py-3">Period</th>
                   <th className="text-section-label text-center px-4 py-3" title="Professional Mastery">PM</th>
-                  <th className="text-section-label text-center px-4 py-3" title="OKRs / Stretch Goals">OKRs</th>
+                  <th className="text-section-label text-center px-4 py-3" title="Goals / Stretch Goals">Goals</th>
                   <th className="text-section-label text-center px-4 py-3" title="Behaviours / Values">B/V</th>
                   <th className="text-section-label text-center px-4 py-3">Visible</th>
                   <th className="text-section-label text-center px-4 py-3">Edit</th>

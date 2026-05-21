@@ -53,14 +53,14 @@ function ScoreSelector({
           type="button"
           disabled={disabled}
           onClick={() => onChange(n)}
-          className={`flex flex-col items-center rounded-[var(--radius-lr-lg)] border px-3 py-2 text-sm transition-colors min-w-[80px] ${
+          title={SCORE_LABELS[n]}
+          className={`flex flex-col items-center rounded-[var(--radius-lr-lg)] border px-4 py-2.5 transition-colors min-w-[56px] ${
             value === n
               ? 'border-lr-accent bg-lr-accent-dim text-lr-accent'
               : 'border-lr-border bg-lr-surface text-lr-muted hover:bg-lr-surface-2'
           }`}
         >
           <span className="text-lg font-bold">{n}</span>
-          <span className="text-xs text-center leading-tight mt-0.5">{SCORE_LABELS[n]}</span>
         </button>
       ))}
     </div>
@@ -196,7 +196,7 @@ export default function QuarterlyScoringForm({
 
         {okrs.length > 0 && (
           <div>
-            <p className="text-section-label mb-2">OKRs</p>
+            <p className="text-section-label mb-2">Goals</p>
             <ul className="space-y-1">
               {okrs.map((okr) => (
                 <li key={okr.id} className="flex items-center gap-2">
@@ -277,8 +277,8 @@ export default function QuarterlyScoringForm({
       {/* OKRs / Stretch Goals */}
       <section className="space-y-3">
         <div>
-          <h3 className="text-card-title">OKRs / Stretch Goals</h3>
-          <p className="text-xs text-lr-muted mt-0.5">Progress on committed OKRs and stretch objectives</p>
+          <h3 className="text-card-title">Goals / Stretch Goals</h3>
+          <p className="text-xs text-lr-muted mt-0.5">Progress on committed Goals and stretch objectives</p>
         </div>
         <ScoreSelector value={okrsStretch} onChange={setOkrsStretch} disabled={isPending} />
         <div className="space-y-1">
@@ -287,7 +287,7 @@ export default function QuarterlyScoringForm({
             value={okrNotes}
             onChange={(e) => setOkrNotes(e.target.value)}
             disabled={isPending}
-            placeholder="Notes on OKRs / Stretch Goals…"
+            placeholder="Notes on Goals / Stretch Goals…"
             className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[80px] resize-y"
           />
         </div>

@@ -19,3 +19,11 @@ pnpm-debug.log*
 
 .vercel/
 .turbo/
+
+# Generated files
+next-env.d.ts
+tsconfig.tsbuildinfo
+
+# AI agent / tooling dirs
+.claude/
+.superpowers/

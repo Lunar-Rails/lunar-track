@@ -1,11 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import QuarterlyCheckinEmployeeForm from '@/components/checkins/QuarterlyCheckinEmployeeForm'
-import type { CompanyValue, QuarterlyCheckin, PerformancePeriod, Okr, KeyResult, Initiative } from '@/lib/types/database'
-
-type OkrWithHierarchy = Okr & {
-  key_results: (KeyResult & { initiatives: Initiative[] })[]
-}
+import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
+import type { CompanyValue, QuarterlyCheckin, PerformancePeriod, QuarterlyGoal, QuarterlyGoalReview } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,6 +15,26 @@ export default async function NewQuarterlyCheckinPage({
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: profileRaw } = await (supabase as any)
+    .from('profiles')
+    .select('id, manager_id, full_name')
+    .eq('id', user.id)
+    .single()
+  const profile = profileRaw as { id: string; manager_id: string | null; full_name: string | null } | null
+  if (!profile) redirect('/login')
+
+  let managerEmail: string | null = null
+  if (profile.manager_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: mgr } = await (supabase as any)
+      .from('profiles')
+      .select('email')
+      .eq('id', profile.manager_id)
+      .single()
+    managerEmail = mgr?.email ?? null
+  }
 
   // Resolve period: either supplied or latest open
   let periodId = periodIdParam
@@ -57,27 +74,6 @@ export default async function NewQuarterlyCheckinPage({
     )
   }
 
-  // All OKRs for this period (all statuses) — used for the OKR/Deliverables/Goals summary section
-  // and for the approved-only progress section below it.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: okrsRaw } = await (supabase as any)
-    .from('okrs')
-    .select('*, key_results(*, initiatives(*))')
-    .eq('employee_id', user.id)
-    .eq('period_id', periodId)
-    .order('created_at', { ascending: true })
-
-  const allOkrs = ((okrsRaw ?? []) as OkrWithHierarchy[]).map((okr) => {
-    const krs = [...(okr.key_results ?? [])]
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((kr) => ({
-        ...kr,
-        initiatives: [...(kr.initiatives ?? [])].sort((a, b) => a.sort_order - b.sort_order),
-      }))
-    return { ...okr, key_results: krs }
-  })
-  const employeeOkrs = allOkrs.filter((okr) => okr.status === 'APPROVED')
-
   // Existing quarterly check-in for this period (only one allowed)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: existingRaw } = await (supabase as any)
@@ -100,24 +96,76 @@ export default async function NewQuarterlyCheckinPage({
     .order('sort_order', { ascending: true })
   const companyValues = (cvRaw ?? []) as CompanyValue[]
 
+  // Fetch 3 monthly check-ins for this quarter
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: monthlyCheckins } = await (supabase as any)
+    .from('checkins')
+    .select('month, year, done_well, do_differently')
+    .eq('employee_id', profile.id)
+    .eq('period_id', period.id)
+    .order('month', { ascending: true })
+    .limit(3)
+
+  const monthlyReflections = (monthlyCheckins ?? []).map((c: { month: number; year: number; done_well: string | null; do_differently: string | null }) => ({
+    month: c.month,
+    year: c.year,
+    done_well: c.done_well,
+    do_differently: c.do_differently,
+  }))
+
+  // Fetch previous quarter's check-in to get goals
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: prevPeriodRaw } = await (supabase as any)
+    .from('performance_periods')
+    .select('id')
+    .eq('year', period.quarter === 1 ? period.year - 1 : period.year)
+    .eq('quarter', period.quarter === 1 ? 4 : period.quarter - 1)
+    .maybeSingle()
+
+  let prevQuarterGoals: QuarterlyGoalReview[] = []
+  if (prevPeriodRaw?.id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: prevCheckin } = await (supabase as any)
+      .from('quarterly_checkins')
+      .select('next_quarter_goals')
+      .eq('employee_id', profile.id)
+      .eq('period_id', prevPeriodRaw.id)
+      .maybeSingle()
+    if (prevCheckin?.next_quarter_goals) {
+      prevQuarterGoals = (prevCheckin.next_quarter_goals as QuarterlyGoal[]).map((g) => ({
+        ...g,
+        status: null,
+      }))
+    }
+  }
+
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div>
-        <p className="text-kicker">{period.name}</p>
-        <h1 className="text-page-title mt-1">
-          Q{period.quarter} {period.year} Quarterly Check-in
-        </h1>
-        <p className="text-body text-lr-muted mt-1">
-          Self-assess OKR progress, reflect on continue/stop/start, and surface needs for next quarter.
-        </p>
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-kicker">{period.name}</p>
+          <h1 className="text-page-title mt-1">
+            Q{period.quarter} {period.year} Quarterly Check-in
+          </h1>
+          <p className="text-body text-lr-text/70 mt-1">
+            Reflect on your goals, what went well, and plan the quarter ahead.
+          </p>
+        </div>
+        <ScheduleCallButton
+          title={`${profile?.full_name ?? 'Quarterly'} — Q${period.quarter} ${period.year} Quarterly Check-in`}
+          description={`Quarterly performance check-in for ${period.name}. Review goal achievements, reflect on the quarter, and plan goals for next quarter.${process.env.NEXT_PUBLIC_SITE_URL ? `\n\nOpen check-in: ${process.env.NEXT_PUBLIC_SITE_URL}/quarterly-checkins` : ''}`}
+          managerEmail={managerEmail}
+          recurrenceLabel="Quarterly"
+          recurrenceRule="RRULE:FREQ=MONTHLY;INTERVAL=3"
+        />
       </div>
 
       <QuarterlyCheckinEmployeeForm
         periodId={periodId}
         checkin={existing}
-        employeeOkrs={employeeOkrs}
-        allOkrs={allOkrs}
         companyValues={companyValues}
+        monthlyReflections={monthlyReflections}
+        initialGoals={prevQuarterGoals}
         readOnly={false}
       />
     </div>

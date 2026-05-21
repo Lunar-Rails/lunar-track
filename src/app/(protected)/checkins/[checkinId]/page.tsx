@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import EmployeeCheckinForm from '@/components/checkins/EmployeeCheckinForm'
 import ManagerCheckinForm from '@/components/checkins/ManagerCheckinForm'
+import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
 import type { Checkin, PerformancePeriod, Profile } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -61,22 +62,54 @@ export default async function CheckinDetailPage({
   const employeeSubmitted = !!checkin.employee_submitted_at
   const managerSubmitted = !!checkin.manager_submitted_at
 
+  // fetch approved OKRs for okrOptions dropdown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: okrsRaw } = await (supabase as any)
+    .from('okrs')
+    .select('id, title')
+    .eq('employee_id', checkin.employee_id)
+    .eq('period_id', checkin.period_id)
+    .eq('status', 'APPROVED')
+
+  const okrOptions = (okrsRaw ?? []).map((o: { id: string; title: string }) => ({
+    id: o.id,
+    label: o.title,
+  }))
+
+  // Fetch manager email for calendar invite
+  let managerEmail: string | null = null
+  if (profile.manager_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: mgr } = await (supabase as any)
+      .from('profiles').select('email').eq('id', profile.manager_id).single()
+    managerEmail = mgr?.email ?? null
+  }
+
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div>
-        <p className="text-kicker">{checkin.period.name}</p>
-        <h1 className="text-page-title mt-1">
-          {MONTH_NAMES[checkin.month - 1]} {checkin.year} Check-in
-        </h1>
-        <div className="flex items-center gap-2 mt-2">
-          {managerSubmitted ? (
-            <Badge variant="outline" className="text-xs bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20">Complete</Badge>
-          ) : employeeSubmitted ? (
-            <Badge variant="outline" className="text-xs bg-lr-gold-dim text-lr-gold border-lr-gold/20">Awaiting Manager</Badge>
-          ) : (
-            <Badge variant="outline" className="text-xs bg-lr-surface text-lr-muted border-lr-border">Draft</Badge>
-          )}
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-kicker">{checkin.period.name}</p>
+          <h1 className="text-page-title mt-1">
+            {MONTH_NAMES[checkin.month - 1]} {checkin.year} Check-in
+          </h1>
+          <div className="flex items-center gap-2 mt-2">
+            {managerSubmitted ? (
+              <Badge variant="outline" className="text-xs bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20">Complete</Badge>
+            ) : employeeSubmitted ? (
+              <Badge variant="outline" className="text-xs bg-lr-gold-dim text-lr-gold border-lr-gold/20">Awaiting Manager</Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs bg-lr-surface text-lr-muted border-lr-border">Draft</Badge>
+            )}
+          </div>
         </div>
+        <ScheduleCallButton
+          title={`${profile?.full_name ?? 'Monthly'} — Monthly Check-in — ${MONTH_NAMES[checkin.month - 1]} ${checkin.year}`}
+          description={`Monthly performance check-in for ${checkin.period.name}. Review commitments from last month and plan next month's priorities.${process.env.NEXT_PUBLIC_SITE_URL ? `\n\nOpen check-in: ${process.env.NEXT_PUBLIC_SITE_URL}/checkins/${checkin.id}` : ''}`}
+          managerEmail={managerEmail}
+          recurrenceLabel="Monthly"
+          recurrenceRule="RRULE:FREQ=MONTHLY"
+        />
       </div>
 
       <Tabs defaultValue="employee">
@@ -102,6 +135,7 @@ export default async function CheckinDetailPage({
             month={checkin.month}
             year={checkin.year}
             checkin={checkin}
+            okrOptions={okrOptions}
             readOnly={!isOwner || employeeSubmitted}
           />
         </TabsContent>

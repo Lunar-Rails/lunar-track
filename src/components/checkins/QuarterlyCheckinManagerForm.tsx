@@ -23,6 +23,7 @@ export default function QuarterlyCheckinManagerForm({ checkin, readOnly }: Props
   const [okrFeedback, setOkrFeedback] = useState(checkin.mgr_okr_feedback ?? '')
   const [cssFeedback, setCssFeedback] = useState(checkin.mgr_css_feedback ?? '')
   const [supportPlan, setSupportPlan] = useState(checkin.mgr_support_plan ?? '')
+  const [privateNote, setPrivateNote] = useState(checkin.mgr_private_note ?? '')
 
   function buildFormData(submit: boolean): FormData {
     const fd = new FormData()
@@ -30,6 +31,7 @@ export default function QuarterlyCheckinManagerForm({ checkin, readOnly }: Props
     if (okrFeedback) fd.append('mgr_okr_feedback', okrFeedback)
     if (cssFeedback) fd.append('mgr_css_feedback', cssFeedback)
     if (supportPlan) fd.append('mgr_support_plan', supportPlan)
+    if (privateNote) fd.append('mgr_private_note', privateNote)
     if (submit) fd.append('submit', 'true')
     return fd
   }
@@ -63,15 +65,42 @@ export default function QuarterlyCheckinManagerForm({ checkin, readOnly }: Props
         </div>
       )}
 
+      {/* Employee's quarterly goals — read-only context */}
+      {(checkin.goals ?? []).length > 0 && (
+        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-4 space-y-3">
+          <p className="text-xs font-semibold text-lr-text">Employee&apos;s goals this quarter</p>
+          <ul className="space-y-2">
+            {(checkin.goals ?? []).map((g, i) => (
+              <li key={g.id ?? i} className="flex items-start gap-3">
+                <span className={[
+                  'inline-flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-bold shrink-0 mt-0.5',
+                  g.status === 'achieved'
+                    ? 'bg-lr-cyan-dim text-lr-cyan border border-lr-cyan/20'
+                    : g.status === 'not_achieved'
+                    ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                    : 'bg-lr-surface border border-lr-border text-lr-muted',
+                ].join(' ')}>
+                  {g.status === 'achieved' ? '✓' : g.status === 'not_achieved' ? '✗' : '?'}
+                </span>
+                <div>
+                  <p className="text-xs font-medium text-lr-text">{g.title}</p>
+                  {g.description && <p className="text-[11px] text-lr-muted mt-0.5">{g.description}</p>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Section 1 — OKR / Deliverables / Goals Feedback */}
       <section className="space-y-4">
-        <h3 className="text-card-title">OKR / Deliverables / Goals Feedback</h3>
+        <h3 className="text-card-title">Goals Feedback</h3>
 
         {/* Employee context (read-only narratives) */}
         {checkin.okr_progress.length > 0 && (
           <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface p-5 space-y-4">
             <p className="text-caption text-lr-muted">
-              Employee&rsquo;s narrative per OKR / Deliverable / Goal. See the &ldquo;My Answers&rdquo; tab for live progress.
+              Employee&rsquo;s narrative per Goal / Deliverable. See the &ldquo;My Answers&rdquo; tab for live progress.
             </p>
             {checkin.okr_progress.map((entry) => (
               <div key={entry.okr_id} className="space-y-1">
@@ -87,12 +116,12 @@ export default function QuarterlyCheckinManagerForm({ checkin, readOnly }: Props
         )}
 
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-6 space-y-1">
-          <Label className="text-caption">Your feedback on OKR / Deliverables / Goals progress</Label>
+          <Label className="text-caption">Goal Feedback</Label>
           <Textarea
             value={okrFeedback}
             onChange={(e) => setOkrFeedback(e.target.value)}
             disabled={disabled}
-            placeholder="Manager observations on OKR / Deliverables / Goals progress, blockers, calibration..."
+            placeholder="Your observations on the employee's goal progress this quarter…"
             className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[100px] resize-y"
           />
         </div>
@@ -184,6 +213,23 @@ export default function QuarterlyCheckinManagerForm({ checkin, readOnly }: Props
           />
         </div>
       </section>
+
+      {/* Private note — manager only */}
+      <div className="rounded-[var(--radius-lr-lg)] border border-lr-border/50 bg-lr-surface p-4 space-y-1.5">
+        <div className="flex items-center gap-2">
+          <Label htmlFor="mgr_private_note_q" className="text-caption">Private note</Label>
+          <span className="text-[10px] text-lr-muted bg-lr-surface-2 border border-lr-border px-1.5 py-0.5 rounded">Manager only</span>
+        </div>
+        <p className="text-[11px] text-lr-muted">Not visible to the employee. Useful for calibration notes.</p>
+        <Textarea
+          id="mgr_private_note_q"
+          value={privateNote}
+          onChange={(e) => setPrivateNote(e.target.value)}
+          disabled={readOnly || isPending}
+          placeholder="Internal notes for calibration, context, or follow-ups…"
+          className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[80px] resize-y"
+        />
+      </div>
 
       {error && (
         <div className="rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">

@@ -11,7 +11,7 @@ import {
 import { Plus, ChevronDown } from 'lucide-react'
 
 const ENTRY_TYPES = [
-  { label: 'OKR', description: 'Objective with Key Results & Initiatives' },
+  { label: 'Goal', description: 'Objective with Key Results & Initiatives' },
   { label: 'Deliverable', description: 'Concrete output or project commitment' },
   { label: 'Goal', description: 'Personal or professional development goal' },
 ] as const
@@ -28,7 +28,7 @@ export default function AddEntryButton() {
       <DropdownMenuTrigger asChild>
         <Button className="bg-lr-accent hover:bg-lr-accent-hover text-white gap-2">
           <Plus className="h-4 w-4" />
-          OKR / Deliverable / Goals
+          Add Goal / Deliverable
           <ChevronDown className="h-3.5 w-3.5 opacity-70" />
         </Button>
       </DropdownMenuTrigger>

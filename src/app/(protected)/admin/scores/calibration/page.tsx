@@ -216,7 +216,7 @@ export default async function CalibrationPage({
             {[
               { label: 'Company avg', value: companyAvgOverall, color: 'text-lr-accent' },
               { label: 'Prof. Mastery', value: companyAvgPm, color: 'text-lr-cyan' },
-              { label: 'OKRs', value: companyAvgOkrs, color: 'text-lr-gold' },
+              { label: 'Goals', value: companyAvgOkrs, color: 'text-lr-gold' },
               { label: 'Behaviours/Values', value: companyAvgBv, color: 'text-lr-text' },
             ].map((stat) => (
               <div key={stat.label} className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-4">
@@ -333,7 +333,7 @@ export default async function CalibrationPage({
                   <div className="grid grid-cols-3 gap-4 mb-4">
                     {[
                       { label: 'Prof. Mastery', value: ms.avgPm },
-                      { label: 'OKRs', value: ms.avgOkrs },
+                      { label: 'Goals', value: ms.avgOkrs },
                       { label: 'Behaviours/Values', value: ms.avgBv },
                     ].map((d) => (
                       <div key={d.label}>
@@ -351,7 +351,7 @@ export default async function CalibrationPage({
                           <span className="text-lr-muted">{e.name}</span>
                           <div className="flex gap-3 text-lr-text">
                             <span title="Professional Mastery">PM {e.pm}</span>
-                            <span title="OKRs">OKR {e.okrs}</span>
+                            <span title="Goals">Goal {e.okrs}</span>
                             <span title="Behaviours/Values">B/V {e.bv}</span>
                             <span className="font-semibold text-lr-accent">⌀ {e.avg.toFixed(1)}</span>
                           </div>

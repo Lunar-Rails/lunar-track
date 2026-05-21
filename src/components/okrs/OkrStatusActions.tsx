@@ -56,7 +56,7 @@ export default function OkrStatusActions({ okr, caller }: OkrStatusActionsProps)
       {/* Manager: approve or request revision */}
       {!isOwner && okr.status === 'PENDING_REVIEW' && (
         <div className="space-y-3 rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass p-5">
-          <p className="text-card-title">Review this OKR</p>
+          <p className="text-card-title">Review this Goal</p>
           <div className="space-y-1.5">
             <label className="text-section-label">Comment (optional for approval, recommended for revision)</label>
             <Textarea

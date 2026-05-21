@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import MagicLinkForm from '@/components/auth/MagicLinkForm'
@@ -19,7 +20,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
     <div className="min-h-screen flex items-center justify-center bg-lr-bg px-4">
       <div className="w-full max-w-md rounded-[var(--radius-lr-xl)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-8 shadow-[var(--shadow-lr-card)]">
         <div className="mb-8 text-center">
-          <h1 className="text-hero-title mb-2">LunarTrack</h1>
+          <div className="flex justify-center mb-4">
+            <Image src="/logo-full.svg" alt="CiaoBob" width={160} height={40} priority />
+          </div>
           <p className="text-body text-lr-muted">BCOMM Performance Management</p>
         </div>
 

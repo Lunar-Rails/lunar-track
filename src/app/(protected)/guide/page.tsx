@@ -74,7 +74,7 @@ export default async function GuidePage() {
         <div className="pb-2 border-b border-lr-border">
           <h1 className="text-page-title">Framework Guide</h1>
           <p className="text-body text-lr-muted mt-1">
-            The BCOMM performance framework — your reference for check-ins, OKRs, scoring, and values.
+            The BCOMM performance framework — your reference for check-ins, Goals, scoring, and values.
           </p>
         </div>
 

@@ -34,7 +34,15 @@ function initNextMits(checkin: Checkin): Mit[] {
   if (checkin.mgr_next_mit_1_title) result.push({ title: checkin.mgr_next_mit_1_title, description: checkin.mgr_next_mit_1_description ?? '' })
   if (checkin.mgr_next_mit_2_title) result.push({ title: checkin.mgr_next_mit_2_title, description: checkin.mgr_next_mit_2_description ?? '' })
   if (checkin.mgr_next_mit_3_title) result.push({ title: checkin.mgr_next_mit_3_title, description: checkin.mgr_next_mit_3_description ?? '' })
-  return result.length > 0 ? result : [{ title: '', description: '' }]
+  if (result.length > 0) return result
+  // NEW: fall back to employee's planned next_mits as pre-fill
+  if (checkin.next_mits && checkin.next_mits.length > 0) {
+    const prefilled = checkin.next_mits
+      .filter((m) => m.title.trim())
+      .map((m) => ({ title: m.title, description: m.description }))
+    if (prefilled.length > 0) return prefilled
+  }
+  return [{ title: '', description: '' }]
 }
 
 export default function ManagerCheckinForm({ checkin, readOnly = false }: ManagerCheckinFormProps) {
@@ -43,6 +51,7 @@ export default function ManagerCheckinForm({ checkin, readOnly = false }: Manage
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [nextMits, setNextMits] = useState<Mit[]>(() => initNextMits(checkin))
+  const [privateNote, setPrivateNote] = useState(checkin.mgr_private_note ?? '')
 
   const { register, handleSubmit } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -71,6 +80,7 @@ export default function ManagerCheckinForm({ checkin, readOnly = false }: Manage
     fd.append('checkinId', checkin.id)
     fd.append('mgr_next_mits', JSON.stringify(nextMits.filter((m) => m.title.trim())))
     if (submit) fd.append('submit', 'true')
+    if (privateNote) fd.append('mgr_private_note', privateNote)
     Object.entries(values).forEach(([k, v]) => {
       if (v) fd.append(k, v)
     })
@@ -135,6 +145,26 @@ export default function ManagerCheckinForm({ checkin, readOnly = false }: Manage
           </div>
         ))}
 
+        {/* Employee's planned MITs — read-only context */}
+        {(checkin.next_mits ?? []).filter((m) => m.title.trim()).length > 0 && (
+          <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-4 space-y-2">
+            <p className="text-xs font-semibold text-lr-text">Employee&apos;s planned commitments for next month</p>
+            <p className="text-[11px] text-lr-muted">These are what the employee committed in their plan tab. Use as a starting point.</p>
+            <ul className="space-y-1.5 mt-2">
+              {(checkin.next_mits ?? []).filter((m) => m.title.trim()).map((m, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="text-[11px] font-mono text-lr-accent shrink-0 mt-0.5">{i + 1}</span>
+                  <div>
+                    <p className="text-xs text-lr-text font-medium">{m.title}</p>
+                    {m.description && <p className="text-[11px] text-lr-muted">{m.description}</p>}
+                    {m.okr_label && <p className="text-[11px] text-lr-accent/70 mt-0.5">Goal: {m.okr_label}</p>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Next Month's MITs — dynamic */}
         <section>
           <div className="flex items-center justify-between mb-4">
@@ -192,6 +222,23 @@ export default function ManagerCheckinForm({ checkin, readOnly = false }: Manage
             ))}
           </div>
         </section>
+
+        {/* Private note — manager only, never shown to employee */}
+        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border/50 bg-lr-surface p-4 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="mgr_private_note" className="text-caption">Private note</Label>
+            <span className="text-[10px] text-lr-muted bg-lr-surface-2 border border-lr-border px-1.5 py-0.5 rounded">Manager only</span>
+          </div>
+          <p className="text-[11px] text-lr-muted">Not visible to the employee. Useful for calibration notes.</p>
+          <Textarea
+            id="mgr_private_note"
+            value={privateNote}
+            onChange={(e) => setPrivateNote(e.target.value)}
+            disabled={readOnly || isPending}
+            placeholder="Internal notes for calibration, context, or follow-ups…"
+            className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[80px] resize-y"
+          />
+        </div>
 
         {error && (
           <div className="rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">

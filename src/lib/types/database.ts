@@ -66,8 +66,43 @@ export interface Initiative {
   created_at: string
 }
 
+export interface ReviewMit {
+  title: string
+  description: string
+  okr_id: string | null
+  okr_label: string | null
+  status: 'achieved' | 'not_achieved'
+}
+
+export interface PlanMit {
+  title: string
+  description: string
+  okr_id: string | null
+  okr_label: string | null
+}
+
+// Legacy alias kept so existing manager form code compiles
 export interface Mit {
   title: string
+  description: string
+}
+
+export interface QuarterlyGoal {
+  id: string
+  title: string
+  description: string
+}
+
+export interface QuarterlyGoalReview {
+  id: string
+  title: string
+  description: string
+  status: 'achieved' | 'not_achieved' | null
+}
+
+export interface ValueAssessment {
+  value_id: string
+  value_name: string
   description: string
 }
 
@@ -78,7 +113,8 @@ export interface Checkin {
   month: number
   year: number
   // Employee section — dynamic MITs stored as JSONB
-  mits: Mit[] | null
+  mits: ReviewMit[] | null
+  next_mits: PlanMit[] | null
   // Legacy fixed fields (kept for reading old rows)
   mit_1_title: string | null
   mit_1_description: string | null
@@ -96,6 +132,7 @@ export interface Checkin {
   mgr_done_well: string | null
   mgr_do_differently: string | null
   mgr_support_commitments: string | null
+  mgr_private_note: string | null
   mgr_next_mits: Mit[] | null
   // Legacy fixed next-MIT fields
   mgr_next_mit_1_title: string | null
@@ -150,7 +187,12 @@ export interface QuarterlyCheckin {
   id: string
   employee_id: string
   period_id: string
-  // Employee section
+  // Employee section — v2 fields
+  goals: QuarterlyGoalReview[] | null
+  next_quarter_goals: QuarterlyGoal[] | null
+  next_quarter_mits: PlanMit[] | null
+  value_assessments: ValueAssessment[] | null
+  // Legacy employee fields (kept for reading old rows)
   okr_progress: QuarterlyCheckinOkrProgress[]
   value_self_assessments: ValueSelfAssessment[]
   continue_doing: string | null
@@ -159,11 +201,12 @@ export interface QuarterlyCheckin {
   okr_adjustments: string | null
   capability_needs: string | null
   employee_submitted_at: string | null
-  // Manager section
+  // Manager section (unchanged)
   mgr_okr_feedback: string | null
   mgr_css_feedback: string | null
   mgr_adjustments_notes: string | null
   mgr_support_plan: string | null
+  mgr_private_note: string | null
   manager_submitted_at: string | null
   created_at: string
   updated_at: string
