@@ -74,18 +74,36 @@ export default function MitReviewList({ value, onChange, disabled = false }: Mit
                   <Trash2 className="h-4 w-4" />
                 </button>
               )}
-              <button
-                type="button"
-                onClick={() => !disabled && toggleStatus(index)}
-                disabled={disabled}
-                className="flex items-center gap-1.5 text-xs font-medium transition-colors disabled:opacity-50"
-              >
-                {mit.status === 'achieved' ? (
-                  <><CheckCircle2 className="h-4 w-4 text-green-400" /><span className="text-green-400">Achieved</span></>
-                ) : (
-                  <><XCircle className="h-4 w-4 text-red-400" /><span className="text-red-400">Not achieved</span></>
-                )}
-              </button>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => !disabled && update(index, { status: 'achieved' })}
+                  disabled={disabled}
+                  className={[
+                    'flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border transition-all',
+                    mit.status === 'achieved'
+                      ? 'border-green-500/60 bg-green-500/15 text-green-400'
+                      : 'border-transparent bg-transparent text-lr-muted/40 hover:text-lr-muted',
+                    disabled ? 'cursor-default' : 'cursor-pointer',
+                  ].join(' ')}
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" /> Achieved
+                </button>
+                <button
+                  type="button"
+                  onClick={() => !disabled && update(index, { status: 'not_achieved' })}
+                  disabled={disabled}
+                  className={[
+                    'flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border transition-all',
+                    mit.status === 'not_achieved'
+                      ? 'border-red-500/60 bg-red-500/15 text-red-400'
+                      : 'border-transparent bg-transparent text-lr-muted/40 hover:text-lr-muted',
+                    disabled ? 'cursor-default' : 'cursor-pointer',
+                  ].join(' ')}
+                >
+                  <XCircle className="h-3.5 w-3.5" /> Not achieved
+                </button>
+              </div>
             </div>
           </div>
         </div>
