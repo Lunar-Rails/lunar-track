@@ -4,6 +4,7 @@ import QuarterlyCheckinEmployeeForm from '@/components/checkins/QuarterlyCheckin
 import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
 import type { CompanyValue, QuarterlyCheckin, PerformancePeriod, QuarterlyGoalReview } from '@/lib/types/database'
 import type { LinkOption } from '@/components/checkins/MitPlanList'
+import type { MonthlyMood } from '@/components/checkins/MoodTrendSummary'
 
 export const dynamic = 'force-dynamic'
 
@@ -101,7 +102,7 @@ export default async function NewQuarterlyCheckinPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: monthlyCheckins } = await (supabase as any)
     .from('checkins')
-    .select('month, year, done_well, do_differently')
+    .select('month, year, done_well, do_differently, mood_energy, mood_productivity')
     .eq('employee_id', profile.id)
     .eq('period_id', period.id)
     .order('month', { ascending: true })
@@ -112,6 +113,13 @@ export default async function NewQuarterlyCheckinPage({
     year: c.year,
     done_well: c.done_well,
     do_differently: c.do_differently,
+  }))
+
+  const monthlyMoods: MonthlyMood[] = (monthlyCheckins ?? []).map((c: { month: number; year: number; mood_energy: string | null; mood_productivity: string | null }) => ({
+    month: c.month,
+    year: c.year,
+    mood_energy: c.mood_energy as MonthlyMood['mood_energy'],
+    mood_productivity: c.mood_productivity as MonthlyMood['mood_productivity'],
   }))
 
   // Load goals from okrs table for this period — single source of truth
@@ -169,6 +177,7 @@ export default async function NewQuarterlyCheckinPage({
         checkin={existing}
         companyValues={companyValues}
         monthlyReflections={monthlyReflections}
+        monthlyMoods={monthlyMoods}
         initialGoals={initialGoals}
         okrOptions={okrOptions}
         readOnly={false}

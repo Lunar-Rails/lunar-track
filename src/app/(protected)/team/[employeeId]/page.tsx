@@ -8,6 +8,8 @@ import type {
   Checkin,
   Initiative,
   KeyResult,
+  MoodEnergy,
+  MoodProductivity,
   Okr,
   PerformancePeriod,
   PeriodStatus,
@@ -78,6 +80,36 @@ function quarterlyPipStatus(qCheckin: QuarterlyCheckin | undefined, periodStatus
   if (qCheckin?.employee_submitted_at) return 'done'
   if (periodStatus === 'closed') return 'late'
   return 'pending'
+}
+
+const ENERGY_EMOJI: Record<MoodEnergy, string> = { terrible: '😩', meh: '😐', okay: '🙂', great: '🔥' }
+const PRODUCTIVITY_EMOJI: Record<MoodProductivity, string> = { waste: '🐌', fine: '👍', ludicrous: '🚀' }
+
+function MoodPips({ checkinByPeriodMonth, periodId, months }: { checkinByPeriodMonth: Map<string, Checkin>; periodId: string; months: number[] }) {
+  const hasMood = months.some((m) => {
+    const c = checkinByPeriodMonth.get(`${periodId}-${m}`)
+    return c?.mood_energy || c?.mood_productivity
+  })
+
+  if (!hasMood) return null
+
+  return (
+    <div className="flex items-center gap-3 mt-2">
+      <span className="text-[10px] text-lr-muted uppercase tracking-wide">Pulse</span>
+      <div className="flex items-center gap-2">
+        {months.map((m) => {
+          const c = checkinByPeriodMonth.get(`${periodId}-${m}`)
+          if (!c?.mood_energy && !c?.mood_productivity) return <span key={m} className="text-[10px] text-lr-muted/30">—</span>
+          return (
+            <span key={m} className="inline-flex items-center gap-0.5 text-sm" title={`${MONTH_NAMES[m - 1]}: Energy ${c.mood_energy ?? '?'}, Productivity ${c.mood_productivity ?? '?'}`}>
+              {c.mood_energy && <span>{ENERGY_EMOJI[c.mood_energy]}</span>}
+              {c.mood_productivity && <span>{PRODUCTIVITY_EMOJI[c.mood_productivity]}</span>}
+            </span>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 export default async function TeamMemberPage({
@@ -312,6 +344,8 @@ export default async function TeamMemberPage({
                   <span className="text-[11px] text-lr-muted/50 ml-1">Quarterly not started</span>
                 ) : null}
               </div>
+
+              <MoodPips checkinByPeriodMonth={checkinByPeriodMonth} periodId={period.id} months={months} />
 
               {/* Goals & MIT linked view */}
               {showGoalSection && (

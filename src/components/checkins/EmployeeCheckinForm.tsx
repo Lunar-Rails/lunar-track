@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label'
 import { ArrowRight } from 'lucide-react'
 import MitReviewList from '@/components/checkins/MitReviewList'
 import MitPlanList, { type LinkOption } from '@/components/checkins/MitPlanList'
+import MoodSelector from '@/components/checkins/MoodSelector'
 import { upsertCheckinEmployee } from '@/lib/actions/checkin-actions'
-import type { Checkin, ReviewMit, PlanMit } from '@/lib/types/database'
+import type { Checkin, ReviewMit, PlanMit, MoodEnergy, MoodProductivity } from '@/lib/types/database'
 
 interface EmployeeCheckinFormProps {
   periodId: string
@@ -59,6 +60,8 @@ export default function EmployeeCheckinForm({
   const [nextMits, setNextMits] = useState<PlanMit[]>(() => initPlanMits(checkin))
   const [doneWell, setDoneWell] = useState(checkin?.done_well ?? '')
   const [doDifferently, setDoDifferently] = useState(checkin?.do_differently ?? '')
+  const [moodEnergy, setMoodEnergy] = useState<MoodEnergy | null>(checkin?.mood_energy ?? null)
+  const [moodProductivity, setMoodProductivity] = useState<MoodProductivity | null>(checkin?.mood_productivity ?? null)
 
   function buildFormData(submit: boolean): FormData {
     const fd = new FormData()
@@ -69,6 +72,8 @@ export default function EmployeeCheckinForm({
     fd.append('next_mits', JSON.stringify(nextMits.filter((m) => m.title.trim())))
     fd.append('done_well', doneWell)
     fd.append('do_differently', doDifferently)
+    if (moodEnergy) fd.append('mood_energy', moodEnergy)
+    if (moodProductivity) fd.append('mood_productivity', moodProductivity)
     if (submit) fd.append('submit', 'true')
     return fd
   }
@@ -171,6 +176,20 @@ export default function EmployeeCheckinForm({
                 <Textarea id="do_differently" value={doDifferently} onChange={(e) => setDoDifferently(e.target.value)} disabled={readOnly || isPending} placeholder="What would you change?" className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[100px] resize-y" />
               </div>
             </div>
+          </div>
+
+          <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5">
+            <div className="mb-3">
+              <p className="text-sm font-semibold text-lr-text">Monthly Pulse</p>
+              <p className="text-xs text-lr-text/50 mt-0.5">Quick check on how you&apos;re feeling — visible to you and your manager</p>
+            </div>
+            <MoodSelector
+              energy={moodEnergy}
+              productivity={moodProductivity}
+              onEnergyChange={setMoodEnergy}
+              onProductivityChange={setMoodProductivity}
+              disabled={readOnly || isPending}
+            />
           </div>
 
           {error && (

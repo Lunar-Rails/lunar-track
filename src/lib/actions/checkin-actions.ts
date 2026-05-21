@@ -50,6 +50,8 @@ export async function upsertCheckinEmployee(formData: FormData): Promise<ActionR
     next_mits: z.string().default('[]'),
     done_well: z.string().max(3000).optional(),
     do_differently: z.string().max(3000).optional(),
+    mood_energy: z.enum(['terrible', 'meh', 'okay', 'great']).optional(),
+    mood_productivity: z.enum(['waste', 'fine', 'ludicrous']).optional(),
     submit: z.string().optional(),
   })
 
@@ -61,6 +63,8 @@ export async function upsertCheckinEmployee(formData: FormData): Promise<ActionR
     next_mits: formData.get('next_mits') || '[]',
     done_well: formData.get('done_well') || undefined,
     do_differently: formData.get('do_differently') || undefined,
+    mood_energy: formData.get('mood_energy') || undefined,
+    mood_productivity: formData.get('mood_productivity') || undefined,
     submit: formData.get('submit') || undefined,
   })
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
@@ -102,6 +106,8 @@ export async function upsertCheckinEmployee(formData: FormData): Promise<ActionR
     next_mits: nextMits,
     done_well: parsed.data.done_well ?? null,
     do_differently: parsed.data.do_differently ?? null,
+    mood_energy: parsed.data.mood_energy ?? null,
+    mood_productivity: parsed.data.mood_productivity ?? null,
     updated_at: new Date().toISOString(),
   }
   if (isSubmit) payload.employee_submitted_at = new Date().toISOString()

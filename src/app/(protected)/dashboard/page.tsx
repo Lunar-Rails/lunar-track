@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import PendingApprovals from '@/components/dashboard/PendingApprovals'
+import PulseCard, { type MonthlyMoodEntry } from '@/components/dashboard/PulseCard'
 import type { Profile, SubordinateRow, PerformancePeriod, Checkin, QuarterlyScore, CompanyValue, QuarterlyCheckin, ValueSelfAssessment, ValueAssessment } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -70,11 +71,12 @@ export default async function DashboardPage() {
   let myOkrs: { id: string; title: string; status: string }[] = []
   let latestScore: QuarterlyScore | null = null
   let hasNewScore = false
+  let moodHistory: MonthlyMoodEntry[] = []
   // Map from okr id → achievement status from quarterly check-in
   let goalAchievementMap = new Map<string, 'achieved' | 'not_achieved'>()
 
   if (openPeriod) {
-    const [checkinRes, okrsRes, scoreRes, qCheckinRes] = await Promise.all([
+    const [checkinRes, okrsRes, scoreRes, moodRes, qCheckinRes] = await Promise.all([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any)
         .from('checkins')
@@ -103,6 +105,15 @@ export default async function DashboardPage() {
         .maybeSingle(),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any)
+        .from('checkins')
+        .select('month, year, mood_energy, mood_productivity')
+        .eq('employee_id', user.id)
+        .not('mood_energy', 'is', null)
+        .order('year', { ascending: false })
+        .order('month', { ascending: false })
+        .limit(3),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any)
         .from('quarterly_checkins')
         .select('goals')
         .eq('employee_id', user.id)
@@ -118,6 +129,7 @@ export default async function DashboardPage() {
     }
     latestScore = scoreRes.data as QuarterlyScore | null
     hasNewScore = !!latestScore
+    moodHistory = ((moodRes.data ?? []) as MonthlyMoodEntry[]).reverse()
 
     // Build achievement map from quarterly check-in goals JSONB
     const qGoals = (qCheckinRes.data?.goals ?? []) as { id: string; status: 'achieved' | 'not_achieved' | null }[]
@@ -356,6 +368,16 @@ export default async function DashboardPage() {
       {/* Pending team join requests */}
       {(profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') && pendingRequests.length > 0 && (
         <PendingApprovals requests={pendingRequests} />
+      )}
+
+      {/* My Pulse — mood tracking summary */}
+      {openPeriod && (
+        <PulseCard
+          currentEnergy={thisMonthCheckin?.mood_energy ?? null}
+          currentProductivity={thisMonthCheckin?.mood_productivity ?? null}
+          hasCheckinThisMonth={!!thisMonthCheckin?.employee_submitted_at}
+          trend={moodHistory}
+        />
       )}
 
       {/* Current quarter goals — all roles */}

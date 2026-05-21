@@ -67,6 +67,9 @@ export interface Initiative {
   created_at: string
 }
 
+export type MoodEnergy = 'terrible' | 'meh' | 'okay' | 'great'
+export type MoodProductivity = 'waste' | 'fine' | 'ludicrous'
+
 export interface ReviewMit {
   title: string
   description: string
@@ -127,6 +130,9 @@ export interface Checkin {
   do_differently: string | null
   support_requests: string | null
   ai_builder: string | null
+  // Mood tracking
+  mood_energy: MoodEnergy | null
+  mood_productivity: MoodProductivity | null
   employee_submitted_at: string | null
   // Manager section
   mgr_mit_notes: string | null

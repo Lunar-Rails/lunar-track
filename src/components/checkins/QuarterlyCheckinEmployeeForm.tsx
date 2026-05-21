@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ArrowRight } from 'lucide-react'
 import GoalAchievementList from '@/components/checkins/GoalAchievementList'
 import MonthlyDoneWellSummary, { type MonthlyReflection } from '@/components/checkins/MonthlyDoneWellSummary'
+import MoodTrendSummary, { type MonthlyMood } from '@/components/checkins/MoodTrendSummary'
 import ValueChipSelector from '@/components/checkins/ValueChipSelector'
 import MitPlanList, { type LinkOption } from '@/components/checkins/MitPlanList'
 import { upsertQuarterlyCheckinEmployee } from '@/lib/actions/quarterly-checkin-actions'
@@ -22,6 +23,7 @@ interface QuarterlyCheckinEmployeeFormProps {
   checkin: QuarterlyCheckin | null
   companyValues: CompanyValue[]
   monthlyReflections: MonthlyReflection[]
+  monthlyMoods?: MonthlyMood[]
   initialGoals: QuarterlyGoalReview[]
   okrOptions: LinkOption[]
   readOnly?: boolean
@@ -46,7 +48,7 @@ function initValueAssessments(checkin: QuarterlyCheckin | null): ValueAssessment
 type Step = 'review' | 'plan'
 
 export default function QuarterlyCheckinEmployeeForm({
-  periodId, checkin, companyValues, monthlyReflections, initialGoals, okrOptions, readOnly = false,
+  periodId, checkin, companyValues, monthlyReflections, monthlyMoods = [], initialGoals, okrOptions, readOnly = false,
 }: QuarterlyCheckinEmployeeFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -171,6 +173,14 @@ export default function QuarterlyCheckinEmployeeForm({
                 <p className="text-xs text-lr-text/50 mt-0.5">Auto-pulled from your last 3 monthly check-ins</p>
               </div>
               <MonthlyDoneWellSummary reflections={monthlyReflections} />
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-lr-text">Monthly Pulse</p>
+                <p className="text-xs text-lr-text/50 mt-0.5">Your energy and productivity across the quarter</p>
+              </div>
+              <MoodTrendSummary moods={monthlyMoods} />
             </div>
 
             <div className="space-y-3">
