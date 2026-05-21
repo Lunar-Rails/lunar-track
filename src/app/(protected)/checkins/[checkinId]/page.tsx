@@ -76,8 +76,8 @@ export default async function CheckinDetailPage({
   }))
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div>
+    <div className="space-y-6">
+      <div className="max-w-3xl">
         <p className="text-kicker">{checkin.period.name}</p>
         <h1 className="text-page-title mt-1">
           {MONTH_NAMES[checkin.month - 1]} {checkin.year} Check-in

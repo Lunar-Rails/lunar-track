@@ -66,8 +66,8 @@ export default async function QuarterlyCheckinDetailPage({
   const managerSubmitted = !!checkin.manager_submitted_at
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div>
+    <div className="space-y-6">
+      <div className="max-w-3xl">
         <p className="text-kicker">{checkin.period.name}</p>
         <h1 className="text-page-title mt-1">
           Q{checkin.period.quarter} {checkin.period.year} Quarterly Check-in
