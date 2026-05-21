@@ -68,7 +68,12 @@ export default function MitPlanList({
                   <SelectTrigger className="bg-lr-surface border-lr-border text-lr-text text-sm h-9">
                     <SelectValue placeholder={`Link to ${linkLabel}…`} />
                   </SelectTrigger>
-                  <SelectContent side="bottom" position="popper" sideOffset={4}>
+                  <SelectContent
+                    side="bottom"
+                    position="popper"
+                    sideOffset={4}
+                    className="bg-[#13111f] border border-white/10 shadow-2xl backdrop-blur-none"
+                  >
                     {linkOptions.map((opt) => (
                       <SelectItem key={opt.id} value={opt.id}>{opt.label}</SelectItem>
                     ))}
