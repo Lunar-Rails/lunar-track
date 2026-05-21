@@ -313,18 +313,10 @@ export default async function DashboardPage() {
       {(profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') && (
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 shadow-[var(--shadow-lr-card)]">
           <h2 className="text-card-title mb-4">Pending actions</h2>
-          {pendingCheckins === 0 && pendingOkrs === 0 && myOkrCounts.total > 0 ? (
+          {pendingCheckins === 0 && pendingOkrs === 0 ? (
             <p className="text-sm text-lr-cyan">All caught up — no pending reviews or approvals.</p>
           ) : (
             <div className="space-y-2">
-              {openPeriod && myOkrCounts.total === 0 && (
-                <Link href="/okrs">
-                  <div className="flex items-center justify-between rounded-[var(--radius-lr)] border border-lr-gold/30 bg-lr-gold-dim px-3 py-2.5 hover:bg-lr-gold/10 transition-colors">
-                    <span className="text-sm text-lr-gold">🎯 No goals set for {openPeriod.name}</span>
-                    <span className="text-xs text-lr-gold/70">Set goals →</span>
-                  </div>
-                </Link>
-              )}
               {pendingCheckins > 0 && (
                 <Link href="/inbox">
                   <div className="flex items-center justify-between rounded-[var(--radius-lr)] border border-lr-gold/30 bg-lr-gold-dim px-3 py-2.5 hover:bg-lr-gold/10 transition-colors">
