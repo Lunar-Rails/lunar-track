@@ -109,11 +109,6 @@ export default async function CheckinsPage() {
                           Draft
                         </Badge>
                       )}
-                      {checkin.employee_submitted_at && (
-                        <span className="text-xs text-lr-muted hidden sm:block">
-                          Submitted {format(new Date(checkin.employee_submitted_at), 'MMM d')}
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>

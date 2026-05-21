@@ -12,6 +12,7 @@ import {
   CalendarCheck,
   BarChart2,
   SlidersHorizontal,
+  Star,
 } from 'lucide-react'
 import type { UserRole } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
@@ -48,6 +49,7 @@ export default function Sidebar({ role }: SidebarProps) {
     { href: '/admin/users', label: 'Users', icon: UserCog },
     { href: '/admin/scores', label: 'Scores', icon: BarChart2 },
     { href: '/admin/scores/calibration', label: 'Calibration', icon: SlidersHorizontal },
+    { href: '/admin/values', label: 'Company Values', icon: Star },
   ] : []
 
   return (

@@ -208,6 +208,9 @@ export interface QuarterlyCheckin {
   mgr_support_plan: string | null
   mgr_private_note: string | null
   manager_submitted_at: string | null
+  // AI Builder — employee self-report
+  ai_builder_active: boolean | null
+  ai_builder_description: string | null
   created_at: string
   updated_at: string
 }

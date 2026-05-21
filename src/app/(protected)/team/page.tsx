@@ -38,6 +38,88 @@ function Pip({ label, status }: { label: string; status: PipStatus }) {
   )
 }
 
+// Minimal SVG sparkline — 4 quarters, scores 1–5
+function ScoreSparkline({ data }: { data: (number | null)[] }) {
+  const W = 96
+  const H = 36
+  const PAD_X = 6
+  const PAD_Y = 6
+  const innerW = W - PAD_X * 2
+  const innerH = H - PAD_Y * 2
+
+  const points = data.map((v, i) => ({
+    x: PAD_X + (i / (data.length - 1)) * innerW,
+    y: v !== null ? H - PAD_Y - ((v - 1) / 4) * innerH : null,
+    v,
+  }))
+
+  // Build path segments (skip nulls)
+  const segments: string[] = []
+  let seg = ''
+  for (const p of points) {
+    if (p.y === null) { if (seg) { segments.push(seg); seg = '' } ; continue }
+    seg += seg ? ` L${p.x.toFixed(1)} ${p.y.toFixed(1)}` : `M${p.x.toFixed(1)} ${p.y.toFixed(1)}`
+  }
+  if (seg) segments.push(seg)
+
+  const hasData = data.some((v) => v !== null)
+
+  return (
+    <svg
+      width={W}
+      height={H}
+      viewBox={`0 0 ${W} ${H}`}
+      className="overflow-visible"
+      aria-hidden="true"
+    >
+      {/* Q-label x-axis */}
+      {data.map((_, i) => {
+        const x = PAD_X + (i / (data.length - 1)) * innerW
+        return (
+          <text
+            key={i}
+            x={x}
+            y={H + 10}
+            textAnchor="middle"
+            fontSize="8"
+            fill="var(--color-lr-muted, #666)"
+            opacity="0.7"
+          >
+            Q{i + 1}
+          </text>
+        )
+      })}
+
+      {!hasData ? (
+        <text x={W / 2} y={H / 2 + 3} textAnchor="middle" fontSize="9" fill="var(--color-lr-muted, #666)" opacity="0.5">
+          No scores
+        </text>
+      ) : (
+        <>
+          {/* Line segments */}
+          {segments.map((d, i) => (
+            <path key={i} d={d} fill="none" stroke="var(--color-lr-accent, #7c5cfc)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          ))}
+          {/* Dots */}
+          {points.map((p, i) =>
+            p.y !== null ? (
+              <circle key={i} cx={p.x} cy={p.y} r="2.5" fill="var(--color-lr-accent, #7c5cfc)" />
+            ) : null
+          )}
+          {/* Score labels above dots */}
+          {points.map((p, i) =>
+            p.y !== null && p.v !== null ? (
+              <text key={i} x={p.x} y={(p.y) - 5} textAnchor="middle" fontSize="8" fill="var(--color-lr-accent, #7c5cfc)" fontWeight="600">
+                {p.v % 1 === 0 ? p.v : p.v.toFixed(1)}
+              </text>
+            ) : null
+          )}
+        </>
+      )}
+    </svg>
+  )
+}
+
 export default async function TeamPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -54,12 +136,10 @@ export default async function TeamPage() {
     redirect('/dashboard')
   }
 
-  // Get direct reports (depth=1) via closure table RPC
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: subsRaw } = await (supabase as any).rpc('get_subordinates', { manager_uuid: user.id })
   const directReports = ((subsRaw ?? []) as SubordinateRow[]).filter((s) => s.depth === 1)
 
-  // Get pending OKR count
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: pendingOkrCount } = await (supabase as any).rpc('get_pending_okr_count', { manager_uuid: user.id })
 
@@ -73,11 +153,9 @@ export default async function TeamPage() {
     label: MONTH_ABBR[quarterStartMonth + i - 1],
   }))
 
-  // checkinMap[employeeId][month] = { employee_submitted_at, manager_submitted_at }
   const checkinMap: Record<string, Record<number, { employee_submitted_at: string | null; manager_submitted_at: string | null }>> = {}
   const quarterlyStatuses: Record<string, { employee_submitted_at: string | null; manager_submitted_at: string | null }> = {}
 
-  // Open period (for quarterly check-in scoping)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: openPeriodRaw } = await (supabase as any)
     .from('performance_periods').select('id, name').eq('status', 'open').limit(1).maybeSingle()
@@ -98,7 +176,18 @@ export default async function TeamPage() {
     return 'partial'
   }
 
-  const scoresMap: Record<string, QScore> = {}
+  const scoresMap: Record<string, QScore> = {}                    // current period only (for scoring hub)
+  const allScoresMap: Record<string, QScore[]> = {}               // all periods (for sparkline)
+
+  // Periods for current year — needed to map quarter → position
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: allPeriodsRaw } = await (supabase as any)
+    .from('performance_periods')
+    .select('id, quarter')
+    .eq('year', year)
+    .order('quarter', { ascending: true })
+  const yearPeriods = (allPeriodsRaw ?? []) as { id: string; quarter: number }[]
+  const periodQuarterMap = new Map(yearPeriods.map((p) => [p.id, p.quarter]))
 
   if (directReports.length > 0) {
     const reportIds = directReports.map((r) => r.id)
@@ -129,17 +218,39 @@ export default async function TeamPage() {
       }
     }
 
-    if (openPeriodId) {
+    // Fetch ALL scores for direct reports in current year (for sparkline)
+    const yearPeriodIds = yearPeriods.map((p) => p.id)
+    if (yearPeriodIds.length > 0) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: scoresRaw } = await (supabase as any)
+      const { data: allScoresRaw } = await (supabase as any)
         .from('quarterly_scores')
         .select('employee_id, period_id, professional_mastery, okrs_stretch_goals, behaviours_values')
         .in('employee_id', reportIds)
-        .eq('period_id', openPeriodId)
-      for (const s of (scoresRaw ?? []) as QScore[]) {
-        scoresMap[s.employee_id] = s
+        .in('period_id', yearPeriodIds)
+
+      for (const s of (allScoresRaw ?? []) as QScore[]) {
+        if (!allScoresMap[s.employee_id]) allScoresMap[s.employee_id] = []
+        allScoresMap[s.employee_id].push(s)
+        if (s.period_id === openPeriodId) scoresMap[s.employee_id] = s
       }
     }
+  }
+
+  function avgScore(s: QScore): number | null {
+    const vals = [s.professional_mastery, s.okrs_stretch_goals, s.behaviours_values].filter((v): v is number => v !== null)
+    if (vals.length === 0) return null
+    return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10
+  }
+
+  // Build sparkline data: array of 4 (Q1-Q4), each is avg or null
+  function sparklineData(employeeId: string): (number | null)[] {
+    const scores = allScoresMap[employeeId] ?? []
+    return [1, 2, 3, 4].map((q) => {
+      const period = yearPeriods.find((p) => p.quarter === q)
+      if (!period) return null
+      const score = scores.find((s) => s.period_id === period.id)
+      return score ? avgScore(score) : null
+    })
   }
 
   function monthPipStatus(checkin: { employee_submitted_at: string | null } | undefined, m: number): PipStatus {
@@ -191,7 +302,6 @@ export default async function TeamPage() {
                       </AvatarFallback>
                     </Avatar>
 
-                    {/* Name + email */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-sm font-semibold text-lr-text truncate">
@@ -204,7 +314,6 @@ export default async function TeamPage() {
                       <p className="text-xs text-lr-muted truncate">{report.email}</p>
                     </div>
 
-                    {/* Check-in pips */}
                     <div className="flex items-center gap-1.5 shrink-0">
                       {quarterMonths.map(({ month: m, label }) => (
                         <Pip
@@ -232,7 +341,10 @@ export default async function TeamPage() {
           </div>
         ) : (
           <>
-            <h2 className="text-card-title">Quarterly Scoring — {openPeriod.name}</h2>
+            <div>
+              <h2 className="text-card-title">Quarterly Scoring — {openPeriod.name}</h2>
+              <p className="text-caption text-lr-muted mt-0.5">Sparkline shows average score (1–5) across all {year} quarters</p>
+            </div>
             {directReports.length === 0 ? (
               <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-6 text-center">
                 <p className="text-sm text-lr-muted">No direct reports assigned yet.</p>
@@ -245,6 +357,7 @@ export default async function TeamPage() {
                       <th className="text-left px-4 py-3 text-lr-muted font-medium">Employee</th>
                       <th className="text-left px-4 py-3 text-lr-muted font-medium">Status</th>
                       <th className="text-left px-4 py-3 text-lr-muted font-medium">PM / Goals / B&amp;V</th>
+                      <th className="text-left px-4 py-3 text-lr-muted font-medium">Progress {year}</th>
                       <th className="px-4 py-3" />
                     </tr>
                   </thead>
@@ -284,6 +397,9 @@ export default async function TeamPage() {
                             ) : (
                               <span className="text-lr-muted">—</span>
                             )}
+                          </td>
+                          <td className="px-4 py-3 pb-6">
+                            <ScoreSparkline data={sparklineData(report.id)} />
                           </td>
                           <td className="px-4 py-3 text-right">
                             <Link

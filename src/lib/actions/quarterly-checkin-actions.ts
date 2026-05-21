@@ -56,6 +56,8 @@ export async function upsertQuarterlyCheckinEmployee(formData: FormData): Promis
     next_quarter_goals: z.string().default('[]'),
     next_quarter_mits: z.string().default('[]'),
     value_assessments: z.string().default('[]'),
+    ai_builder_active: z.string().optional(),
+    ai_builder_description: z.string().max(2000).optional(),
     submit: z.string().optional(),
   })
 
@@ -65,6 +67,8 @@ export async function upsertQuarterlyCheckinEmployee(formData: FormData): Promis
     next_quarter_goals: formData.get('next_quarter_goals') || '[]',
     next_quarter_mits: formData.get('next_quarter_mits') || '[]',
     value_assessments: formData.get('value_assessments') || '[]',
+    ai_builder_active: formData.get('ai_builder_active') || undefined,
+    ai_builder_description: formData.get('ai_builder_description') || undefined,
     submit: formData.get('submit') || undefined,
   })
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
@@ -103,6 +107,8 @@ export async function upsertQuarterlyCheckinEmployee(formData: FormData): Promis
     next_quarter_goals: nextQuarterGoals,
     next_quarter_mits: nextQuarterMits,
     value_assessments: valueAssessments,
+    ai_builder_active: parsed.data.ai_builder_active === 'true',
+    ai_builder_description: parsed.data.ai_builder_description ?? null,
     updated_at: new Date().toISOString(),
   }
   if (isSubmit) payload.employee_submitted_at = new Date().toISOString()

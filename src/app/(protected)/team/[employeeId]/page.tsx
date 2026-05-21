@@ -45,6 +45,14 @@ type OkrWithProgress = Okr & {
   key_results: (KeyResult & { initiatives: Initiative[] })[]
 }
 
+interface ReviewMit {
+  title: string
+  description?: string | null
+  okr_id?: string | null
+  okr_label?: string | null
+  status?: 'achieved' | 'not_achieved' | null
+}
+
 function quarterMonths(quarter: number): number[] {
   return [1, 2, 3].map((i) => (quarter - 1) * 3 + i)
 }
@@ -59,7 +67,6 @@ function monthPipStatus(
 ): PipStatus {
   if (checkin?.employee_submitted_at) return 'done'
   if (periodStatus === 'closed') return 'late'
-  // Open period
   if (periodYear < currentYear) return 'late'
   if (periodYear > currentYear) return 'future'
   if (month > currentMonth) return 'future'
@@ -100,7 +107,6 @@ export default async function TeamMemberPage({
   const employee = employeeRaw as Profile | null
   if (!employee) notFound()
 
-  // Fetch all data in parallel
   const [periodsResult, checkinsResult, qCheckinsResult, scoresResult, okrsResult] = await Promise.all([
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('performance_periods').select('*')
@@ -121,7 +127,6 @@ export default async function TeamMemberPage({
   const allScores = (scoresResult.data ?? []) as QuarterlyScore[]
   const allOkrs = (okrsResult.data ?? []) as OkrWithProgress[]
 
-  // Sort OKR children
   allOkrs.forEach((o) => {
     o.key_results = [...(o.key_results ?? [])].sort((a, b) => a.sort_order - b.sort_order)
     o.key_results.forEach((kr) => {
@@ -129,7 +134,6 @@ export default async function TeamMemberPage({
     })
   })
 
-  // Build lookup maps
   const checkinByPeriodMonth = new Map<string, Checkin>()
   for (const c of allCheckins) checkinByPeriodMonth.set(`${c.period_id}-${c.month}`, c)
 
@@ -145,7 +149,6 @@ export default async function TeamMemberPage({
     okrsByPeriod.get(o.period_id)!.push(o)
   }
 
-  // Only show periods that are open OR have some activity
   const activePeriodIds = new Set([
     ...allCheckins.map((c) => c.period_id),
     ...allQCheckins.map((q) => q.period_id),
@@ -157,10 +160,16 @@ export default async function TeamMemberPage({
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
+  const currentQuarter = Math.ceil(currentMonth / 3)
+
+  // Filter out future periods (no data and hasn't started yet)
+  const visiblePeriods = periods.filter((p) => {
+    const isFuture = p.year > currentYear || (p.year === currentYear && p.quarter > currentQuarter)
+    return !isFuture
+  })
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      {/* Back nav */}
+    <div className="space-y-6">
       <Link href="/team" className="inline-block text-sm text-lr-muted hover:text-lr-text transition-colors">
         ← Team
       </Link>
@@ -189,20 +198,41 @@ export default async function TeamMemberPage({
       )}
 
       {/* Quarter cards — newest first */}
-      {periods.map((period) => {
+      {visiblePeriods.map((period) => {
         const isOpen = period.status === 'open'
         const months = quarterMonths(period.quarter)
         const qCheckin = qCheckinByPeriod.get(period.id)
         const score = scoreByPeriod.get(period.id)
         const periodOkrs = okrsByPeriod.get(period.id) ?? []
-        const approvedOkrs = periodOkrs.filter((o) => o.status === 'APPROVED')
 
-        // Latest submitted monthly check-in for MIT preview
-        const latestSubmitted = months
-          .map((m) => checkinByPeriodMonth.get(`${period.id}-${m}`))
-          .filter((c): c is Checkin => !!c?.employee_submitted_at)
-          .at(-1)
-        const latestMits = (latestSubmitted?.mits ?? []).filter((m) => m.title.trim())
+        // Collect all MITs from submitted check-ins in this period
+        type MitEntry = { month: number; mit: ReviewMit }
+        const allMitEntries: MitEntry[] = []
+        for (const m of months) {
+          const c = checkinByPeriodMonth.get(`${period.id}-${m}`)
+          if (!c?.employee_submitted_at || !c.mits) continue
+          for (const mit of (c.mits as ReviewMit[])) {
+            if (mit.title?.trim()) allMitEntries.push({ month: m, mit })
+          }
+        }
+
+        // Group MITs: linked to a goal vs unlinked
+        const mitsByOkr = new Map<string, MitEntry[]>()
+        const unlinkedMits: MitEntry[] = []
+        for (const entry of allMitEntries) {
+          if (entry.mit.okr_id) {
+            if (!mitsByOkr.has(entry.mit.okr_id)) mitsByOkr.set(entry.mit.okr_id, [])
+            mitsByOkr.get(entry.mit.okr_id)!.push(entry)
+          } else {
+            unlinkedMits.push(entry)
+          }
+        }
+
+        // Goals from quarterly check-in (typed loosely)
+        type QGoal = { id: string; title?: string; status: 'achieved' | 'not_achieved' | null }
+        const qGoals = (qCheckin?.goals as QGoal[] | null | undefined) ?? []
+
+        const showGoalSection = periodOkrs.length > 0 || allMitEntries.length > 0
 
         return (
           <section
@@ -224,7 +254,6 @@ export default async function TeamMemberPage({
                 )}
               </div>
 
-              {/* Score summary or CTA */}
               {score ? (
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-xs text-lr-muted">PM <span className="font-bold text-lr-accent">{score.professional_mastery ?? '—'}</span></span>
@@ -232,22 +261,22 @@ export default async function TeamMemberPage({
                   <span className="text-xs text-lr-muted">B&amp;V <span className="font-bold text-lr-accent">{score.behaviours_values ?? '—'}</span></span>
                   <Link
                     href={`/scoring/${employeeId}/${period.id}`}
-                    className="text-xs text-lr-accent hover:text-lr-accent/80 transition-colors"
+                    className="shrink-0 rounded-[var(--radius-lr)] border border-lr-accent/20 bg-lr-accent-dim text-lr-accent px-3 py-1.5 text-sm font-medium hover:bg-lr-accent/20 transition-colors"
                   >
-                    Edit →
+                    Score Quarter →
                   </Link>
                 </div>
               ) : (
                 <Link
                   href={`/scoring/${employeeId}/${period.id}`}
-                  className="text-xs shrink-0 rounded-[var(--radius-lr)] border border-lr-accent/20 bg-lr-accent-dim text-lr-accent px-3 py-1.5 hover:bg-lr-accent/20 transition-colors"
+                  className="shrink-0 rounded-[var(--radius-lr)] border border-lr-accent/20 bg-lr-accent-dim text-lr-accent px-3 py-1.5 text-sm font-medium hover:bg-lr-accent/20 transition-colors"
                 >
-                  Score →
+                  Score Quarter →
                 </Link>
               )}
             </div>
 
-            <div className="px-5 py-4 space-y-4">
+            <div className="px-5 py-4 space-y-5">
               {/* Check-in pips + quarterly link */}
               <div className="flex items-center gap-2 flex-wrap">
                 {months.map((m) => {
@@ -277,44 +306,81 @@ export default async function TeamMemberPage({
                 ) : null}
               </div>
 
-              {/* Goal progress bars */}
-              {approvedOkrs.length > 0 && (
-                <div className="space-y-2.5">
-                  {approvedOkrs.map((okr) => {
+              {/* Goals & MIT linked view */}
+              {showGoalSection && (
+                <div className="space-y-2">
+                  <p className="text-section-label">Goals &amp; Work</p>
+
+                  {periodOkrs.map((okr) => {
                     const inits = okr.key_results.flatMap((kr) => kr.initiatives)
                     const done = inits.filter((i) => i.completed).length
                     const pct = inits.length > 0 ? Math.round((done / inits.length) * 100) : 0
+                    const linked = mitsByOkr.get(okr.id) ?? []
+                    const qGoal = qGoals.find((g) => g.id === okr.id)
+
                     return (
-                      <div key={okr.id}>
-                        <div className="flex items-center justify-between mb-1">
-                          <p className="text-xs text-lr-text truncate flex-1 min-w-0 mr-3">{okr.title}</p>
-                          <span className="text-[10px] text-lr-muted shrink-0">{done}/{inits.length}</span>
+                      <div key={okr.id} className="rounded-[var(--radius-lr)] border border-lr-border/50 bg-lr-surface/20 overflow-hidden">
+                        {/* Goal header */}
+                        <div className="flex items-center gap-3 px-3 py-2 bg-lr-surface/30">
+                          <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${okr.status === 'APPROVED' ? 'bg-lr-accent' : 'bg-lr-muted/50'}`} />
+                          <p className="text-xs font-medium text-lr-text flex-1 min-w-0">{okr.title}</p>
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            {qGoal?.status && (
+                              <span className={`text-[10px] font-medium ${qGoal.status === 'achieved' ? 'text-green-400' : 'text-red-400'}`}>
+                                {qGoal.status === 'achieved' ? 'Achieved' : 'Not achieved'}
+                              </span>
+                            )}
+                            {inits.length > 0 && (
+                              <span className="text-[10px] text-lr-muted">{done}/{inits.length}</span>
+                            )}
+                          </div>
                         </div>
                         {inits.length > 0 && (
-                          <div className="h-1 w-full overflow-hidden rounded-full bg-lr-surface">
-                            <div className="h-full bg-lr-accent transition-all" style={{ width: `${pct}%` }} />
+                          <div className="h-0.5 bg-lr-surface">
+                            <div className="h-full bg-lr-accent/60" style={{ width: `${pct}%` }} />
+                          </div>
+                        )}
+                        {linked.length > 0 ? (
+                          <div className="px-3 py-2 space-y-1.5">
+                            {linked.map(({ month, mit }, i) => (
+                              <div key={i} className="flex items-start gap-2">
+                                <span className={`mt-[3px] h-1.5 w-1.5 rounded-full shrink-0 ${
+                                  mit.status === 'achieved' ? 'bg-green-400' : 'bg-red-400/70'
+                                }`} />
+                                <p className="text-xs text-lr-text leading-snug flex-1">{mit.title}</p>
+                                <span className="text-[10px] text-lr-muted shrink-0">{MONTH_NAMES[month - 1]}</span>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="px-3 py-2">
+                            <p className="text-[10px] text-lr-muted/40 italic">No MITs linked to this goal</p>
                           </div>
                         )}
                       </div>
                     )
                   })}
-                </div>
-              )}
 
-              {/* Latest MITs preview */}
-              {latestMits.length > 0 && (
-                <div className="rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface/40 p-3 space-y-1.5">
-                  <p className="text-[10px] font-semibold text-lr-muted uppercase tracking-wide">
-                    MITs — {MONTH_NAMES[latestSubmitted!.month - 1]}
-                  </p>
-                  {latestMits.slice(0, 3).map((mit, i) => (
-                    <div key={i} className="flex items-start gap-2">
-                      <span className={`mt-1 h-1.5 w-1.5 rounded-full shrink-0 ${
-                        mit.status === 'achieved' ? 'bg-green-400' : 'bg-red-400/70'
-                      }`} />
-                      <p className="text-xs text-lr-text leading-snug">{mit.title}</p>
+                  {/* Unlinked MITs */}
+                  {unlinkedMits.length > 0 && (
+                    <div className="rounded-[var(--radius-lr)] border border-lr-border/50 bg-lr-surface/20 overflow-hidden">
+                      <div className="flex items-center gap-2 px-3 py-2 bg-lr-surface/30">
+                        <span className="h-1.5 w-1.5 rounded-full bg-lr-muted/40 shrink-0" />
+                        <p className="text-xs font-medium text-lr-muted">Other Work</p>
+                      </div>
+                      <div className="px-3 py-2 space-y-1.5">
+                        {unlinkedMits.map(({ month, mit }, i) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <span className={`mt-[3px] h-1.5 w-1.5 rounded-full shrink-0 ${
+                              mit.status === 'achieved' ? 'bg-green-400' : 'bg-red-400/70'
+                            }`} />
+                            <p className="text-xs text-lr-text leading-snug flex-1">{mit.title}</p>
+                            <span className="text-[10px] text-lr-muted shrink-0">{MONTH_NAMES[month - 1]}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               )}
 
@@ -331,10 +397,8 @@ export default async function TeamMemberPage({
                         className="flex items-center justify-between rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface/30 px-3 py-2 hover:bg-lr-surface transition-colors"
                       >
                         <span className="text-xs text-lr-text">{MONTH_NAMES[m - 1]} check-in</span>
-                        {checkin.manager_submitted_at ? (
-                          <Badge variant="outline" className="text-[10px] bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20">Complete</Badge>
-                        ) : checkin.employee_submitted_at ? (
-                          <Badge variant="outline" className="text-[10px] bg-lr-gold-dim text-lr-gold border-lr-gold/20">Needs review</Badge>
+                        {checkin.employee_submitted_at ? (
+                          <Badge variant="outline" className="text-[10px] bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20">Submitted</Badge>
                         ) : (
                           <Badge variant="outline" className="text-[10px] bg-lr-surface text-lr-muted border-lr-border">Draft</Badge>
                         )}
@@ -347,16 +411,6 @@ export default async function TeamMemberPage({
           </section>
         )
       })}
-
-      {/* Annual score link */}
-      <div className="pt-2 text-center">
-        <Link
-          href={`/annual-scores/${employeeId}?year=${currentYear}`}
-          className="text-xs text-lr-muted hover:text-lr-text transition-colors"
-        >
-          → Finalize {currentYear} Annual Score
-        </Link>
-      </div>
     </div>
   )
 }

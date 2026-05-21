@@ -138,3 +138,28 @@ Do not make direct repo edits outside a GSD workflow unless the user explicitly 
 > Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
 > This section is managed by `generate-Codex-profile` -- do not edit manually.
 <!-- GSD:profile-end -->
+
+## Cursor Cloud specific instructions
+
+### Service overview
+
+Single Next.js 16 app (branded "CiaoBob") connecting to a remote hosted Supabase instance. No local Docker, no separate backend.
+
+### Running the app
+
+- `npm run dev` — starts the Next.js dev server on port 3000 (Turbopack)
+- `npm run build` — production build
+- `npm run lint` — ESLint (exits 1 on errors; existing warnings/errors in codebase are pre-existing)
+- `npx tsc --noEmit` — TypeScript type-check (passes cleanly)
+
+### Environment variables
+
+Required secrets are injected by the Cloud Agent environment: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_APP_URL`, `SUPABASE_POOLER`. These must be written to `.env.local` for Next.js to pick them up (the update script handles this automatically).
+
+### Gotchas
+
+- No `.env.local` is committed. The update script generates it from injected env vars on every boot.
+- ESLint has ~8 pre-existing errors and ~14 warnings in the codebase (unused imports, prefer-const, set-state-in-effect). These are not regressions.
+- Auth requires Google OAuth flow with the hosted Supabase project — cannot log in without a valid Google account linked to the Supabase project. Unauthenticated requests redirect to `/login`.
+- `RESEND_API_KEY` is optional; email notifications gracefully no-op without it.
+- No automated test suite exists (`npm test` is not configured). Validation relies on `tsc`, ESLint, and manual testing.
