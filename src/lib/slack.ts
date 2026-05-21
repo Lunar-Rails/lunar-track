@@ -15,19 +15,34 @@ import type { SlackBlock } from './reminder-logic'
 
 const SLACK_API = 'https://slack.com/api'
 
+type ContentType = 'json' | 'form'
+
 async function slackPost<T extends { ok: boolean; error?: string }>(
   endpoint: string,
   body: Record<string, unknown>,
   token: string,
+  contentType: ContentType = 'json',
 ): Promise<T | null> {
   try {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+    }
+
+    let encodedBody: string
+    if (contentType === 'json') {
+      headers['Content-Type'] = 'application/json; charset=utf-8'
+      encodedBody = JSON.stringify(body)
+    } else {
+      headers['Content-Type'] = 'application/x-www-form-urlencoded'
+      encodedBody = new URLSearchParams(
+        Object.entries(body).map(([k, v]) => [k, String(v)]),
+      ).toString()
+    }
+
     const res = await fetch(`${SLACK_API}/${endpoint}`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json; charset=utf-8',
-      },
-      body: JSON.stringify(body),
+      headers,
+      body: encodedBody,
     })
     const data = await res.json() as T
     if (!data.ok) {
@@ -54,6 +69,7 @@ export async function lookupSlackUserByEmail(
     'users.lookupByEmail',
     { email },
     token,
+    'form', // This method requires application/x-www-form-urlencoded
   )
   return data?.user?.id ?? null
 }
