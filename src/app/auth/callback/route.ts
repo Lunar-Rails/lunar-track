@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { isAllowedEmail } from '@/lib/auth/allowed-domains'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -20,6 +21,11 @@ export async function GET(request: Request) {
   const { data: { user }, error: userError } = await supabase.auth.getUser()
   if (userError || !user?.email) {
     return NextResponse.redirect(`${origin}/login?error=no_user`)
+  }
+
+  if (!isAllowedEmail(user.email)) {
+    await supabase.auth.signOut()
+    return NextResponse.redirect(`${origin}/login?error=domain`)
   }
 
   // Provision profile — does NOT overwrite role on re-login

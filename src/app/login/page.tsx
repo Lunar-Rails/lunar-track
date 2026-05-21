@@ -28,7 +28,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         {error && (
           <div className="mb-6 rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-3">
-            <p className="text-sm text-red-400">Authentication failed. Please try again.</p>
+            <p className="text-sm text-red-400">
+              {error === 'domain'
+                ? 'Sign-in is restricted to authorized company domains.'
+                : 'Authentication failed. Please try again.'}
+            </p>
           </div>
         )}
 

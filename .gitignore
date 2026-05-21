@@ -27,3 +27,7 @@ tsconfig.tsbuildinfo
 # AI agent / tooling dirs
 .claude/
 .superpowers/
+
+.cursor/
+
+*/.temp

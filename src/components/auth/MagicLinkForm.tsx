@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { isAllowedEmail, DOMAIN_ERROR_MESSAGE } from '@/lib/auth/allowed-domains'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,6 +22,10 @@ export default function MagicLinkForm() {
     if (mode === 'password' && !password) return
     setError(null)
     startTransition(async () => {
+      if (!isAllowedEmail(email)) {
+        setError(DOMAIN_ERROR_MESSAGE)
+        return
+      }
       const supabase = createClient()
       if (mode === 'magic') {
         const { error } = await supabase.auth.signInWithOtp({
