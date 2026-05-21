@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrProvisionProfile } from '@/lib/supabase/server'
 import OnboardingForm from '@/components/onboarding/OnboardingForm'
-import type { Profile } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -16,14 +15,7 @@ export default async function OnboardingPage() {
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) redirect('/login')
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: profileRaw } = await (supabase as any)
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single()
-
-  const profile = profileRaw as Profile | null
+  const profile = await getOrProvisionProfile(supabase, user)
   if (!profile) redirect('/login')
 
   // Already onboarded — go to dashboard
@@ -31,8 +23,21 @@ export default async function OnboardingPage() {
 
   // Fetch managers via security-definer RPC (bypasses RLS for new users)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: managersRaw } = await (supabase as any).rpc('get_managers')
-  const managers = (managersRaw ?? []) as Manager[]
+  const { data: managersRaw, error: managersError } = await (supabase as any).rpc('get_managers')
+  let managers = (managersRaw ?? []) as Manager[]
+
+  if (managersError) {
+    // Fallback for newly-migrated environments where the RPC schema cache
+    // has not caught up yet. The DB policy added in 00012 allows this query.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: managersDirectRaw } = await (supabase as any)
+      .from('profiles')
+      .select('id, email, full_name')
+      .in('role', ['MANAGER', 'HR_ADMIN'])
+      .eq('is_onboarded', true)
+      .order('full_name', { ascending: true })
+    managers = (managersDirectRaw ?? []) as Manager[]
+  }
 
   const hasPendingRequest = !!profile.pending_manager_id
 

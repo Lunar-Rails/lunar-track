@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useTransition } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -27,6 +27,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import RoleSelect from '@/components/admin/RoleSelect'
 import ManagerSelect from '@/components/admin/ManagerSelect'
+import { removeUser } from '@/lib/actions/admin-actions'
 import { format } from 'date-fns'
 import type { Profile, UserRole } from '@/lib/types/database'
 
@@ -40,9 +41,23 @@ function getInitials(name: string | null, email: string): string {
   return email.slice(0, 2).toUpperCase()
 }
 
+function getDomain(email: string): string {
+  return email.split('@')[1] ?? ''
+}
+
 export default function UsersTable({ users, allUsers }: UsersTableProps) {
   const [globalFilter, setGlobalFilter] = useState('')
   const [roleFilter, setRoleFilter] = useState<UserRole | 'ALL'>('ALL')
+  const [domainFilter, setDomainFilter] = useState<string>('ALL')
+  const [removingId, setRemovingId] = useState<string | null>(null)
+  const [removeError, setRemoveError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  // Derive unique domains from user list
+  const domains = useMemo(() => {
+    const set = new Set(users.map((u) => getDomain(u.email)).filter(Boolean))
+    return Array.from(set).sort()
+  }, [users])
 
   const filteredData = useMemo(() => {
     return users.filter((u) => {
@@ -51,16 +66,27 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
         (u.full_name ?? '').toLowerCase().includes(globalFilter.toLowerCase()) ||
         u.email.toLowerCase().includes(globalFilter.toLowerCase())
       const matchesRole = roleFilter === 'ALL' || u.role === roleFilter
-      return matchesSearch && matchesRole
+      const matchesDomain = domainFilter === 'ALL' || getDomain(u.email) === domainFilter
+      return matchesSearch && matchesRole && matchesDomain
     })
-  }, [users, globalFilter, roleFilter])
+  }, [users, globalFilter, roleFilter, domainFilter])
 
-  // Build manager lookup
   const managerMap = useMemo(() => {
     const map = new Map<string, string>()
     users.forEach((u) => map.set(u.id, u.full_name ?? u.email))
     return map
   }, [users])
+
+  function handleRemove(userId: string, userName: string) {
+    if (!confirm(`Remove ${userName}? This cannot be undone.`)) return
+    setRemoveError(null)
+    setRemovingId(userId)
+    startTransition(async () => {
+      const result = await removeUser(userId)
+      setRemovingId(null)
+      if ('error' in result) setRemoveError(result.error)
+    })
+  }
 
   const columns: ColumnDef<Profile>[] = [
     {
@@ -70,7 +96,7 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
         const u = row.original
         return (
           <div className="flex items-center gap-2">
-            <Avatar className="h-7 w-7">
+            <Avatar className="h-7 w-7 shrink-0">
               <AvatarImage src={u.avatar_url ?? undefined} />
               <AvatarFallback className="bg-lr-accent text-white text-xs">
                 {getInitials(u.full_name, u.email)}
@@ -124,6 +150,24 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
         </span>
       ),
     },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => {
+        const u = row.original
+        const isRemoving = removingId === u.id
+        return (
+          <button
+            type="button"
+            disabled={isPending || isRemoving}
+            onClick={() => handleRemove(u.id, u.full_name ?? u.email)}
+            className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            {isRemoving ? 'Removing…' : 'Remove'}
+          </button>
+        )
+      },
+    },
   ]
 
   const table = useReactTable({
@@ -136,7 +180,7 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Input
           placeholder="Search by name or email…"
           value={globalFilter}
@@ -154,48 +198,72 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
             <SelectItem value="HR_ADMIN">HR Admin</SelectItem>
           </SelectContent>
         </Select>
+        {domains.length > 1 && (
+          <Select value={domainFilter} onValueChange={setDomainFilter}>
+            <SelectTrigger className="w-44 h-9 bg-lr-surface border-lr-border text-sm text-lr-text">
+              <SelectValue placeholder="All companies" />
+            </SelectTrigger>
+            <SelectContent className="bg-lr-surface border-lr-border">
+              <SelectItem value="ALL">All companies</SelectItem>
+              {domains.map((d) => (
+                <SelectItem key={d} value={d}>@{d}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <span className="text-caption ml-auto">
           {filteredData.length} user{filteredData.length !== 1 ? 's' : ''}
         </span>
       </div>
 
-      {/* Table */}
+      {removeError && (
+        <div className="rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400">
+          {removeError}
+        </div>
+      )}
+
+      {/* Table with sticky header */}
       <div className="rounded-[var(--radius-lr-lg)] border border-lr-border overflow-hidden">
-        <Table>
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id} className="border-b border-lr-border hover:bg-transparent">
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} className="text-section-label bg-lr-surface py-3">
-                    {flexRender(header.column.columnDef.header, header.getContext())}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} className="text-center py-8 text-lr-muted">
-                  No users found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  className="border-b border-lr-border hover:bg-lr-surface transition-colors"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id} className="py-3">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </TableCell>
+        <div className="max-h-[60vh] overflow-y-auto">
+          <Table className="border-separate border-spacing-0">
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      className="sticky top-0 z-10 text-section-label bg-lr-surface py-3 border-b border-lr-border shadow-[0_1px_0_0_var(--color-lr-border)]"
+                    >
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
                   ))}
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={columns.length} className="text-center py-8 text-lr-muted">
+                    No users found.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    className="border-b border-lr-border hover:bg-lr-surface transition-colors"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id} className="py-3">
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   )

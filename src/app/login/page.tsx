@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrProvisionProfile } from '@/lib/supabase/server'
 import MagicLinkForm from '@/components/auth/MagicLinkForm'
 
 export const dynamic = 'force-dynamic'
@@ -14,7 +14,15 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  if (user) redirect('/dashboard')
+  if (user) {
+    const profile = await getOrProvisionProfile(supabase, user)
+    if (profile) {
+      if (profile.role === 'EMPLOYEE' && !profile.is_onboarded) {
+        redirect('/onboarding')
+      }
+      redirect('/dashboard')
+    }
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-lr-bg px-4">
@@ -33,6 +41,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 ? 'Sign-in is restricted to authorized company domains.'
                 : 'Authentication failed. Please try again.'}
             </p>
+          </div>
+        )}
+
+        {user && !error && !sent && (
+          <div className="mb-6 rounded-[var(--radius-lr)] border border-amber-500/20 bg-amber-500/10 px-4 py-3">
+            <p className="text-sm text-amber-300">You are signed in, but your profile could not be provisioned yet.</p>
+            <p className="text-xs text-amber-200/80 mt-1">Try reloading once. If it persists, the server-side Supabase RPC cache may still be warming up.</p>
           </div>
         )}
 

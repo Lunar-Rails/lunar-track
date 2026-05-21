@@ -1,149 +1,79 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
-import { z } from 'zod'
-import type { Profile } from '@/lib/types/database'
 
-type ActionResult = { success: true } | { error: string }
-type SeedResult = { success: true; seeded: boolean } | { error: string }
+const QUARTERS = [
+  { quarter: 1, start_date_suffix: '-01-01', end_date_suffix: '-03-31' },
+  { quarter: 2, start_date_suffix: '-04-01', end_date_suffix: '-06-30' },
+  { quarter: 3, start_date_suffix: '-07-01', end_date_suffix: '-09-30' },
+  { quarter: 4, start_date_suffix: '-10-01', end_date_suffix: '-12-31' },
+]
 
-async function verifyHRAdmin(supabase: Awaited<ReturnType<typeof createClient>>): Promise<Profile | null> {
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error || !user) return null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data } = await (supabase as any).from('profiles').select('*').eq('id', user.id).single()
-  const profile = data as Profile | null
-  if (!profile || profile.role !== 'HR_ADMIN') return null
-  return profile
-}
-
-export async function seedPeriodsForCurrentYear(): Promise<SeedResult> {
+/**
+ * Called from the protected layout on every authenticated page load.
+ * 1. Creates all 4 quarters for the current year if they don't exist yet.
+ * 2. Ensures the correct quarter is open (closes any stale open period, opens the current one).
+ * Fully idempotent — safe to call on every request.
+ */
+export async function ensureCurrentPeriod(): Promise<void> {
   const supabase = await createClient()
-  // Only HR_ADMIN may trigger seeding
-  const caller = await verifyHRAdmin(supabase)
-  if (!caller) return { error: 'Unauthorized: HR Admin access required' }
 
   const now = new Date()
   const year = now.getFullYear()
   const currentQuarter = Math.ceil((now.getMonth() + 1) / 3)
 
+  // Fetch existing periods for this year
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { count } = await (supabase as any)
+  const { data: existingRaw } = await (supabase as any)
     .from('performance_periods')
-    .select('*', { count: 'exact', head: true })
+    .select('id, quarter, status')
     .eq('year', year)
 
-  if ((count ?? 0) > 0) {
-    return { success: true, seeded: false }
-  }
+  type MinPeriod = { id: string; quarter: number; status: 'open' | 'closed' }
+  const existing = (existingRaw ?? []) as MinPeriod[]
+  const existingQuarters = new Set(existing.map((p) => p.quarter))
 
-  const quarters = [
-    { quarter: 1, name: `Q1 ${year}`, start_date: `${year}-01-01`, end_date: `${year}-03-31` },
-    { quarter: 2, name: `Q2 ${year}`, start_date: `${year}-04-01`, end_date: `${year}-06-30` },
-    { quarter: 3, name: `Q3 ${year}`, start_date: `${year}-07-01`, end_date: `${year}-09-30` },
-    { quarter: 4, name: `Q4 ${year}`, start_date: `${year}-10-01`, end_date: `${year}-12-31` },
-  ]
+  // Insert any missing quarters
+  const toInsert = QUARTERS.filter((q) => !existingQuarters.has(q.quarter)).map((q) => ({
+    name: `Q${q.quarter} ${year}`,
+    year,
+    quarter: q.quarter,
+    start_date: `${year}${q.start_date_suffix}`,
+    end_date: `${year}${q.end_date_suffix}`,
+    status: q.quarter === currentQuarter ? ('open' as const) : ('closed' as const),
+  }))
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: insertError } = await (supabase as any)
-    .from('performance_periods')
-    .insert(quarters.map((q) => ({
-      ...q,
-      year,
-      // Only the current quarter starts open; past/future quarters start closed
-      status: q.quarter === currentQuarter ? ('open' as const) : ('closed' as const),
-    })))
-
-  if (insertError) return { error: 'Failed to seed periods: ' + insertError.message }
-
-  revalidatePath('/admin/periods')
-  return { success: true, seeded: true }
-}
-
-export async function createPeriod(formData: FormData): Promise<ActionResult> {
-  const supabase = await createClient()
-  const caller = await verifyHRAdmin(supabase)
-  if (!caller) return { error: 'Unauthorized: HR Admin access required' }
-
-  const schema = z.object({
-    name: z.string().min(1).max(100),
-    year: z.coerce.number().int().min(2020).max(2099),
-    quarter: z.coerce.number().int().min(1).max(4),
-    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  })
-
-  const parsed = schema.safeParse({
-    name: formData.get('name'),
-    year: formData.get('year'),
-    quarter: formData.get('quarter'),
-    startDate: formData.get('startDate'),
-    endDate: formData.get('endDate'),
-  })
-  if (!parsed.success) return { error: 'Invalid input: ' + parsed.error.issues[0]?.message }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: insertError } = await (supabase as any)
-    .from('performance_periods')
-    .insert({
-      name: parsed.data.name,
-      year: parsed.data.year,
-      quarter: parsed.data.quarter,
-      start_date: parsed.data.startDate,
-      end_date: parsed.data.endDate,
-      status: 'open',
-    })
-
-  if (insertError) {
-    if (insertError.code === '23505') {
-      return { error: `A period for Q${parsed.data.quarter} ${parsed.data.year} already exists` }
-    }
-    return { error: 'Failed to create period: ' + insertError.message }
-  }
-
-  revalidatePath('/admin/periods')
-  return { success: true }
-}
-
-export async function togglePeriodStatus(formData: FormData): Promise<ActionResult> {
-  const supabase = await createClient()
-  const caller = await verifyHRAdmin(supabase)
-  if (!caller) return { error: 'Unauthorized: HR Admin access required' }
-
-  const schema = z.object({
-    periodId: z.string().uuid(),
-    currentStatus: z.enum(['open', 'closed']),
-  })
-
-  const parsed = schema.safeParse({
-    periodId: formData.get('periodId'),
-    currentStatus: formData.get('currentStatus'),
-  })
-  if (!parsed.success) return { error: 'Invalid input: ' + parsed.error.issues[0]?.message }
-
-  const newStatus = parsed.data.currentStatus === 'open' ? 'closed' : 'open'
-
-  // Guard: only one period may be open at a time
-  if (newStatus === 'open') {
+  if (toInsert.length > 0) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { count } = await (supabase as any)
-      .from('performance_periods')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'open')
-    if ((count ?? 0) > 0) {
-      return { error: 'Another period is already open. Close it before opening this one.' }
-    }
+    await (supabase as any).from('performance_periods').insert(toInsert)
   }
 
+  // Re-fetch after potential inserts to get fresh state
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: updateError } = await (supabase as any)
+  const { data: freshRaw } = await (supabase as any)
     .from('performance_periods')
-    .update({ status: newStatus })
-    .eq('id', parsed.data.periodId)
+    .select('id, quarter, status')
+    .eq('year', year)
+  const fresh = (freshRaw ?? []) as MinPeriod[]
 
-  if (updateError) return { error: 'Failed to update period status: ' + updateError.message }
+  const currentPeriod = fresh.find((p) => p.quarter === currentQuarter)
+  const staleOpenPeriods = fresh.filter((p) => p.quarter !== currentQuarter && p.status === 'open')
 
-  revalidatePath('/admin/periods')
-  return { success: true }
+  // Close any period that should no longer be open
+  for (const stale of staleOpenPeriods) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from('performance_periods')
+      .update({ status: 'closed' })
+      .eq('id', stale.id)
+  }
+
+  // Open the current quarter's period if it isn't already
+  if (currentPeriod && currentPeriod.status !== 'open') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any)
+      .from('performance_periods')
+      .update({ status: 'open' })
+      .eq('id', currentPeriod.id)
+  }
 }

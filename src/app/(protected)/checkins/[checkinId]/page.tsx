@@ -1,9 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import EmployeeCheckinForm from '@/components/checkins/EmployeeCheckinForm'
-import ManagerCheckinForm from '@/components/checkins/ManagerCheckinForm'
 import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
 import type { Checkin, PerformancePeriod, Profile } from '@/lib/types/database'
 
@@ -43,14 +41,13 @@ export default async function CheckinDetailPage({
   if (!checkinRaw) notFound()
   const checkin = checkinRaw as CheckinWithPeriod
 
-  // Access control: employee sees their own; manager must be in the reporting chain; HR_ADMIN sees all
+  // Access: employee sees their own; manager/HR can read (no feedback form)
   const isOwner = checkin.employee_id === user.id
   const isHRAdmin = profile.role === 'HR_ADMIN'
   const isManager = profile.role === 'MANAGER' || isHRAdmin
 
   if (!isOwner && !isManager) redirect('/checkins')
 
-  // For non-HR managers verify they manage this employee
   if (!isOwner && isManager && !isHRAdmin) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: closureCheck } = await (supabase as any)
@@ -60,9 +57,7 @@ export default async function CheckinDetailPage({
   }
 
   const employeeSubmitted = !!checkin.employee_submitted_at
-  const managerSubmitted = !!checkin.manager_submitted_at
 
-  // fetch approved OKRs for okrOptions dropdown
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: okrsRaw } = await (supabase as any)
     .from('okrs')
@@ -94,67 +89,32 @@ export default async function CheckinDetailPage({
             {MONTH_NAMES[checkin.month - 1]} {checkin.year} Check-in
           </h1>
           <div className="flex items-center gap-2 mt-2">
-            {managerSubmitted ? (
-              <Badge variant="outline" className="text-xs bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20">Complete</Badge>
-            ) : employeeSubmitted ? (
-              <Badge variant="outline" className="text-xs bg-lr-gold-dim text-lr-gold border-lr-gold/20">Awaiting Manager</Badge>
+            {employeeSubmitted ? (
+              <Badge variant="outline" className="text-xs bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20">Submitted</Badge>
             ) : (
               <Badge variant="outline" className="text-xs bg-lr-surface text-lr-muted border-lr-border">Draft</Badge>
             )}
           </div>
         </div>
-        <ScheduleCallButton
-          title={`${profile?.full_name ?? 'Monthly'} — Monthly Check-in — ${MONTH_NAMES[checkin.month - 1]} ${checkin.year}`}
-          description={`Monthly performance check-in for ${checkin.period.name}. Review commitments from last month and plan next month's priorities.${process.env.NEXT_PUBLIC_SITE_URL ? `\n\nOpen check-in: ${process.env.NEXT_PUBLIC_SITE_URL}/checkins/${checkin.id}` : ''}`}
-          managerEmail={managerEmail}
-          recurrenceLabel="Monthly"
-          recurrenceRule="RRULE:FREQ=MONTHLY"
-        />
+        {isOwner && (
+          <ScheduleCallButton
+            title={`${profile?.full_name ?? 'Monthly'} — Monthly Check-in — ${MONTH_NAMES[checkin.month - 1]} ${checkin.year}`}
+            description={`Monthly performance check-in for ${checkin.period.name}. Review commitments from last month and plan next month's priorities.${process.env.NEXT_PUBLIC_SITE_URL ? `\n\nOpen check-in: ${process.env.NEXT_PUBLIC_SITE_URL}/checkins/${checkin.id}` : ''}`}
+            managerEmail={managerEmail}
+            recurrenceLabel="Monthly"
+            recurrenceRule="RRULE:FREQ=MONTHLY"
+          />
+        )}
       </div>
 
-      <Tabs defaultValue="employee">
-        <TabsList className="bg-lr-surface border border-lr-border">
-          <TabsTrigger value="employee" className="text-sm data-[state=active]:bg-lr-accent-dim data-[state=active]:text-lr-accent">
-            My Answers
-          </TabsTrigger>
-          <TabsTrigger
-            value="manager"
-            className="text-sm data-[state=active]:bg-lr-accent-dim data-[state=active]:text-lr-accent"
-            disabled={!employeeSubmitted && !isManager}
-          >
-            Manager Feedback
-          </TabsTrigger>
-        </TabsList>
-        {!employeeSubmitted && isOwner && (
-          <p className="text-xs text-lr-muted mt-2">Manager Feedback unlocks after you submit your answers.</p>
-        )}
-
-        <TabsContent value="employee" className="mt-6">
-          <EmployeeCheckinForm
-            periodId={checkin.period_id}
-            month={checkin.month}
-            year={checkin.year}
-            checkin={checkin}
-            okrOptions={okrOptions}
-            readOnly={!isOwner || employeeSubmitted}
-          />
-        </TabsContent>
-
-        <TabsContent value="manager" className="mt-6">
-          {!employeeSubmitted ? (
-            <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass p-8 text-center">
-              <p className="text-body text-lr-muted">
-                Manager section unlocks after the employee submits their check-in.
-              </p>
-            </div>
-          ) : (
-            <ManagerCheckinForm
-              checkin={checkin}
-              readOnly={!isManager || managerSubmitted}
-            />
-          )}
-        </TabsContent>
-      </Tabs>
+      <EmployeeCheckinForm
+        periodId={checkin.period_id}
+        month={checkin.month}
+        year={checkin.year}
+        checkin={checkin}
+        okrOptions={okrOptions}
+        readOnly={!isOwner || employeeSubmitted}
+      />
     </div>
   )
 }
