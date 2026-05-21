@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="Layer_2" data-name="Layer 2" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 44.03 46.51">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: none;
+      }
+
+      .cls-2 {
+        fill: url(#linear-gradient-2);
+      }
+
+      .cls-3 {
+        fill: url(#linear-gradient);
+      }
+
+      .cls-4 {
+        clip-path: url(#clippath-1);
+      }
+
+      .cls-5 {
+        clip-path: url(#clippath);
+      }
+    </style>
+    <clipPath id="clippath">
+      <path class="cls-1" d="M0,37.53c0,4.96,4.02,8.97,8.98,8.98h35.05l-22.19-22.19-4.19,4.15c-.87.87-2.29.87-3.16,0-.42-.42-.65-.99-.65-1.58l-.77-7.7c0-1.85-5.71-10.11-7.02-11.42L0,1.72v35.81Z"/>
+    </clipPath>
+    <linearGradient id="linear-gradient" x1="-1714.86" y1="-.74" x2="-1714.94" y2="-.07" gradientTransform="translate(139356.35 -5.45) scale(81.25 -81.25)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffc003"/>
+      <stop offset=".45" stop-color="#ff569a"/>
+      <stop offset=".76" stop-color="#7e01ff"/>
+      <stop offset="1" stop-color="#7e01ff"/>
+    </linearGradient>
+    <clipPath id="clippath-1">
+      <path class="cls-1" d="M7.85,5.88c1.25,1.25,9.62,6.8,11.38,6.8l7.56.91c1.38,0,2.49,1.12,2.49,2.49,0,.66-.26,1.29-.73,1.76l-4.03,4.03,2.7,2.96s16.17-3.97,15.63-13.51c-.35-6.14-5.76-11.05-13.3-11.05L1.72,0l6.13,5.88Z"/>
+    </clipPath>
+    <linearGradient id="linear-gradient-2" x1="-1691.17" y1="1.4" x2="-1691.15" y2="1.4" gradientTransform="translate(91169.24 57.45) scale(53.91 -32.13)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7e01ff"/>
+      <stop offset=".42" stop-color="#7e01ff"/>
+      <stop offset=".52" stop-color="#7e01ff"/>
+      <stop offset="1" stop-color="#7e01ff"/>
+    </linearGradient>
+  </defs>
+  <g id="Layer_1-2" data-name="Layer 1">
+    <g>
+      <g class="cls-5">
+        <g id="Group_1" data-name="Group 1">
+          <rect id="Rectangle_1" data-name="Rectangle 1" class="cls-3" x="-9.39" y="-7.28" width="62.8" height="62.8" transform="translate(-10.61 22.63) rotate(-45)"/>
+        </g>
+      </g>
+      <g id="Group_4" data-name="Group 4">
+        <g class="cls-4">
+          <g id="Group_3" data-name="Group 3">
+            <rect id="Rectangle_2" data-name="Rectangle 2" class="cls-2" x="1.72" width="41.67" height="24.83"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
