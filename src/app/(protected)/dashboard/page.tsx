@@ -67,6 +67,7 @@ export default async function DashboardPage() {
   // Employee-specific data
   let thisMonthCheckin: Checkin | null = null
   let myOkrCounts = { total: 0, approved: 0, pending: 0 }
+  let myOkrs: { id: string; title: string; status: string }[] = []
   let latestScore: QuarterlyScore | null = null
   let hasNewScore = false
 
@@ -83,18 +84,19 @@ export default async function DashboardPage() {
       .maybeSingle()
     thisMonthCheckin = checkinRaw as Checkin | null
 
-    // OKR counts
+    // OKRs with title + status for display
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: okrsRaw } = await (supabase as any)
       .from('okrs')
-      .select('status')
+      .select('id, title, status')
       .eq('employee_id', user.id)
       .eq('period_id', openPeriod.id)
-    const okrs = (okrsRaw ?? []) as { status: string }[]
+      .order('created_at', { ascending: true })
+    myOkrs = (okrsRaw ?? []) as { id: string; title: string; status: string }[]
     myOkrCounts = {
-      total: okrs.length,
-      approved: okrs.filter((o) => o.status === 'APPROVED').length,
-      pending: okrs.filter((o) => o.status === 'PENDING_REVIEW').length,
+      total: myOkrs.length,
+      approved: myOkrs.filter((o) => o.status === 'APPROVED').length,
+      pending: myOkrs.filter((o) => o.status === 'PENDING_REVIEW').length,
     }
   }
 
@@ -276,18 +278,29 @@ export default async function DashboardPage() {
             )}
           </div>
 
-          {/* Goals summary */}
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-lr-muted">
-              {myOkrCounts.total === 0
-                ? 'No goals set this quarter'
-                : `${myOkrCounts.approved} of ${myOkrCounts.total} goal${myOkrCounts.total !== 1 ? 's' : ''} approved`}
-              {myOkrCounts.pending > 0 && <span className="text-lr-gold ml-1">· {myOkrCounts.pending} pending</span>}
-            </span>
-            <Link href="/okrs" className="text-xs text-lr-accent hover:underline">
-              {myOkrCounts.total === 0 ? 'Set goals' : 'View goals'} →
-            </Link>
-          </div>
+          {/* Goals summary / CTA */}
+          {myOkrCounts.total === 0 ? (
+            <div className="rounded-[var(--radius-lr)] border border-lr-gold/30 bg-lr-gold-dim p-4 flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold text-lr-gold">No goals set for {openPeriod.name}</p>
+                <p className="text-xs text-lr-gold/70 mt-0.5">Set your quarterly goals so your manager can review and approve them</p>
+              </div>
+              <Link
+                href="/okrs"
+                className="shrink-0 rounded-[var(--radius-lr)] bg-lr-gold px-3 py-1.5 text-xs font-medium text-black hover:bg-lr-gold/90 transition-colors"
+              >
+                Set goals →
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-lr-muted">
+                {`${myOkrCounts.approved} of ${myOkrCounts.total} goal${myOkrCounts.total !== 1 ? 's' : ''} approved`}
+                {myOkrCounts.pending > 0 && <span className="text-lr-gold ml-1">· {myOkrCounts.pending} pending</span>}
+              </span>
+              <Link href="/okrs" className="text-xs text-lr-accent hover:underline">View goals →</Link>
+            </div>
+          )}
         </div>
       )}
 
@@ -333,31 +346,64 @@ export default async function DashboardPage() {
         <PendingApprovals requests={pendingRequests} />
       )}
 
-      {/* Company values — sized by personal usage */}
+      {/* Employee: current quarter goals */}
+      {profile.role === 'EMPLOYEE' && myOkrs.length > 0 && openPeriod && (
+        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 shadow-[var(--shadow-lr-card)]">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-card-title">My Goals · {openPeriod.name}</h2>
+            <Link href="/okrs" className="text-xs text-lr-accent hover:underline">Manage →</Link>
+          </div>
+          <ul className="space-y-2">
+            {myOkrs.map((okr) => {
+              const statusColor =
+                okr.status === 'APPROVED' ? 'bg-green-500' :
+                okr.status === 'PENDING_REVIEW' ? 'bg-lr-gold' :
+                okr.status === 'REVISION_REQUESTED' ? 'bg-red-400' :
+                'bg-lr-muted/40'
+              const statusLabel =
+                okr.status === 'APPROVED' ? 'Approved' :
+                okr.status === 'PENDING_REVIEW' ? 'Pending' :
+                okr.status === 'REVISION_REQUESTED' ? 'Revision needed' :
+                'Draft'
+              return (
+                <li key={okr.id} className="flex items-center gap-3 rounded-[var(--radius-lr)] border border-lr-border/50 bg-lr-surface/30 px-3 py-2.5">
+                  <span className={`h-2 w-2 rounded-full shrink-0 ${statusColor}`} />
+                  <span className="text-sm text-lr-text flex-1 min-w-0 truncate">{okr.title}</span>
+                  <span className="text-[10px] text-lr-muted shrink-0">{statusLabel}</span>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )}
+
+      {/* My Values — sized by personal usage */}
       {companyValues.length > 0 && (
-        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] px-6 py-7 shadow-[var(--shadow-lr-card)]">
-          <p className="text-kicker mb-5">Our Values</p>
-          <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+        <div className="rounded-[var(--radius-lr-lg)] overflow-hidden border border-lr-border shadow-[var(--shadow-lr-card)] bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.12),transparent_60%),radial-gradient(ellipse_at_bottom_left,rgba(6,182,212,0.08),transparent_60%)] bg-lr-glass backdrop-blur-[8px]">
+          <div className="px-6 pt-6 pb-2">
+            <p className="text-kicker">My Values</p>
+          </div>
+          <div className="px-6 pb-7 flex flex-wrap items-end gap-x-5 gap-y-1">
             {(() => {
               const sorted = [...companyValues].sort((a, b) => (valueUsage.get(b.id) ?? 0) - (valueUsage.get(a.id) ?? 0))
               const maxUse = Math.max(1, ...companyValues.map((v) => valueUsage.get(v.id) ?? 0))
-              const SIZE = ['text-2xl', 'text-3xl', 'text-4xl', 'text-5xl', 'text-6xl'] as const
-              const COLOR = [
-                'text-lr-muted/50',
-                'text-lr-muted',
-                'text-lr-text/70',
+              const SIZES = ['text-3xl', 'text-4xl', 'text-5xl', 'text-6xl', 'text-7xl'] as const
+              const COLORS = [
+                'text-lr-muted/40',
+                'text-lr-muted/70',
+                'text-lr-text/60',
                 'text-lr-cyan',
                 'text-lr-accent',
               ] as const
+              const WEIGHTS = ['font-semibold', 'font-bold', 'font-bold', 'font-extrabold', 'font-black'] as const
               return sorted.map((v, i) => {
                 const use = valueUsage.get(v.id) ?? 0
-                // rank 0 = most used; scale size + color by usage
-                const rank = maxUse === 0 ? (4 - i) : Math.min(4, Math.round((use / maxUse) * 4))
+                const rank = maxUse === 0 ? Math.max(0, 4 - i) : Math.min(4, Math.round((use / maxUse) * 4))
                 return (
                   <span
                     key={v.id}
                     title={v.description}
-                    className={`font-bold leading-tight transition-colors cursor-default select-none ${SIZE[rank]} ${COLOR[rank]}`}
+                    className={`leading-tight cursor-default select-none tracking-tight ${SIZES[rank]} ${COLORS[rank]} ${WEIGHTS[rank]}`}
                   >
                     {v.name}
                   </span>
