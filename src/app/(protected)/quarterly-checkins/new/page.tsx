@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import QuarterlyCheckinEmployeeForm from '@/components/checkins/QuarterlyCheckinEmployeeForm'
+import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
 import type { CompanyValue, QuarterlyCheckin, PerformancePeriod, QuarterlyGoal, QuarterlyGoalReview } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -18,11 +19,22 @@ export default async function NewQuarterlyCheckinPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: profileRaw } = await (supabase as any)
     .from('profiles')
-    .select('*')
+    .select('id, manager_id')
     .eq('id', user.id)
     .single()
   const profile = profileRaw as { id: string; manager_id: string | null } | null
   if (!profile) redirect('/login')
+
+  let managerEmail: string | null = null
+  if (profile.manager_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: mgr } = await (supabase as any)
+      .from('profiles')
+      .select('email')
+      .eq('id', profile.manager_id)
+      .single()
+    managerEmail = mgr?.email ?? null
+  }
 
   // Resolve period: either supplied or latest open
   let periodId = periodIdParam
@@ -129,14 +141,21 @@ export default async function NewQuarterlyCheckinPage({
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div>
-        <p className="text-kicker">{period.name}</p>
-        <h1 className="text-page-title mt-1">
-          Q{period.quarter} {period.year} Quarterly Check-in
-        </h1>
-        <p className="text-body text-lr-text/70 mt-1">
-          Reflect on your goals, what went well, and plan the quarter ahead.
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <p className="text-kicker">{period.name}</p>
+          <h1 className="text-page-title mt-1">
+            Q{period.quarter} {period.year} Quarterly Check-in
+          </h1>
+          <p className="text-body text-lr-text/70 mt-1">
+            Reflect on your goals, what went well, and plan the quarter ahead.
+          </p>
+        </div>
+        <ScheduleCallButton
+          title={`Q${period.quarter} ${period.year} Quarterly Check-in`}
+          description={`Quarterly performance check-in for ${period.name}. Review goal achievements, reflect on the quarter, and plan goals for next quarter.`}
+          managerEmail={managerEmail}
+        />
       </div>
 
       <QuarterlyCheckinEmployeeForm

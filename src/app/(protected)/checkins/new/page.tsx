@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import EmployeeCheckinForm from '@/components/checkins/EmployeeCheckinForm'
 import MonthSelector from '@/components/checkins/MonthSelector'
+import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
 import type { PerformancePeriod } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -73,6 +74,24 @@ export default async function NewCheckinPage({
     year = free.year
   }
 
+  // Fetch profile + manager email for calendar invite
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: profileRaw } = await (supabase as any)
+    .from('profiles')
+    .select('manager_id')
+    .eq('id', user.id)
+    .single()
+  let managerEmail: string | null = null
+  if (profileRaw?.manager_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: mgr } = await (supabase as any)
+      .from('profiles')
+      .select('email')
+      .eq('id', profileRaw.manager_id)
+      .single()
+    managerEmail = mgr?.email ?? null
+  }
+
   // fetch approved OKRs for okrOptions dropdown
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: okrsRaw } = await (supabase as any)
@@ -96,12 +115,19 @@ export default async function NewCheckinPage({
             {MONTH_NAMES[month - 1]} {year} Check-in
           </h1>
         </div>
-        <MonthSelector
-          periodId={periodId}
-          selectedMonth={month}
-          selectedYear={year}
-          options={monthOptions}
-        />
+        <div className="flex items-center gap-2">
+          <ScheduleCallButton
+            title={`Monthly Check-in — ${MONTH_NAMES[month - 1]} ${year}`}
+            description={`Monthly performance check-in for ${period.name}. Review commitments from last month and plan next month's priorities.`}
+            managerEmail={managerEmail}
+          />
+          <MonthSelector
+            periodId={periodId}
+            selectedMonth={month}
+            selectedYear={year}
+            options={monthOptions}
+          />
+        </div>
       </div>
       <EmployeeCheckinForm
         periodId={periodId}
