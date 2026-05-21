@@ -296,7 +296,7 @@ export default async function DashboardPage() {
             <div className="rounded-[var(--radius-lr)] border border-lr-gold/30 bg-lr-gold-dim p-4 flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold text-lr-gold">No goals set for {openPeriod.name}</p>
-                <p className="text-xs text-lr-gold/70 mt-0.5">Set your quarterly goals so your manager can review and approve them</p>
+                <p className="text-xs text-lr-gold/70 mt-0.5">Set your quarterly goals for {openPeriod.name}</p>
               </div>
               <Link
                 href="/okrs"
@@ -308,8 +308,7 @@ export default async function DashboardPage() {
           ) : (
             <div className="flex items-center justify-between text-sm">
               <span className="text-lr-muted">
-                {`${myOkrCounts.approved} of ${myOkrCounts.total} goal${myOkrCounts.total !== 1 ? 's' : ''} approved`}
-                {myOkrCounts.pending > 0 && <span className="text-lr-gold ml-1">· {myOkrCounts.pending} pending</span>}
+                {myOkrCounts.total} goal{myOkrCounts.total !== 1 ? 's' : ''} set for {openPeriod.name}
               </span>
               <Link href="/okrs" className="text-xs text-lr-accent hover:underline">View goals →</Link>
             </div>
