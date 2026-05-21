@@ -97,6 +97,8 @@ export default async function QuarterlyCheckinDetailPage({
           title={`Q${checkin.period.quarter} ${checkin.period.year} Quarterly Check-in`}
           description={`Quarterly performance check-in for ${checkin.period.name}. Review goal achievements and plan the quarter ahead.`}
           managerEmail={managerEmail}
+          recurrenceLabel="Quarterly"
+          recurrenceRule="RRULE:FREQ=MONTHLY;INTERVAL=3"
         />
       </div>
 

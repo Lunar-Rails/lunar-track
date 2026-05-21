@@ -8,16 +8,9 @@ interface ScheduleCallButtonProps {
   title: string
   description?: string
   managerEmail?: string | null
+  recurrenceLabel: string
+  recurrenceRule: string
 }
-
-type Recurrence = 'once' | 'weekly' | 'biweekly' | 'monthly'
-
-const RECURRENCE_OPTIONS: { value: Recurrence; label: string; rrule: string | null }[] = [
-  { value: 'once',     label: 'One-time',        rrule: null },
-  { value: 'weekly',   label: 'Weekly',           rrule: 'RRULE:FREQ=WEEKLY' },
-  { value: 'biweekly', label: 'Every 2 weeks',    rrule: 'RRULE:FREQ=WEEKLY;INTERVAL=2' },
-  { value: 'monthly',  label: 'Monthly',          rrule: 'RRULE:FREQ=MONTHLY' },
-]
 
 function nextWeekdayAt10(): { start: string; end: string } {
   const d = new Date()
@@ -30,16 +23,16 @@ function nextWeekdayAt10(): { start: string; end: string } {
   return { start: `${date}T100000`, end: `${date}T110000` }
 }
 
-export default function ScheduleCallButton({ title, description, managerEmail }: ScheduleCallButtonProps) {
+export default function ScheduleCallButton({
+  title, description, managerEmail, recurrenceLabel, recurrenceRule,
+}: ScheduleCallButtonProps) {
   const [open, setOpen] = useState(false)
-  const [recurrence, setRecurrence] = useState<Recurrence>('once')
+  const [recurring, setRecurring] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
     if (open) document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -47,24 +40,13 @@ export default function ScheduleCallButton({ title, description, managerEmail }:
 
   function schedule() {
     const { start, end } = nextWeekdayAt10()
-    const params = new URLSearchParams({
-      action: 'TEMPLATE',
-      text: title,
-      dates: `${start}/${end}`,
-    })
+    const params = new URLSearchParams({ action: 'TEMPLATE', text: title, dates: `${start}/${end}` })
     if (description) params.set('details', description)
     if (managerEmail) params.set('add', managerEmail)
-    const rrule = RECURRENCE_OPTIONS.find((o) => o.value === recurrence)?.rrule
-    if (rrule) params.set('recur', rrule)
-    window.open(
-      `https://calendar.google.com/calendar/render?${params.toString()}`,
-      '_blank',
-      'noopener,noreferrer',
-    )
+    if (recurring) params.set('recur', recurrenceRule)
+    window.open(`https://calendar.google.com/calendar/render?${params.toString()}`, '_blank', 'noopener,noreferrer')
     setOpen(false)
   }
-
-  const selectedLabel = RECURRENCE_OPTIONS.find((o) => o.value === recurrence)?.label ?? 'One-time'
 
   return (
     <div ref={ref} className="relative">
@@ -81,23 +63,26 @@ export default function ScheduleCallButton({ title, description, managerEmail }:
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1.5 z-50 w-52 rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-bg shadow-[var(--shadow-lr-dropdown)] p-3 space-y-3">
+        <div className="absolute right-0 top-full mt-1.5 z-50 w-48 rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-bg shadow-[var(--shadow-lr-dropdown)] p-3 space-y-3">
           <p className="text-xs font-semibold text-lr-text">Recurrence</p>
           <div className="space-y-1">
-            {RECURRENCE_OPTIONS.map((opt) => (
+            {[
+              { value: false, label: 'One-time' },
+              { value: true,  label: recurrenceLabel },
+            ].map((opt) => (
               <button
-                key={opt.value}
+                key={String(opt.value)}
                 type="button"
-                onClick={() => setRecurrence(opt.value)}
+                onClick={() => setRecurring(opt.value)}
                 className={[
                   'w-full flex items-center justify-between px-2.5 py-1.5 rounded-[var(--radius-lr)] text-xs transition-colors',
-                  recurrence === opt.value
+                  recurring === opt.value
                     ? 'bg-lr-accent-dim text-lr-accent font-medium'
                     : 'text-lr-text hover:bg-lr-surface',
                 ].join(' ')}
               >
                 {opt.label}
-                {recurrence === opt.value && <Check className="h-3 w-3" />}
+                {recurring === opt.value && <Check className="h-3 w-3" />}
               </button>
             ))}
           </div>

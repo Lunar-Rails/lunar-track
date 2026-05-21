@@ -120,6 +120,8 @@ export default async function NewCheckinPage({
             title={`Monthly Check-in — ${MONTH_NAMES[month - 1]} ${year}`}
             description={`Monthly performance check-in for ${period.name}. Review commitments from last month and plan next month's priorities.`}
             managerEmail={managerEmail}
+            recurrenceLabel="Monthly"
+            recurrenceRule="RRULE:FREQ=MONTHLY"
           />
           <MonthSelector
             periodId={periodId}

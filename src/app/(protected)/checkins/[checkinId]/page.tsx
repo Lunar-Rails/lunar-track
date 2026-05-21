@@ -107,6 +107,8 @@ export default async function CheckinDetailPage({
           title={`Monthly Check-in — ${MONTH_NAMES[checkin.month - 1]} ${checkin.year}`}
           description={`Monthly performance check-in for ${checkin.period.name}.`}
           managerEmail={managerEmail}
+          recurrenceLabel="Monthly"
+          recurrenceRule="RRULE:FREQ=MONTHLY"
         />
       </div>
 
