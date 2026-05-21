@@ -302,7 +302,7 @@ export default function QuarterlyCheckinEmployeeForm({
 
             <div className="space-y-2">
               <div>
-                <p className="text-sm font-semibold text-lr-text">First Month MITs</p>
+                <p className="text-sm font-semibold text-lr-text">Upcoming Month MITs</p>
                 <p className="text-xs text-lr-text/50 mt-0.5">These carry over to the review section of your first monthly check-in next quarter.</p>
               </div>
               <MitPlanList value={nextMits} onChange={setNextMits} linkOptions={goalLinkOptions} linkLabel="Quarterly goal" noLinkLabel="Unrelated to quarterly goals" disabled={readOnly || isPending} />
