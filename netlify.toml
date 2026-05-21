@@ -1,0 +1,19 @@
+[build]
+  command    = "npm run build"
+  publish    = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[functions]
+  directory     = "netlify/functions"
+  node_bundler  = "esbuild"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Local dev server settings
+[dev]
+  command    = "npm run dev"
+  targetPort = 3000
+  autoLaunch = false

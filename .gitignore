@@ -31,3 +31,5 @@ tsconfig.tsbuildinfo
 .cursor/
 
 */.temp
+# Local Netlify folder
+.netlify
