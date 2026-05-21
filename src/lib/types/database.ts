@@ -132,6 +132,7 @@ export interface Checkin {
   mgr_done_well: string | null
   mgr_do_differently: string | null
   mgr_support_commitments: string | null
+  mgr_private_note: string | null
   mgr_next_mits: Mit[] | null
   // Legacy fixed next-MIT fields
   mgr_next_mit_1_title: string | null
@@ -205,6 +206,7 @@ export interface QuarterlyCheckin {
   mgr_css_feedback: string | null
   mgr_adjustments_notes: string | null
   mgr_support_plan: string | null
+  mgr_private_note: string | null
   manager_submitted_at: string | null
   created_at: string
   updated_at: string
