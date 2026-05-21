@@ -88,6 +88,14 @@ export default async function NewQuarterlyCheckinPage({
     redirect(`/quarterly-checkins/${existing.id}`)
   }
 
+  // First-ever quarterly check-in? Used to pre-fill the probation goal + MITs for new hires.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { count: totalQuarterlyCheckins } = await (supabase as any)
+    .from('quarterly_checkins')
+    .select('id', { count: 'exact', head: true })
+    .eq('employee_id', user.id)
+  const isFirstQuarterlyCheckin = (totalQuarterlyCheckins ?? 0) === 0
+
   // Company values for self-assessment
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: cvRaw } = await (supabase as any)
@@ -167,6 +175,7 @@ export default async function NewQuarterlyCheckinPage({
         monthlyReflections={monthlyReflections}
         initialGoals={prevQuarterGoals}
         readOnly={false}
+        isFirstQuarterly={isFirstQuarterlyCheckin}
       />
     </div>
   )

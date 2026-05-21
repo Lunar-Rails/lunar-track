@@ -20,6 +20,7 @@ import type {
   ValueAssessment,
   PlanMit,
 } from '@/lib/types/database'
+import { PROBATION_GOAL, PROBATION_MITS } from '@/lib/constants/onboarding'
 
 interface QuarterlyCheckinEmployeeFormProps {
   periodId: string
@@ -28,6 +29,8 @@ interface QuarterlyCheckinEmployeeFormProps {
   monthlyReflections: MonthlyReflection[]
   initialGoals: QuarterlyGoalReview[]
   readOnly?: boolean
+  /** True on a new hire's first-ever quarterly check-in — pre-fills the probation goal + MITs. */
+  isFirstQuarterly?: boolean
 }
 
 function initGoals(checkin: QuarterlyCheckin | null, initialGoals: QuarterlyGoalReview[]): QuarterlyGoalReview[] {
@@ -35,13 +38,17 @@ function initGoals(checkin: QuarterlyCheckin | null, initialGoals: QuarterlyGoal
   return initialGoals
 }
 
-function initNextGoals(checkin: QuarterlyCheckin | null): QuarterlyGoal[] {
+function initNextGoals(checkin: QuarterlyCheckin | null, isFirstQuarterly: boolean): QuarterlyGoal[] {
   if (checkin?.next_quarter_goals && checkin.next_quarter_goals.length > 0) return checkin.next_quarter_goals
+  // A brand-new hire's first quarterly check-in: pre-fill the probation goal.
+  if (isFirstQuarterly) return [{ ...PROBATION_GOAL }]
   return [{ id: crypto.randomUUID(), title: '', description: '' }]
 }
 
-function initNextMits(checkin: QuarterlyCheckin | null): PlanMit[] {
+function initNextMits(checkin: QuarterlyCheckin | null, isFirstQuarterly: boolean): PlanMit[] {
   if (checkin?.next_quarter_mits && checkin.next_quarter_mits.length > 0) return checkin.next_quarter_mits
+  // Pre-fill the hard-coded MITs that tie to the probation goal above.
+  if (isFirstQuarterly) return PROBATION_MITS.map((m) => ({ ...m }))
   return [{ title: '', description: '', okr_id: null, okr_label: null }]
 }
 
@@ -53,7 +60,7 @@ function initValueAssessments(checkin: QuarterlyCheckin | null): ValueAssessment
 type Step = 'review' | 'plan'
 
 export default function QuarterlyCheckinEmployeeForm({
-  periodId, checkin, companyValues, monthlyReflections, initialGoals, readOnly = false,
+  periodId, checkin, companyValues, monthlyReflections, initialGoals, readOnly = false, isFirstQuarterly = false,
 }: QuarterlyCheckinEmployeeFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -63,8 +70,8 @@ export default function QuarterlyCheckinEmployeeForm({
 
   const [goals, setGoals] = useState<QuarterlyGoalReview[]>(() => initGoals(checkin, initialGoals))
   const [valueAssessments, setValueAssessments] = useState<ValueAssessment[]>(() => initValueAssessments(checkin))
-  const [nextGoals, setNextGoals] = useState<QuarterlyGoal[]>(() => initNextGoals(checkin))
-  const [nextMits, setNextMits] = useState<PlanMit[]>(() => initNextMits(checkin))
+  const [nextGoals, setNextGoals] = useState<QuarterlyGoal[]>(() => initNextGoals(checkin, isFirstQuarterly))
+  const [nextMits, setNextMits] = useState<PlanMit[]>(() => initNextMits(checkin, isFirstQuarterly))
   const [aiBuilderActive, setAiBuilderActive] = useState<boolean>(checkin?.ai_builder_active ?? false)
   const [aiBuilderDescription, setAiBuilderDescription] = useState<string>(checkin?.ai_builder_description ?? '')
 
