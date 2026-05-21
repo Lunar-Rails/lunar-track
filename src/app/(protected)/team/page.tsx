@@ -54,8 +54,25 @@ export default async function TeamPage() {
   // Open period (for quarterly check-in scoping)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: openPeriodRaw } = await (supabase as any)
-    .from('performance_periods').select('id').eq('status', 'open').limit(1).maybeSingle()
-  const openPeriodId = (openPeriodRaw as { id: string } | null)?.id ?? null
+    .from('performance_periods').select('id, name').eq('status', 'open').limit(1).maybeSingle()
+  const openPeriod = openPeriodRaw as { id: string; name: string } | null
+  const openPeriodId = openPeriod?.id ?? null
+
+  type QScore = {
+    employee_id: string
+    period_id: string
+    professional_mastery: number | null
+    okrs_stretch_goals: number | null
+    behaviours_values: number | null
+  }
+
+  function scoringStatus(score: QScore | undefined): 'scored' | 'partial' | 'none' {
+    if (!score) return 'none'
+    if (score.professional_mastery && score.okrs_stretch_goals && score.behaviours_values) return 'scored'
+    return 'partial'
+  }
+
+  const scoresMap: Record<string, QScore> = {}
 
   if (directReports.length > 0) {
     const reportIds = directReports.map((r) => r.id)
@@ -82,6 +99,18 @@ export default async function TeamPage() {
 
       for (const q of (qcheckinsRaw ?? []) as { employee_id: string; employee_submitted_at: string | null; manager_submitted_at: string | null }[]) {
         quarterlyStatuses[q.employee_id] = q
+      }
+    }
+
+    if (openPeriodId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: scoresRaw } = await (supabase as any)
+        .from('quarterly_scores')
+        .select('employee_id, period_id, professional_mastery, okrs_stretch_goals, behaviours_values')
+        .in('employee_id', reportIds)
+        .eq('period_id', openPeriodId)
+      for (const s of (scoresRaw ?? []) as QScore[]) {
+        scoresMap[s.employee_id] = s
       }
     }
   }
@@ -154,6 +183,86 @@ export default async function TeamPage() {
           })}
         </div>
       )}
+
+      {/* Quarterly Scoring Hub */}
+      <div className="space-y-4 mt-8">
+        {!openPeriod ? (
+          <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-6 text-center">
+            <p className="text-sm text-lr-muted">No open period — quarterly scoring is not available.</p>
+          </div>
+        ) : (
+          <>
+            <h2 className="text-card-title">Quarterly Scoring — {openPeriod.name}</h2>
+            {directReports.length === 0 ? (
+              <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-6 text-center">
+                <p className="text-sm text-lr-muted">No direct reports assigned yet.</p>
+              </div>
+            ) : (
+              <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-lr-border">
+                      <th className="text-left px-4 py-3 text-lr-muted font-medium">Employee</th>
+                      <th className="text-left px-4 py-3 text-lr-muted font-medium">Status</th>
+                      <th className="text-left px-4 py-3 text-lr-muted font-medium">PM / Goals / B&amp;V</th>
+                      <th className="px-4 py-3" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {directReports.map((report) => {
+                      const score = scoresMap[report.id]
+                      const status = scoringStatus(score)
+                      const statusBadge =
+                        status === 'scored'
+                          ? { cls: 'bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20', text: 'Scored' }
+                          : status === 'partial'
+                          ? { cls: 'bg-lr-gold-dim text-lr-gold border-lr-gold/20', text: 'Partial' }
+                          : { cls: 'bg-lr-surface text-lr-muted border-lr-border', text: 'Not scored' }
+                      return (
+                        <tr key={report.id} className="border-b border-lr-border last:border-0 hover:bg-lr-surface/50 transition-colors">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-8 w-8 shrink-0">
+                                <AvatarImage src={report.avatar_url ?? undefined} />
+                                <AvatarFallback className="bg-lr-accent text-white text-xs">
+                                  {getInitials(report.full_name, report.email)}
+                                </AvatarFallback>
+                              </Avatar>
+                              <span className="font-medium text-lr-text">{report.full_name ?? report.email}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <Badge variant="outline" className={`text-xs ${statusBadge.cls}`}>
+                              {statusBadge.text}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-3">
+                            {score ? (
+                              <span className="text-sm font-bold text-lr-accent">
+                                {score.professional_mastery ?? '—'} / {score.okrs_stretch_goals ?? '—'} / {score.behaviours_values ?? '—'}
+                              </span>
+                            ) : (
+                              <span className="text-lr-muted">—</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Link
+                              href={`/scoring/${report.id}/${openPeriod.id}`}
+                              className="text-xs font-medium text-lr-accent hover:text-lr-accent/80 transition-colors"
+                            >
+                              {status === 'none' ? 'Score →' : 'Edit →'}
+                            </Link>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   )
 }
