@@ -34,7 +34,15 @@ function initNextMits(checkin: Checkin): Mit[] {
   if (checkin.mgr_next_mit_1_title) result.push({ title: checkin.mgr_next_mit_1_title, description: checkin.mgr_next_mit_1_description ?? '' })
   if (checkin.mgr_next_mit_2_title) result.push({ title: checkin.mgr_next_mit_2_title, description: checkin.mgr_next_mit_2_description ?? '' })
   if (checkin.mgr_next_mit_3_title) result.push({ title: checkin.mgr_next_mit_3_title, description: checkin.mgr_next_mit_3_description ?? '' })
-  return result.length > 0 ? result : [{ title: '', description: '' }]
+  if (result.length > 0) return result
+  // NEW: fall back to employee's planned next_mits as pre-fill
+  if (checkin.next_mits && checkin.next_mits.length > 0) {
+    const prefilled = checkin.next_mits
+      .filter((m) => m.title.trim())
+      .map((m) => ({ title: m.title, description: m.description }))
+    if (prefilled.length > 0) return prefilled
+  }
+  return [{ title: '', description: '' }]
 }
 
 export default function ManagerCheckinForm({ checkin, readOnly = false }: ManagerCheckinFormProps) {
