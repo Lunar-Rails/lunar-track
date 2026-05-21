@@ -333,7 +333,7 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
 
       <div className="flex gap-3">
         <Button type="submit" disabled={isPending} className="bg-lr-accent hover:bg-lr-accent-hover text-white">
-          {isPending ? 'Saving…' : existing ? 'Save Changes' : 'Create OKR'}
+          {isPending ? 'Saving…' : existing ? 'Save Changes' : 'Create Goal'}
         </Button>
         <Button type="button" variant="outline" onClick={() => router.back()}
           className="border-lr-border text-lr-muted hover:text-lr-text">

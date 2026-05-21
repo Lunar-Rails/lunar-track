@@ -107,7 +107,7 @@ export default async function AnnualScorePage({
               <tr className="text-section-label text-left">
                 <th className="pb-2 pr-4">Quarter</th>
                 <th className="pb-2 pr-4 text-center">PM</th>
-                <th className="pb-2 pr-4 text-center">OKRs</th>
+                <th className="pb-2 pr-4 text-center">Goals</th>
                 <th className="pb-2 text-center">B/V</th>
               </tr>
             </thead>

@@ -103,7 +103,7 @@ export default async function TeamPage() {
             {directReports.length} direct report{directReports.length !== 1 ? 's' : ''}
             {(pendingOkrCount as number) > 0 && (
               <span className="ml-3 text-lr-gold">
-                · {pendingOkrCount} OKR{(pendingOkrCount as number) !== 1 ? 's' : ''} pending review
+                · {pendingOkrCount} Goal{(pendingOkrCount as number) !== 1 ? 's' : ''} pending review
               </span>
             )}
           </p>

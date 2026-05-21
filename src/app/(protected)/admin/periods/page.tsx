@@ -34,13 +34,13 @@ export default async function PeriodsPage() {
           <div className="space-y-1">
             <p className="text-section-label text-lr-accent">Open period</p>
             <p className="text-caption text-lr-muted">
-              Employees can create and submit OKRs. Check-ins are available. Managers can review OKRs and fill in post-meeting notes. Only one period should be open at a time.
+              Employees can create and submit Goals. Check-ins are available. Managers can review Goals and fill in post-meeting notes. Only one period should be open at a time.
             </p>
           </div>
           <div className="space-y-1">
             <p className="text-section-label text-lr-accent">Closing a period</p>
             <p className="text-caption text-lr-muted">
-              Locks the quarter. No new OKRs or check-ins can be submitted. Use this at the end of each quarter before opening the next one. Scores and reviews already entered are preserved.
+              Locks the quarter. No new Goals or check-ins can be submitted. Use this at the end of each quarter before opening the next one. Scores and reviews already entered are preserved.
             </p>
           </div>
           <div className="space-y-1">
@@ -54,7 +54,7 @@ export default async function PeriodsPage() {
           <p className="text-section-label text-lr-muted mb-2">Recommended quarter-end workflow</p>
           <ol className="text-caption text-lr-muted space-y-1 list-decimal list-inside">
             <li>Ensure all employees have submitted their monthly check-ins for the quarter</li>
-            <li>Managers complete OKR reviews and quarterly scores for each direct report</li>
+            <li>Managers complete Goal reviews and quarterly scores for each direct report</li>
             <li>HR reviews scores and marks them visible to employees when ready</li>
             <li>Close the current period, then open (or create) the next quarter</li>
           </ol>

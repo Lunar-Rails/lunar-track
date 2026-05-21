@@ -171,9 +171,9 @@ export default async function TeamMemberPage({
 
       {/* OKRs */}
       <section>
-        <h2 className="text-card-title mb-4">OKRs</h2>
+        <h2 className="text-card-title mb-4">Goals</h2>
         {okrs.length === 0 ? (
-          <p className="text-body text-lr-muted">No OKRs yet.</p>
+          <p className="text-body text-lr-muted">No Goals yet.</p>
         ) : (
           <div className="space-y-3">
             {okrs.map((okr) => {

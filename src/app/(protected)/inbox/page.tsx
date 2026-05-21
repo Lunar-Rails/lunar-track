@@ -204,7 +204,7 @@ export default async function InboxPage() {
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-12 text-center">
           <p className="text-2xl mb-2">✅</p>
           <p className="text-card-title text-lr-text">All caught up</p>
-          <p className="text-sm text-lr-muted mt-1">No pending check-ins, OKRs, or scoring items.</p>
+          <p className="text-sm text-lr-muted mt-1">No pending check-ins, Goals, or scoring items.</p>
         </div>
       )}
 
@@ -282,7 +282,7 @@ export default async function InboxPage() {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-card-title flex items-center gap-2">
-            OKRs to approve
+            Goals to approve
             <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-lr-accent text-[10px] font-bold text-white">
               {pendingOkrs.length}
             </span>

@@ -30,8 +30,8 @@ function emptyPlanMit(): PlanMit {
 
 export default function MitPlanList({
   value, onChange, linkOptions,
-  linkLabel = 'Quarterly OKR',
-  noLinkLabel = 'Unrelated to quarterly OKRs',
+  linkLabel = 'Quarterly Goal',
+  noLinkLabel = 'Unrelated to quarterly goals',
   disabled = false,
 }: MitPlanListProps) {
   function add() { onChange([...value, emptyPlanMit()]) }

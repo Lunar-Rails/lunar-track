@@ -240,7 +240,7 @@ export default async function DashboardPage() {
 
             {/* OKRs */}
             <div className="rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface p-4 space-y-2">
-              <p className="text-caption">OKRs</p>
+              <p className="text-caption">Goals</p>
               {myOkrCounts.total === 0 ? (
                 <div>
                   <p className="text-2xl">○</p>
@@ -256,7 +256,7 @@ export default async function DashboardPage() {
                 </div>
               )}
               <Link href="/okrs" className="block text-xs text-lr-accent hover:underline">
-                {myOkrCounts.total === 0 ? 'Set OKRs' : 'View OKRs'} →
+                {myOkrCounts.total === 0 ? 'Set Goals' : 'View Goals'} →
               </Link>
             </div>
 
@@ -270,10 +270,10 @@ export default async function DashboardPage() {
               </Link>
             )}
             <Link href="/okrs/new" className="rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface px-4 py-2 text-sm text-lr-text hover:bg-lr-surface-2 transition-colors">
-              New OKR
+              New Goal
             </Link>
             <Link href="/okrs" className="rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface px-4 py-2 text-sm text-lr-text hover:bg-lr-surface-2 transition-colors">
-              My OKRs
+              My Goals
             </Link>
           </div>
         </div>
@@ -298,7 +298,7 @@ export default async function DashboardPage() {
                   <span>📋 {pendingCheckins} check-in{pendingCheckins !== 1 ? 's' : ''} to review</span>
                 )}
                 {pendingOkrs > 0 && (
-                  <span>🎯 {pendingOkrs} OKR{pendingOkrs !== 1 ? 's' : ''} to approve</span>
+                  <span>🎯 {pendingOkrs} Goal{pendingOkrs !== 1 ? 's' : ''} to approve</span>
                 )}
               </div>
             </div>
@@ -310,7 +310,7 @@ export default async function DashboardPage() {
               )}
               {pendingOkrs > 0 && (
                 <Link href="/inbox" className="rounded-[var(--radius-lr)] border border-lr-gold/40 bg-lr-gold/10 px-3 py-1.5 text-xs text-lr-gold hover:bg-lr-gold/20 transition-colors font-medium">
-                  OKRs to approve →
+                  Goals to approve →
                 </Link>
               )}
             </div>

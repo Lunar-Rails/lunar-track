@@ -78,7 +78,7 @@ export default function AnnualScoreForm({
 
   const components = [
     { key: 'professional_mastery' as const, label: 'Professional Mastery' },
-    { key: 'okrs_stretch_goals' as const, label: 'OKRs / Stretch Goals' },
+    { key: 'okrs_stretch_goals' as const, label: 'Goals / Stretch Goals' },
     { key: 'behaviours_values' as const, label: 'Behaviours / Values' },
   ]
 

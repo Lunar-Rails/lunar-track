@@ -62,9 +62,9 @@ export default function MitReviewList({ value, onChange, disabled = false }: Mit
                 />
               </div>
               {mit.okr_id ? (
-                <p className="text-xs text-lr-accent">OKR: {mit.okr_label ?? mit.okr_id}</p>
+                <p className="text-xs text-lr-accent">Goal: {mit.okr_label ?? mit.okr_id}</p>
               ) : (
-                <p className="text-xs text-lr-muted italic">Unrelated to quarterly OKRs</p>
+                <p className="text-xs text-lr-muted italic">Unrelated to quarterly goals</p>
               )}
             </div>
 

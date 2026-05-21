@@ -65,13 +65,13 @@ export default function QuarterlyCheckinManagerForm({ checkin, readOnly }: Props
 
       {/* Section 1 — OKR / Deliverables / Goals Feedback */}
       <section className="space-y-4">
-        <h3 className="text-card-title">OKR / Deliverables / Goals Feedback</h3>
+        <h3 className="text-card-title">Goals Feedback</h3>
 
         {/* Employee context (read-only narratives) */}
         {checkin.okr_progress.length > 0 && (
           <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface p-5 space-y-4">
             <p className="text-caption text-lr-muted">
-              Employee&rsquo;s narrative per OKR / Deliverable / Goal. See the &ldquo;My Answers&rdquo; tab for live progress.
+              Employee&rsquo;s narrative per Goal / Deliverable. See the &ldquo;My Answers&rdquo; tab for live progress.
             </p>
             {checkin.okr_progress.map((entry) => (
               <div key={entry.okr_id} className="space-y-1">
@@ -87,12 +87,12 @@ export default function QuarterlyCheckinManagerForm({ checkin, readOnly }: Props
         )}
 
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-6 space-y-1">
-          <Label className="text-caption">Your feedback on OKR / Deliverables / Goals progress</Label>
+          <Label className="text-caption">Your feedback on Goals / Deliverables progress</Label>
           <Textarea
             value={okrFeedback}
             onChange={(e) => setOkrFeedback(e.target.value)}
             disabled={disabled}
-            placeholder="Manager observations on OKR / Deliverables / Goals progress, blockers, calibration..."
+            placeholder="Manager observations on Goals / Deliverables progress, blockers, calibration..."
             className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[100px] resize-y"
           />
         </div>
