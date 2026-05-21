@@ -41,25 +41,8 @@ export default async function ProtectedLayout({
 
     if (reportIds.length > 0) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { count: checkinCount } = await (supabase as any)
-        .from('checkins')
-        .select('*', { count: 'exact', head: true })
-        .in('employee_id', reportIds)
-        .not('employee_submitted_at', 'is', null)
-        .is('manager_submitted_at', null)
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: okrCountRaw } = await (supabase as any).rpc('get_pending_okr_count', { manager_uuid: user!.id })
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { count: qCheckinCount } = await (supabase as any)
-        .from('quarterly_checkins')
-        .select('*', { count: 'exact', head: true })
-        .in('employee_id', reportIds)
-        .not('employee_submitted_at', 'is', null)
-        .is('manager_submitted_at', null)
-
-      inboxCount = (checkinCount ?? 0) + ((okrCountRaw as number) ?? 0) + (qCheckinCount ?? 0)
+      inboxCount = (okrCountRaw as number) ?? 0
     }
   }
 

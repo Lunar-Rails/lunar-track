@@ -88,7 +88,6 @@ export default async function CheckinsPage() {
         <div className="space-y-3">
           {checkins.map((checkin) => {
             const employeeSubmitted = !!checkin.employee_submitted_at
-            const managerSubmitted = !!checkin.manager_submitted_at
 
             return (
               <Link key={checkin.id} href={`/checkins/${checkin.id}`}>
@@ -101,13 +100,9 @@ export default async function CheckinsPage() {
                       <p className="text-caption text-lr-muted mt-0.5">{checkin.period.name}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {managerSubmitted ? (
+                      {employeeSubmitted ? (
                         <Badge variant="outline" className="text-xs bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20">
-                          Complete
-                        </Badge>
-                      ) : employeeSubmitted ? (
-                        <Badge variant="outline" className="text-xs bg-lr-gold-dim text-lr-gold border-lr-gold/20">
-                          Awaiting Manager
+                          Submitted
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-xs bg-lr-surface text-lr-muted border-lr-border">
