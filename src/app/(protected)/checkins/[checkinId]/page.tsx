@@ -64,7 +64,7 @@ export default async function CheckinDetailPage({
     .select('id, title')
     .eq('employee_id', checkin.employee_id)
     .eq('period_id', checkin.period_id)
-    .eq('status', 'APPROVED')
+    .is('deleted_at', null)
 
   const okrOptions = (okrsRaw ?? []).map((o: { id: string; title: string }) => ({
     id: o.id,

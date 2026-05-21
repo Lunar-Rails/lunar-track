@@ -100,14 +100,14 @@ export default async function NewCheckinPage({
     managerEmail = mgr?.email ?? null
   }
 
-  // fetch approved OKRs for okrOptions dropdown
+  // fetch OKRs for okrOptions dropdown (exclude deleted)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: okrsRaw } = await (supabase as any)
     .from('okrs')
     .select('id, title')
     .eq('employee_id', user.id)
     .eq('period_id', period.id)
-    .eq('status', 'APPROVED')
+    .is('deleted_at', null)
 
   const okrOptions = (okrsRaw ?? []).map((o: { id: string; title: string }) => ({
     id: o.id,
