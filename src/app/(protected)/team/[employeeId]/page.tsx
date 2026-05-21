@@ -160,6 +160,13 @@ export default async function TeamMemberPage({
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
+  const currentQuarter = Math.ceil(currentMonth / 3)
+
+  // Filter out future periods (no data and hasn't started yet)
+  const visiblePeriods = periods.filter((p) => {
+    const isFuture = p.year > currentYear || (p.year === currentYear && p.quarter > currentQuarter)
+    return !isFuture
+  })
 
   return (
     <div className="space-y-6">
@@ -191,7 +198,7 @@ export default async function TeamMemberPage({
       )}
 
       {/* Quarter cards — newest first */}
-      {periods.map((period) => {
+      {visiblePeriods.map((period) => {
         const isOpen = period.status === 'open'
         const months = quarterMonths(period.quarter)
         const qCheckin = qCheckinByPeriod.get(period.id)
@@ -254,17 +261,17 @@ export default async function TeamMemberPage({
                   <span className="text-xs text-lr-muted">B&amp;V <span className="font-bold text-lr-accent">{score.behaviours_values ?? '—'}</span></span>
                   <Link
                     href={`/scoring/${employeeId}/${period.id}`}
-                    className="text-xs text-lr-accent hover:text-lr-accent/80 transition-colors"
+                    className="shrink-0 rounded-[var(--radius-lr)] border border-lr-accent/20 bg-lr-accent-dim text-lr-accent px-3 py-1.5 text-sm font-medium hover:bg-lr-accent/20 transition-colors"
                   >
-                    Edit →
+                    Score Quarter →
                   </Link>
                 </div>
               ) : (
                 <Link
                   href={`/scoring/${employeeId}/${period.id}`}
-                  className="text-xs shrink-0 rounded-[var(--radius-lr)] border border-lr-accent/20 bg-lr-accent-dim text-lr-accent px-3 py-1.5 hover:bg-lr-accent/20 transition-colors"
+                  className="shrink-0 rounded-[var(--radius-lr)] border border-lr-accent/20 bg-lr-accent-dim text-lr-accent px-3 py-1.5 text-sm font-medium hover:bg-lr-accent/20 transition-colors"
                 >
-                  Score →
+                  Score Quarter →
                 </Link>
               )}
             </div>

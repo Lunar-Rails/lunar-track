@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import PendingApprovals from '@/components/dashboard/PendingApprovals'
-import type { Profile, SubordinateRow, PerformancePeriod, Checkin, QuarterlyScore } from '@/lib/types/database'
+import type { Profile, SubordinateRow, PerformancePeriod, Checkin, QuarterlyScore, CompanyValue, QuarterlyCheckin, ValueSelfAssessment, ValueAssessment } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -161,6 +161,24 @@ export default async function DashboardPage() {
     }
   }
 
+  // Company values + usage data
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: valuesRaw } = await (supabase as any).from('company_values').select('*').order('sort_order')
+  const companyValues = (valuesRaw ?? []) as CompanyValue[]
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: myQCheckinsRaw } = await (supabase as any)
+    .from('quarterly_checkins').select('value_assessments, value_self_assessments').eq('employee_id', user.id)
+  const myQCheckins = (myQCheckinsRaw ?? []) as Pick<QuarterlyCheckin, 'value_assessments' | 'value_self_assessments'>[]
+
+  const valueUsage = new Map<string, number>()
+  for (const qc of myQCheckins) {
+    const v2 = (qc.value_assessments as ValueAssessment[] | null) ?? []
+    for (const va of v2) { if (va.value_id) valueUsage.set(va.value_id, (valueUsage.get(va.value_id) ?? 0) + 1) }
+    const v1 = (qc.value_self_assessments as ValueSelfAssessment[] | null) ?? []
+    for (const va of v1) { if (va.value_id) valueUsage.set(va.value_id, (valueUsage.get(va.value_id) ?? 0) + 1) }
+  }
+
   const daysLeft = openPeriod ? daysUntil(openPeriod.end_date) : null
 
   return (
@@ -315,75 +333,37 @@ export default async function DashboardPage() {
         <PendingApprovals requests={pendingRequests} />
       )}
 
-      {/* Manager / HR: Team health card */}
-      {(profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') && directReports.length > 0 && (
-        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-6 shadow-[var(--shadow-lr-card)]">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-card-title">Team · {MONTH_NAMES[currentMonth - 1]}</h2>
-              <p className="text-xs text-lr-muted mt-0.5">{directReports.length} direct report{directReports.length !== 1 ? 's' : ''}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-2xl font-bold text-lr-text">{teamCheckinDone}<span className="text-lg text-lr-muted">/{directReports.length}</span></p>
-              <p className="text-xs text-lr-muted">check-ins done</p>
-            </div>
-          </div>
-
-          {/* Progress bar */}
-          <div className="h-1.5 bg-lr-surface rounded-full overflow-hidden mb-5">
-            <div
-              className="h-full bg-lr-cyan rounded-full transition-all"
-              style={{ width: `${directReports.length > 0 ? (teamCheckinDone / directReports.length) * 100 : 0}%` }}
-            />
-          </div>
-
-          <ul className="space-y-2">
-            {directReports.map((report) => (
-              <li key={report.id} className="flex items-center gap-3">
-                <Link href={`/team/${report.id}`} className="text-sm text-lr-text hover:text-lr-accent hover:underline transition-colors flex-1">
-                  {report.full_name ?? report.email}
-                </Link>
-                <Badge
-                  variant="outline"
-                  className={`text-xs ${ROLE_BADGE[report.role] ?? ''}`}
-                >
-                  {report.role}
-                </Badge>
-              </li>
-            ))}
-          </ul>
-
-          <div className="mt-4 pt-4 border-t border-lr-border">
-            <Link href="/team" className="text-sm text-lr-accent hover:underline">
-              Full team view →
-            </Link>
-          </div>
-        </div>
-      )}
-
-      {/* HR Admin quick links */}
-      {profile.role === 'HR_ADMIN' && (
-        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-6 shadow-[var(--shadow-lr-card)]">
-          <h2 className="text-card-title mb-4">Administration</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { href: '/admin/users', label: 'Manage Users', desc: 'Roles, managers, onboarding', icon: '👤' },
-              { href: '/admin/org', label: 'Org Chart', desc: 'Reporting hierarchy', icon: '🌐' },
-              { href: '/admin/periods', label: 'Performance Periods', desc: 'Open, close, manage quarters', icon: '📅' },
-              { href: '/admin/scores', label: 'Score Calibration', desc: 'Review & calibrate ratings', icon: '📊' },
-            ].map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface px-4 py-3 hover:bg-lr-surface-2 transition-colors group"
-              >
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span>{link.icon}</span>
-                  <span className="text-sm font-medium text-lr-text group-hover:text-lr-accent transition-colors">{link.label}</span>
-                </div>
-                <p className="text-xs text-lr-muted">{link.desc}</p>
-              </a>
-            ))}
+      {/* Company values — sized by personal usage */}
+      {companyValues.length > 0 && (
+        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] px-6 py-7 shadow-[var(--shadow-lr-card)]">
+          <p className="text-kicker mb-5">Our Values</p>
+          <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
+            {(() => {
+              const sorted = [...companyValues].sort((a, b) => (valueUsage.get(b.id) ?? 0) - (valueUsage.get(a.id) ?? 0))
+              const maxUse = Math.max(1, ...companyValues.map((v) => valueUsage.get(v.id) ?? 0))
+              const SIZE = ['text-2xl', 'text-3xl', 'text-4xl', 'text-5xl', 'text-6xl'] as const
+              const COLOR = [
+                'text-lr-muted/50',
+                'text-lr-muted',
+                'text-lr-text/70',
+                'text-lr-cyan',
+                'text-lr-accent',
+              ] as const
+              return sorted.map((v, i) => {
+                const use = valueUsage.get(v.id) ?? 0
+                // rank 0 = most used; scale size + color by usage
+                const rank = maxUse === 0 ? (4 - i) : Math.min(4, Math.round((use / maxUse) * 4))
+                return (
+                  <span
+                    key={v.id}
+                    title={v.description}
+                    className={`font-bold leading-tight transition-colors cursor-default select-none ${SIZE[rank]} ${COLOR[rank]}`}
+                  >
+                    {v.name}
+                  </span>
+                )
+              })
+            })()}
           </div>
         </div>
       )}
