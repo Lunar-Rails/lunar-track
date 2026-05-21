@@ -281,6 +281,9 @@ export async function upsertCheckinManager(formData: FormData): Promise<ActionRe
     mgr_next_mits,
     updated_at: new Date().toISOString(),
   }
+  if (formData.get('mgr_private_note') !== null) {
+    update.mgr_private_note = (formData.get('mgr_private_note') as string) || null
+  }
   if (isSubmit) update.manager_submitted_at = new Date().toISOString()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -51,6 +51,7 @@ export default function ManagerCheckinForm({ checkin, readOnly = false }: Manage
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [nextMits, setNextMits] = useState<Mit[]>(() => initNextMits(checkin))
+  const [privateNote, setPrivateNote] = useState(checkin.mgr_private_note ?? '')
 
   const { register, handleSubmit } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -79,6 +80,7 @@ export default function ManagerCheckinForm({ checkin, readOnly = false }: Manage
     fd.append('checkinId', checkin.id)
     fd.append('mgr_next_mits', JSON.stringify(nextMits.filter((m) => m.title.trim())))
     if (submit) fd.append('submit', 'true')
+    if (privateNote) fd.append('mgr_private_note', privateNote)
     Object.entries(values).forEach(([k, v]) => {
       if (v) fd.append(k, v)
     })
@@ -220,6 +222,23 @@ export default function ManagerCheckinForm({ checkin, readOnly = false }: Manage
             ))}
           </div>
         </section>
+
+        {/* Private note — manager only, never shown to employee */}
+        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border/50 bg-lr-surface p-4 space-y-1.5">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="mgr_private_note" className="text-caption">Private note</Label>
+            <span className="text-[10px] text-lr-muted bg-lr-surface-2 border border-lr-border px-1.5 py-0.5 rounded">Manager only</span>
+          </div>
+          <p className="text-[11px] text-lr-muted">Not visible to the employee. Useful for calibration notes.</p>
+          <Textarea
+            id="mgr_private_note"
+            value={privateNote}
+            onChange={(e) => setPrivateNote(e.target.value)}
+            disabled={readOnly || isPending}
+            placeholder="Internal notes for calibration, context, or follow-ups…"
+            className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[80px] resize-y"
+          />
+        </div>
 
         {error && (
           <div className="rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
