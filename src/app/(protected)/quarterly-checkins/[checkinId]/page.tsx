@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import QuarterlyCheckinEmployeeForm from '@/components/checkins/QuarterlyCheckinEmployeeForm'
 import QuarterlyCheckinManagerForm from '@/components/checkins/QuarterlyCheckinManagerForm'
+import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
 import type { CompanyValue, QuarterlyCheckin, PerformancePeriod, Profile } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -65,22 +66,38 @@ export default async function QuarterlyCheckinDetailPage({
   const employeeSubmitted = !!checkin.employee_submitted_at
   const managerSubmitted = !!checkin.manager_submitted_at
 
+  // Fetch manager email for calendar invite
+  let managerEmail: string | null = null
+  if (profile.manager_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: mgr } = await (supabase as any)
+      .from('profiles').select('email').eq('id', profile.manager_id).single()
+    managerEmail = mgr?.email ?? null
+  }
+
   return (
     <div className="space-y-6">
-      <div className="max-w-3xl">
-        <p className="text-kicker">{checkin.period.name}</p>
-        <h1 className="text-page-title mt-1">
-          Q{checkin.period.quarter} {checkin.period.year} Quarterly Check-in
-        </h1>
-        <div className="flex items-center gap-2 mt-2">
-          {managerSubmitted ? (
-            <Badge variant="outline" className="text-xs bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20">Complete</Badge>
-          ) : employeeSubmitted ? (
-            <Badge variant="outline" className="text-xs bg-lr-gold-dim text-lr-gold border-lr-gold/20">Awaiting Manager</Badge>
-          ) : (
-            <Badge variant="outline" className="text-xs bg-lr-surface text-lr-muted border-lr-border">Draft</Badge>
-          )}
+      <div className="max-w-3xl flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <p className="text-kicker">{checkin.period.name}</p>
+          <h1 className="text-page-title mt-1">
+            Q{checkin.period.quarter} {checkin.period.year} Quarterly Check-in
+          </h1>
+          <div className="flex items-center gap-2 mt-2">
+            {managerSubmitted ? (
+              <Badge variant="outline" className="text-xs bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20">Complete</Badge>
+            ) : employeeSubmitted ? (
+              <Badge variant="outline" className="text-xs bg-lr-gold-dim text-lr-gold border-lr-gold/20">Awaiting Manager</Badge>
+            ) : (
+              <Badge variant="outline" className="text-xs bg-lr-surface text-lr-muted border-lr-border">Draft</Badge>
+            )}
+          </div>
         </div>
+        <ScheduleCallButton
+          title={`Q${checkin.period.quarter} ${checkin.period.year} Quarterly Check-in`}
+          description={`Quarterly performance check-in for ${checkin.period.name}. Review goal achievements and plan the quarter ahead.`}
+          managerEmail={managerEmail}
+        />
       </div>
 
       <Tabs defaultValue="employee">
