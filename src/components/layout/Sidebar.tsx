@@ -10,8 +10,6 @@ import {
   BookOpen,
   ClipboardList,
   CalendarCheck,
-  BarChart2,
-  SlidersHorizontal,
   Star,
 } from 'lucide-react'
 import type { UserRole } from '@/lib/types/database'
@@ -47,8 +45,6 @@ export default function Sidebar({ role }: SidebarProps) {
 
   const adminNav: NavItem[] = role === 'HR_ADMIN' ? [
     { href: '/admin/users', label: 'Users', icon: UserCog },
-    { href: '/admin/scores', label: 'Scores', icon: BarChart2 },
-    { href: '/admin/scores/calibration', label: 'Calibration', icon: SlidersHorizontal },
     { href: '/admin/values', label: 'Company Values', icon: Star },
   ] : []
 
