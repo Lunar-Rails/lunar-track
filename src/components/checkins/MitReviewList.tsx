@@ -4,20 +4,25 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Plus, Trash2, CheckCircle2, XCircle } from 'lucide-react'
 import type { ReviewMit } from '@/lib/types/database'
+import type { LinkOption } from '@/components/checkins/MitPlanList'
 
 interface MitReviewListProps {
   value: ReviewMit[]
   onChange: (mits: ReviewMit[]) => void
+  linkOptions?: LinkOption[]
   disabled?: boolean
 }
+
+const UNRELATED = '__unrelated__'
 
 function emptyReviewMit(): ReviewMit {
   return { title: '', description: '', okr_id: null, okr_label: null, status: 'not_achieved' }
 }
 
-export default function MitReviewList({ value, onChange, disabled = false }: MitReviewListProps) {
+export default function MitReviewList({ value, onChange, linkOptions = [], disabled = false }: MitReviewListProps) {
   function add() {
     onChange([...value, emptyReviewMit()])
   }
@@ -30,9 +35,13 @@ export default function MitReviewList({ value, onChange, disabled = false }: Mit
     onChange(value.map((m, i) => i === index ? { ...m, ...patch } : m))
   }
 
-  function toggleStatus(index: number) {
-    const next = value[index].status === 'achieved' ? 'not_achieved' : 'achieved'
-    update(index, { status: next })
+  function handleLinkChange(index: number, selectedId: string) {
+    if (selectedId === UNRELATED) {
+      update(index, { okr_id: null, okr_label: null })
+    } else {
+      const option = linkOptions.find((o) => o.id === selectedId)
+      update(index, { okr_id: selectedId, okr_label: option?.label ?? null })
+    }
   }
 
   return (
@@ -61,10 +70,41 @@ export default function MitReviewList({ value, onChange, disabled = false }: Mit
                   className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[72px] resize-y"
                 />
               </div>
-              {mit.okr_id ? (
-                <p className="text-xs text-lr-accent">Goal: {mit.okr_label ?? mit.okr_id}</p>
+              {/* Goal selector — shown when there are options; read-only fallback when disabled */}
+              {!disabled && linkOptions.length > 0 ? (
+                <div className="space-y-1">
+                  <Label className="text-caption">Quarterly goal</Label>
+                  <Select
+                    value={mit.okr_id ?? UNRELATED}
+                    onValueChange={(v) => handleLinkChange(index, v)}
+                  >
+                    <SelectTrigger className="bg-lr-surface border-lr-border text-lr-text text-sm h-9">
+                      <SelectValue placeholder="Link to goal…" />
+                    </SelectTrigger>
+                    <SelectContent
+                      side="bottom"
+                      position="popper"
+                      avoidCollisions={false}
+                      sideOffset={4}
+                      className="bg-lr-bg border border-lr-border shadow-[var(--shadow-lr-dropdown)] backdrop-blur-none min-w-[var(--radix-select-trigger-width)]"
+                    >
+                      {linkOptions.map((opt) => (
+                        <SelectItem key={opt.id} value={opt.id} className="text-lr-text text-sm py-2.5 pl-3 pr-8 cursor-pointer">
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                      <SelectItem value={UNRELATED} className="text-sm py-2.5 pl-3 pr-8 cursor-pointer">
+                        <span className="text-lr-muted italic">Unrelated to quarterly goals</span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               ) : (
-                <p className="text-xs text-lr-muted italic">Unrelated to quarterly goals</p>
+                mit.okr_id ? (
+                  <p className="text-xs text-lr-accent">Goal: {mit.okr_label ?? mit.okr_id}</p>
+                ) : (
+                  <p className="text-xs text-lr-muted italic">Unrelated to quarterly goals</p>
+                )
               )}
             </div>
 
