@@ -61,6 +61,20 @@ export default async function CheckinDetailPage({
   const employeeSubmitted = !!checkin.employee_submitted_at
   const managerSubmitted = !!checkin.manager_submitted_at
 
+  // fetch approved OKRs for okrOptions dropdown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: okrsRaw } = await (supabase as any)
+    .from('okrs')
+    .select('id, title')
+    .eq('employee_id', checkin.employee_id)
+    .eq('period_id', checkin.period_id)
+    .eq('status', 'APPROVED')
+
+  const okrOptions = (okrsRaw ?? []).map((o: { id: string; title: string }) => ({
+    id: o.id,
+    label: o.title,
+  }))
+
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
@@ -102,6 +116,7 @@ export default async function CheckinDetailPage({
             month={checkin.month}
             year={checkin.year}
             checkin={checkin}
+            okrOptions={okrOptions}
             readOnly={!isOwner || employeeSubmitted}
           />
         </TabsContent>

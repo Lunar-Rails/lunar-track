@@ -73,6 +73,20 @@ export default async function NewCheckinPage({
     year = free.year
   }
 
+  // fetch approved OKRs for okrOptions dropdown
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: okrsRaw } = await (supabase as any)
+    .from('okrs')
+    .select('id, title')
+    .eq('employee_id', user.id)
+    .eq('period_id', period.id)
+    .eq('status', 'APPROVED')
+
+  const okrOptions = (okrsRaw ?? []).map((o: { id: string; title: string }) => ({
+    id: o.id,
+    label: o.title,
+  }))
+
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -94,6 +108,7 @@ export default async function NewCheckinPage({
         month={month}
         year={year}
         checkin={null}
+        okrOptions={okrOptions}
         readOnly={false}
       />
     </div>
