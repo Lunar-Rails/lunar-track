@@ -64,54 +64,49 @@ export default async function DashboardPage() {
   const currentMonth = now.getMonth() + 1
   const currentYear = now.getFullYear()
 
-  // Employee-specific data
+  // Personal check-in + goal data — fetched for all roles (managers/HR also submit check-ins)
   let thisMonthCheckin: Checkin | null = null
   let myOkrCounts = { total: 0, approved: 0, pending: 0 }
   let myOkrs: { id: string; title: string; status: string }[] = []
   let latestScore: QuarterlyScore | null = null
   let hasNewScore = false
 
-  if (profile.role === 'EMPLOYEE' && openPeriod) {
-    // Current month check-in
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: checkinRaw } = await (supabase as any)
-      .from('checkins')
-      .select('*')
-      .eq('employee_id', user.id)
-      .eq('period_id', openPeriod.id)
-      .eq('month', currentMonth)
-      .eq('year', currentYear)
-      .maybeSingle()
-    thisMonthCheckin = checkinRaw as Checkin | null
-
-    // OKRs with title + status for display
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: okrsRaw } = await (supabase as any)
-      .from('okrs')
-      .select('id, title, status')
-      .eq('employee_id', user.id)
-      .eq('period_id', openPeriod.id)
-      .order('created_at', { ascending: true })
-    myOkrs = (okrsRaw ?? []) as { id: string; title: string; status: string }[]
+  if (openPeriod) {
+    const [checkinRes, okrsRes, scoreRes] = await Promise.all([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any)
+        .from('checkins')
+        .select('*')
+        .eq('employee_id', user.id)
+        .eq('period_id', openPeriod.id)
+        .eq('month', currentMonth)
+        .eq('year', currentYear)
+        .maybeSingle(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any)
+        .from('okrs')
+        .select('id, title, status')
+        .eq('employee_id', user.id)
+        .eq('period_id', openPeriod.id)
+        .order('created_at', { ascending: true }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any)
+        .from('quarterly_scores')
+        .select('*')
+        .eq('employee_id', user.id)
+        .eq('visible_to_employee', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
+    thisMonthCheckin = checkinRes.data as Checkin | null
+    myOkrs = (okrsRes.data ?? []) as { id: string; title: string; status: string }[]
     myOkrCounts = {
       total: myOkrs.length,
       approved: myOkrs.filter((o) => o.status === 'APPROVED').length,
       pending: myOkrs.filter((o) => o.status === 'PENDING_REVIEW').length,
     }
-  }
-
-  // Latest visible score (any period)
-  if (profile.role === 'EMPLOYEE') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: scoreRaw } = await (supabase as any)
-      .from('quarterly_scores')
-      .select('*')
-      .eq('employee_id', user.id)
-      .eq('visible_to_employee', true)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    latestScore = scoreRaw as QuarterlyScore | null
+    latestScore = scoreRes.data as QuarterlyScore | null
     hasNewScore = !!latestScore
   }
 
@@ -163,17 +158,7 @@ export default async function DashboardPage() {
     }
   }
 
-  // My own OKR count for current period (all roles — managers/HR also set goals)
-  let myOwnGoalCount = 0
-  if (openPeriod && profile.role !== 'EMPLOYEE') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { count } = await (supabase as any)
-      .from('okrs')
-      .select('id', { count: 'exact', head: true })
-      .eq('employee_id', user.id)
-      .eq('period_id', openPeriod.id)
-    myOwnGoalCount = (count as number) ?? 0
-  }
+  // myOkrCounts.total is now available for all roles (fetched above)
 
   // Company values + usage data
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -238,8 +223,8 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Employee: What's next card */}
-      {profile.role === 'EMPLOYEE' && openPeriod && (
+      {/* What's next — shown for all roles when there's an open period */}
+      {openPeriod && (
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 shadow-[var(--shadow-lr-card)] space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-card-title">What&apos;s next</h2>
@@ -316,8 +301,8 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Employee: no open period */}
-      {profile.role === 'EMPLOYEE' && !openPeriod && (
+      {/* No open period */}
+      {!openPeriod && (
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-6 shadow-[var(--shadow-lr-card)]">
           <h2 className="text-card-title mb-2">No active period</h2>
           <p className="text-body text-lr-muted">No performance period is open right now. Check back later or contact your HR Admin.</p>
@@ -328,11 +313,11 @@ export default async function DashboardPage() {
       {(profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') && (
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 shadow-[var(--shadow-lr-card)]">
           <h2 className="text-card-title mb-4">Pending actions</h2>
-          {pendingCheckins === 0 && pendingOkrs === 0 && myOwnGoalCount > 0 ? (
+          {pendingCheckins === 0 && pendingOkrs === 0 && myOkrCounts.total > 0 ? (
             <p className="text-sm text-lr-cyan">All caught up — no pending reviews or approvals.</p>
           ) : (
             <div className="space-y-2">
-              {openPeriod && myOwnGoalCount === 0 && (
+              {openPeriod && myOkrCounts.total === 0 && (
                 <Link href="/okrs">
                   <div className="flex items-center justify-between rounded-[var(--radius-lr)] border border-lr-gold/30 bg-lr-gold-dim px-3 py-2.5 hover:bg-lr-gold/10 transition-colors">
                     <span className="text-sm text-lr-gold">🎯 No goals set for {openPeriod.name}</span>
@@ -366,8 +351,8 @@ export default async function DashboardPage() {
         <PendingApprovals requests={pendingRequests} />
       )}
 
-      {/* Employee: current quarter goals */}
-      {profile.role === 'EMPLOYEE' && myOkrs.length > 0 && openPeriod && (
+      {/* Current quarter goals — all roles */}
+      {myOkrs.length > 0 && openPeriod && (
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 shadow-[var(--shadow-lr-card)]">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-card-title">My Goals · {openPeriod.name}</h2>
