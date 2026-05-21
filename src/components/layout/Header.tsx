@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import SignOutButton from '@/components/auth/SignOutButton'
+import ThemeToggle from '@/components/theme/ThemeToggle'
 import type { Profile } from '@/lib/types/database'
 
 interface HeaderProps {
@@ -43,8 +44,9 @@ export default function Header({ profile, inboxCount = 0 }: HeaderProps) {
           </span>
         </div>
 
-        {/* Right: Inbox + User pill */}
+        {/* Right: Theme toggle + Inbox + User pill */}
         <div className="flex items-center gap-2">
+          <ThemeToggle />
         {(profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') && (
           <Link
             href="/inbox"

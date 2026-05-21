@@ -73,7 +73,7 @@ export default function MitPlanList({
                     position="popper"
                     avoidCollisions={false}
                     sideOffset={4}
-                    className="bg-[#13111f] border border-white/10 shadow-2xl backdrop-blur-none min-w-[var(--radix-select-trigger-width)]"
+                    className="bg-lr-bg border border-lr-border shadow-[var(--shadow-lr-dropdown)] backdrop-blur-none min-w-[var(--radix-select-trigger-width)]"
                   >
                     {linkOptions.map((opt) => (
                       <SelectItem key={opt.id} value={opt.id} className="text-lr-text text-sm py-2.5 pl-3 pr-8 cursor-pointer">{opt.label}</SelectItem>
