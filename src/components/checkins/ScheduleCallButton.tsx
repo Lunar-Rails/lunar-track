@@ -63,7 +63,7 @@ export default function ScheduleCallButton({
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 z-50 w-52 rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-bg shadow-lg p-2 space-y-1.5">
+        <div className="absolute right-0 top-full mt-2 z-50 w-64 rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-bg shadow-lg p-2 space-y-1.5">
           <p className="text-[11px] font-semibold text-lr-muted uppercase tracking-wide px-2 pt-1">Recurrence</p>
           {[
             { value: false, label: 'One-time' },
