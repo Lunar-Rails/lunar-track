@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, getOrProvisionProfile } from '@/lib/supabase/server'
 import StandardLayout from '@/components/layout/StandardLayout'
-import type { Profile } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,28 +16,21 @@ export default async function ProtectedLayout({
     redirect('/login')
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: profileRaw } = await (supabase as any)
-    .from('profiles')
-    .select('*')
-    .eq('id', user!.id)
-    .single()
-
-  const profile = profileRaw as Profile | null
+  const profile = await getOrProvisionProfile(supabase, user)
   if (!profile) {
     redirect('/login')
   }
 
   // New employees must complete onboarding before accessing any protected page
-  if (profile!.role === 'EMPLOYEE' && !profile!.is_onboarded) {
+  if (profile.role === 'EMPLOYEE' && !profile.is_onboarded) {
     redirect('/onboarding')
   }
 
   // Inbox badge count for managers/HR
   let inboxCount = 0
-  if (profile!.role === 'MANAGER' || profile!.role === 'HR_ADMIN') {
+  if (profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: subsRaw } = await (supabase as any).rpc('get_subordinates', { manager_uuid: user!.id })
+    const { data: subsRaw } = await (supabase as any).rpc('get_subordinates', { manager_uuid: user.id })
     const reportIds = ((subsRaw ?? []) as { id: string; depth: number }[])
       .filter((s) => s.depth === 1)
       .map((s) => s.id)
@@ -67,5 +59,5 @@ export default async function ProtectedLayout({
     }
   }
 
-  return <StandardLayout profile={profile!} inboxCount={inboxCount}>{children}</StandardLayout>
+  return <StandardLayout profile={profile} inboxCount={inboxCount}>{children}</StandardLayout>
 }
