@@ -71,6 +71,7 @@ export default function MitPlanList({
                   <SelectContent
                     side="bottom"
                     position="popper"
+                    avoidCollisions={false}
                     sideOffset={4}
                     className="bg-[#13111f] border border-white/10 shadow-2xl backdrop-blur-none min-w-[var(--radix-select-trigger-width)]"
                   >
