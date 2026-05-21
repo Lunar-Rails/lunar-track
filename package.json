@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "supabase:push:new": "bash -lc 'set -a; source .env.local; set +a; supabase db push --db-url \"$SUPABASE_POOLER\" --include-all \"$@\"' --"
+    "supabase:push:new": "bash -lc 'set -a; source .env.local; set +a; supabase db push --db-url \"$SUPABASE_POOLER\" --include-all \"$@\"' --",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -34,6 +36,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@netlify/functions": "^5.2.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -42,6 +45,7 @@
     "eslint-config-next": "16.2.4",
     "pg": "^8.21.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.7"
   }
 }
