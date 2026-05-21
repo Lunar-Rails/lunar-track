@@ -284,7 +284,7 @@ export default function QuarterlyCheckinEmployeeForm({
                 {isPending ? 'Saving…' : 'Save Draft'}
               </Button>
               <Button type="button" onClick={submit} disabled={isPending} className="bg-lr-accent hover:bg-lr-accent/90 text-white">
-                {isPending ? 'Submitting…' : 'Submit Check-in'}
+                {isPending ? 'Submitting…' : 'Submit Quarterly Review'}
               </Button>
               {savedAt && <span className="text-xs text-lr-muted">Saved {savedAt.toLocaleTimeString()}</span>}
             </div>

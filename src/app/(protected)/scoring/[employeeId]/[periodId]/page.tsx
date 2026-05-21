@@ -1,7 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import QuarterlyScoringForm from '@/components/performance/QuarterlyScoringForm'
-import { KrStatusPill } from '@/components/okrs/OkrProgressControls'
 import type { Checkin, CompanyValue, Initiative, KeyResult, Okr, PerformancePeriod, Profile, QuarterlyCheckin, QuarterlyScore, SubordinateRow } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -52,7 +51,7 @@ export default async function QuarterlyScoringPage({
   const period = periodRaw as PerformancePeriod | null
   if (!period) notFound()
 
-  // Fetch employee's OKRs for this period (with KR + initiative progress)
+  // Fetch employee's OKRs for this period with full KR + initiative progress
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: okrsRaw } = await (supabase as any)
     .from('okrs')
@@ -69,14 +68,8 @@ export default async function QuarterlyScoringPage({
       kr.initiatives = [...(kr.initiatives ?? [])].sort((a, b) => a.sort_order - b.sort_order)
     })
   })
-  // Strip progress relations for the scoring form which expects bare Okr[]
-  const okrs: Okr[] = okrsWithProgress.map((o) => {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { key_results, ...rest } = o
-    return rest as Okr
-  })
 
-  // Fetch employee's check-ins for this period (visible to manager after submission)
+  // Fetch employee's check-ins for this period
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: checkinsRaw } = await (supabase as any)
     .from('checkins')
@@ -105,7 +98,7 @@ export default async function QuarterlyScoringPage({
     .order('sort_order', { ascending: true })
   const companyValues = (cvRaw ?? []) as CompanyValue[]
 
-  // Fetch employee's submitted quarterly check-in (for self-assessments display)
+  // Fetch employee's quarterly check-in (for self-assessments)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: empCheckinRaw } = await (supabase as any)
     .from('quarterly_checkins')
@@ -118,78 +111,19 @@ export default async function QuarterlyScoringPage({
   const employeeName = employee.full_name ?? employee.email
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-6">
       <div>
         <p className="text-kicker">{period.name}</p>
         <h1 className="text-page-title mt-1">Quarterly Score</h1>
         <p className="text-body text-lr-muted mt-1">{employeeName}</p>
       </div>
 
-      {/* OKR Progress context for manager scoring */}
-      {okrsWithProgress.length > 0 && (
-        <section className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass p-5 space-y-4">
-          <div>
-            <h2 className="text-card-title">Goals Progress</h2>
-            <p className="text-caption text-lr-muted mt-1">
-              Concrete completion evidence to inform your Goals score.
-            </p>
-          </div>
-          <div className="space-y-4">
-            {okrsWithProgress.map((okr) => {
-              const allInitiatives = okr.key_results.flatMap((kr) => kr.initiatives)
-              const total = allInitiatives.length
-              const done = allInitiatives.filter((i) => i.completed).length
-              const pct = total > 0 ? Math.round((done / total) * 100) : 0
-              return (
-                <div
-                  key={okr.id}
-                  className="rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface/40 p-4"
-                >
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <p className="text-sm font-medium text-lr-text">{okr.title}</p>
-                    <p className="text-caption text-lr-muted shrink-0">
-                      {done}/{total} initiatives done
-                    </p>
-                  </div>
-                  {total > 0 && (
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-lr-surface mb-3">
-                      <div
-                        className="h-full bg-lr-accent transition-all"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  )}
-                  {okr.key_results.length > 0 && (
-                    <div className="space-y-1.5">
-                      {okr.key_results.map((kr, ki) => {
-                        const krInits = kr.initiatives
-                        const krDone = krInits.filter((i) => i.completed).length
-                        return (
-                          <div key={kr.id} className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-mono text-lr-accent shrink-0">KR{ki + 1}</span>
-                            <p className="text-caption flex-1 min-w-0 truncate">{kr.title}</p>
-                            <span className="text-caption text-lr-muted shrink-0">
-                              {krDone}/{krInits.length}
-                            </span>
-                            <KrStatusPill status={kr.progress_status} />
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
-
       <QuarterlyScoringForm
         employeeId={employeeId}
         periodId={periodId}
         periodName={period.name}
         employeeName={employeeName}
-        okrs={okrs}
+        okrsWithProgress={okrsWithProgress}
         checkins={checkins}
         existing={existing}
         companyValues={companyValues}
