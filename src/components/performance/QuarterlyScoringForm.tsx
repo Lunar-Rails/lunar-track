@@ -67,6 +67,7 @@ function ScoreColumn({
   onNotesChange,
   notesPlaceholder,
   disabled,
+  aiBuilderLocked = false,
 }: {
   title: string
   subtitle: string
@@ -77,6 +78,7 @@ function ScoreColumn({
   onNotesChange: (v: string) => void
   notesPlaceholder: string
   disabled: boolean
+  aiBuilderLocked?: boolean
 }) {
   return (
     <div className="flex flex-col gap-4 rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5">
@@ -106,22 +108,33 @@ function ScoreColumn({
       <div className="space-y-2">
         <Label className="text-caption">Score</Label>
         <div className="flex gap-1.5">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              type="button"
-              disabled={disabled}
-              onClick={() => onScoreChange(n)}
-              className={`flex-1 rounded-[var(--radius-lr)] border py-2.5 text-sm font-bold transition-colors ${
-                score === n
-                  ? 'border-lr-accent bg-lr-accent-dim text-lr-accent'
-                  : 'border-lr-border bg-lr-surface text-lr-muted hover:bg-lr-surface-2'
-              }`}
-            >
-              {n}
-            </button>
-          ))}
+          {[1, 2, 3, 4, 5].map((n) => {
+            const locked = aiBuilderLocked && n === 5
+            return (
+              <button
+                key={n}
+                type="button"
+                disabled={disabled || locked}
+                onClick={() => onScoreChange(n)}
+                title={locked ? 'Score 5 requires AI Builder to be confirmed' : undefined}
+                className={`flex-1 rounded-[var(--radius-lr)] border py-2.5 text-sm font-bold transition-colors ${
+                  score === n
+                    ? 'border-lr-accent bg-lr-accent-dim text-lr-accent'
+                    : locked
+                    ? 'border-lr-border/30 bg-lr-surface/30 text-lr-muted/30 cursor-not-allowed'
+                    : 'border-lr-border bg-lr-surface text-lr-muted hover:bg-lr-surface-2'
+                }`}
+              >
+                {n}
+              </button>
+            )
+          })}
         </div>
+        {aiBuilderLocked && (
+          <p className="text-xs text-lr-gold">
+            ⚠ Score 5 locked — confirm AI Builder above to unlock.
+          </p>
+        )}
         <p className="text-xs text-lr-accent font-medium">
           {score} — {SCORE_LABELS[score]}
         </p>
@@ -152,15 +165,25 @@ export default function QuarterlyScoringForm({
   const [pmNotes, setPmNotes] = useState(existing?.professional_mastery_notes ?? '')
   const [okrNotes, setOkrNotes] = useState(existing?.okrs_stretch_goals_notes ?? '')
   const [bvNotes, setBvNotes] = useState(existing?.behaviours_values_notes ?? '')
-  const [aiBuilderActive, setAiBuilderActive] = useState<boolean>(
-    employeeQuarterlyCheckin?.ai_builder_active ?? false
-  )
+  const employeeReportedAiBuilder = employeeQuarterlyCheckin?.ai_builder_active ?? false
+  const [aiBuilderActive, setAiBuilderActive] = useState<boolean>(employeeReportedAiBuilder)
+
+  function handleAiBuilderChange(checked: boolean) {
+    setAiBuilderActive(checked)
+    // Auto-cap BV score to 4 if manager unchecks while score is 5
+    if (!checked && behavioursValues > 4) setBehavioursValues(4)
+  }
+
+  function handleBvScoreChange(v: number) {
+    if (!aiBuilderActive && v > 4) return // silently block — button stays visually disabled
+    setBehavioursValues(v)
+  }
 
   function onSave() {
     setError(null)
     setSaved(false)
     if (!aiBuilderActive && behavioursValues > 4) {
-      setError('Behaviours/Values score cannot exceed 4 when AI Builder is not active this quarter.')
+      setError('Behaviours/Values score cannot exceed 4 when AI Builder is not confirmed by the manager.')
       return
     }
     startTransition(async () => {
@@ -193,26 +216,44 @@ export default function QuarterlyScoringForm({
   return (
     <div className="space-y-6">
       {/* AI Builder toggle */}
-      <div className="flex items-start gap-3 rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface p-4">
+      <div className={`flex items-start gap-3 rounded-[var(--radius-lr-lg)] border p-4 transition-colors ${
+        aiBuilderActive ? 'border-lr-accent/30 bg-lr-accent-dim' : 'border-lr-border bg-lr-surface'
+      }`}>
         <input
           type="checkbox"
           id="ai_builder_active"
           checked={aiBuilderActive}
-          onChange={(e) => setAiBuilderActive(e.target.checked)}
+          onChange={(e) => handleAiBuilderChange(e.target.checked)}
           disabled={isPending}
           className="mt-0.5 h-4 w-4 accent-[#7c5cfc]"
         />
-        <div className="space-y-0.5">
-          <Label htmlFor="ai_builder_active" className="text-sm text-lr-text font-medium cursor-pointer">
-            AI Builder active this quarter
-          </Label>
-          {!aiBuilderActive ? (
+        <div className="flex-1 space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Label htmlFor="ai_builder_active" className="text-sm text-lr-text font-medium cursor-pointer">
+              AI Builder active this quarter
+            </Label>
+            {employeeReportedAiBuilder && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-lr-accent/20 text-lr-accent border border-lr-accent/30">
+                Employee self-reported ✓
+              </span>
+            )}
+            {!employeeReportedAiBuilder && employeeQuarterlyCheckin && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-lr-border/50 text-lr-muted border border-lr-border">
+                Not reported by employee
+              </span>
+            )}
+          </div>
+          {!aiBuilderActive && (
             <p className="text-xs text-lr-gold">
-              Note: Behaviours/Values score cannot exceed 4 without an active AI Builder project.
+              Behaviours/Values score is capped at 4 — check this box to unlock score 5.
             </p>
-          ) : empAiDescription ? (
-            <p className="text-xs text-lr-cyan">&ldquo;{empAiDescription}&rdquo;</p>
-          ) : null}
+          )}
+          {aiBuilderActive && empAiDescription && (
+            <p className="text-xs text-lr-cyan italic">&ldquo;{empAiDescription}&rdquo;</p>
+          )}
+          {aiBuilderActive && !empAiDescription && (
+            <p className="text-xs text-lr-muted">Score 5 is unlocked for Behaviours/Values.</p>
+          )}
         </div>
       </div>
 
@@ -312,7 +353,8 @@ export default function QuarterlyScoringForm({
           title="Behaviours & Values"
           subtitle="Alignment with BCOMM company values"
           score={behavioursValues}
-          onScoreChange={setBehavioursValues}
+          onScoreChange={handleBvScoreChange}
+          aiBuilderLocked={!aiBuilderActive}
           notes={bvNotes}
           onNotesChange={setBvNotes}
           notesPlaceholder="Notes on Behaviours & Values…"
