@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { ArrowRight } from 'lucide-react'
 import MitReviewList from '@/components/checkins/MitReviewList'
 import MitPlanList, { type LinkOption } from '@/components/checkins/MitPlanList'
 import { upsertCheckinEmployee } from '@/lib/actions/checkin-actions'
@@ -44,6 +45,8 @@ function initPlanMits(checkin: Checkin | null): PlanMit[] {
   return checkin.next_mits
 }
 
+type Step = 'review' | 'plan'
+
 export default function EmployeeCheckinForm({
   periodId, month, year, checkin, okrOptions, readOnly = false,
 }: EmployeeCheckinFormProps) {
@@ -51,6 +54,7 @@ export default function EmployeeCheckinForm({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
+  const [step, setStep] = useState<Step>('review')
   const [reviewMits, setReviewMits] = useState<ReviewMit[]>(() => initReviewMits(checkin))
   const [nextMits, setNextMits] = useState<PlanMit[]>(() => initPlanMits(checkin))
   const [doneWell, setDoneWell] = useState(checkin?.done_well ?? '')
@@ -67,6 +71,20 @@ export default function EmployeeCheckinForm({
     fd.append('do_differently', doDifferently)
     if (submit) fd.append('submit', 'true')
     return fd
+  }
+
+  function saveAndAdvance() {
+    setError(null)
+    startTransition(async () => {
+      const result = await upsertCheckinEmployee(buildFormData(false))
+      if ('error' in result) {
+        setError(result.error)
+      } else {
+        setSavedAt(new Date())
+        if (result.id) router.replace(`/checkins/${result.id}`)
+        setStep('plan')
+      }
+    })
   }
 
   function save() {
@@ -94,6 +112,11 @@ export default function EmployeeCheckinForm({
     })
   }
 
+  const tabs: { key: Step; label: string }[] = [
+    { key: 'review', label: 'Review' },
+    { key: 'plan', label: 'Next Month' },
+  ]
+
   return (
     <div className="space-y-6">
       {readOnly && (
@@ -102,45 +125,82 @@ export default function EmployeeCheckinForm({
         </div>
       )}
 
-      <section className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-5">
-        <h3 className="text-card-title text-lr-accent">Review</h3>
-        <div className="space-y-2">
-          <p className="text-section-label">What We Committed Last Month</p>
-          <MitReviewList value={reviewMits} onChange={setReviewMits} disabled={readOnly || isPending} />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div className="space-y-1">
-            <Label htmlFor="done_well" className="text-caption">Done well</Label>
-            <Textarea id="done_well" value={doneWell} onChange={(e) => setDoneWell(e.target.value)} disabled={readOnly || isPending} placeholder="What went well this month?" className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[100px] resize-y" />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="do_differently" className="text-caption">Done differently</Label>
-            <Textarea id="do_differently" value={doDifferently} onChange={(e) => setDoDifferently(e.target.value)} disabled={readOnly || isPending} placeholder="What would you change?" className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[100px] resize-y" />
-          </div>
-        </div>
-      </section>
+      {/* Tab header */}
+      <div className="flex gap-1 border-b border-lr-border">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setStep(tab.key)}
+            className={[
+              'px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
+              step === tab.key
+                ? 'border-lr-accent text-lr-accent'
+                : 'border-transparent text-lr-muted hover:text-lr-text',
+            ].join(' ')}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      <section className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-4">
-        <div>
-          <h3 className="text-card-title text-lr-accent">Next Month</h3>
-          <p className="text-xs text-lr-muted mt-1">These MITs will carry over to the review section of next month&apos;s check-in.</p>
-        </div>
-        <MitPlanList value={nextMits} onChange={setNextMits} linkOptions={okrOptions} linkLabel="Quarterly Goal" noLinkLabel="Unrelated to quarterly goals" disabled={readOnly || isPending} />
-      </section>
+      {/* Review tab */}
+      {step === 'review' && (
+        <div className="space-y-5">
+          <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-5">
+            <div className="space-y-2">
+              <p className="text-section-label">What We Committed Last Month</p>
+              <MitReviewList value={reviewMits} onChange={setReviewMits} disabled={readOnly || isPending} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="done_well" className="text-caption">Done well</Label>
+                <Textarea id="done_well" value={doneWell} onChange={(e) => setDoneWell(e.target.value)} disabled={readOnly || isPending} placeholder="What went well this month?" className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[100px] resize-y" />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="do_differently" className="text-caption">Done differently</Label>
+                <Textarea id="do_differently" value={doDifferently} onChange={(e) => setDoDifferently(e.target.value)} disabled={readOnly || isPending} placeholder="What would you change?" className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[100px] resize-y" />
+              </div>
+            </div>
+          </div>
 
-      {error && (
-        <div className="rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div>
+          {error && (
+            <div className="rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div>
+          )}
+
+          {!readOnly && (
+            <div className="flex justify-end">
+              <Button type="button" onClick={saveAndAdvance} disabled={isPending} className="bg-lr-accent hover:bg-lr-accent/90 text-white gap-2">
+                {isPending ? 'Saving…' : <>Next Month <ArrowRight className="h-4 w-4" /></>}
+              </Button>
+            </div>
+          )}
+        </div>
       )}
 
-      {!readOnly && (
-        <div className="flex items-center gap-3">
-          <Button type="button" onClick={save} disabled={isPending} variant="outline" className="border-lr-border text-lr-text hover:bg-lr-surface">
-            {isPending ? 'Saving…' : 'Save Draft'}
-          </Button>
-          <Button type="button" onClick={submit} disabled={isPending} className="bg-lr-accent hover:bg-lr-accent/90 text-white">
-            {isPending ? 'Submitting…' : 'Submit Check-in'}
-          </Button>
-          {savedAt && <span className="text-xs text-lr-muted">Saved {savedAt.toLocaleTimeString()}</span>}
+      {/* Next Month tab */}
+      {step === 'plan' && (
+        <div className="space-y-5">
+          <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-4">
+            <p className="text-xs text-lr-muted">These MITs will carry over to the review section of next month&apos;s check-in.</p>
+            <MitPlanList value={nextMits} onChange={setNextMits} linkOptions={okrOptions} linkLabel="Quarterly Goal" noLinkLabel="Unrelated to quarterly goals" disabled={readOnly || isPending} />
+          </div>
+
+          {error && (
+            <div className="rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div>
+          )}
+
+          {!readOnly && (
+            <div className="flex items-center gap-3">
+              <Button type="button" onClick={save} disabled={isPending} variant="outline" className="border-lr-border text-lr-text hover:bg-lr-surface">
+                {isPending ? 'Saving…' : 'Save Draft'}
+              </Button>
+              <Button type="button" onClick={submit} disabled={isPending} className="bg-lr-accent hover:bg-lr-accent/90 text-white">
+                {isPending ? 'Submitting…' : 'Submit Check-in'}
+              </Button>
+              {savedAt && <span className="text-xs text-lr-muted">Saved {savedAt.toLocaleTimeString()}</span>}
+            </div>
+          )}
         </div>
       )}
     </div>

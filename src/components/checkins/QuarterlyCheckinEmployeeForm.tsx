@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, ArrowRight } from 'lucide-react'
 import GoalAchievementList from '@/components/checkins/GoalAchievementList'
 import MonthlyDoneWellSummary, { type MonthlyReflection } from '@/components/checkins/MonthlyDoneWellSummary'
 import ValueChipSelector from '@/components/checkins/ValueChipSelector'
@@ -50,6 +50,8 @@ function initValueAssessments(checkin: QuarterlyCheckin | null): ValueAssessment
   return []
 }
 
+type Step = 'review' | 'plan'
+
 export default function QuarterlyCheckinEmployeeForm({
   periodId, checkin, companyValues, monthlyReflections, initialGoals, readOnly = false,
 }: QuarterlyCheckinEmployeeFormProps) {
@@ -57,6 +59,7 @@ export default function QuarterlyCheckinEmployeeForm({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
+  const [step, setStep] = useState<Step>('review')
 
   const [goals, setGoals] = useState<QuarterlyGoalReview[]>(() => initGoals(checkin, initialGoals))
   const [valueAssessments, setValueAssessments] = useState<ValueAssessment[]>(() => initValueAssessments(checkin))
@@ -103,6 +106,20 @@ export default function QuarterlyCheckinEmployeeForm({
     return fd
   }
 
+  function saveAndAdvance() {
+    setError(null)
+    startTransition(async () => {
+      const result = await upsertQuarterlyCheckinEmployee(buildFormData(false))
+      if ('error' in result) {
+        setError(result.error)
+      } else {
+        setSavedAt(new Date())
+        if (result.id) router.replace(`/quarterly-checkins/${result.id}`)
+        setStep('plan')
+      }
+    })
+  }
+
   function save() {
     setError(null)
     startTransition(async () => {
@@ -128,6 +145,11 @@ export default function QuarterlyCheckinEmployeeForm({
     })
   }
 
+  const tabs: { key: Step; label: string }[] = [
+    { key: 'review', label: 'Review' },
+    { key: 'plan', label: 'Next Quarter' },
+  ]
+
   return (
     <div className="space-y-6">
       {readOnly && (
@@ -136,87 +158,119 @@ export default function QuarterlyCheckinEmployeeForm({
         </div>
       )}
 
-      {/* REVIEW SECTION */}
-      <section className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-6">
-        <h3 className="text-card-title text-lr-accent">Review</h3>
+      {/* Tab header */}
+      <div className="flex gap-1 border-b border-lr-border">
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setStep(tab.key)}
+            className={[
+              'px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px',
+              step === tab.key
+                ? 'border-lr-accent text-lr-accent'
+                : 'border-transparent text-lr-muted hover:text-lr-text',
+            ].join(' ')}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-        <div className="space-y-2">
-          <p className="text-section-label">Goal Achievements</p>
-          <GoalAchievementList value={goals} onChange={setGoals} disabled={readOnly || isPending} />
-        </div>
+      {/* Review tab */}
+      {step === 'review' && (
+        <div className="space-y-5">
+          <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-6">
+            <div className="space-y-2">
+              <p className="text-section-label">Goal Achievements</p>
+              <GoalAchievementList value={goals} onChange={setGoals} disabled={readOnly || isPending} />
+            </div>
 
-        <div className="space-y-2">
-          <p className="text-section-label">Done Well / Done Differently</p>
-          <p className="text-xs text-lr-muted">Auto-pulled from your last 3 monthly check-ins</p>
-          <MonthlyDoneWellSummary reflections={monthlyReflections} />
-        </div>
+            <div className="space-y-2">
+              <p className="text-section-label">Done Well / Done Differently</p>
+              <p className="text-xs text-lr-muted">Auto-pulled from your last 3 monthly check-ins</p>
+              <MonthlyDoneWellSummary reflections={monthlyReflections} />
+            </div>
 
-        <div className="space-y-2">
-          <p className="text-section-label">Values</p>
-          <p className="text-xs text-lr-muted">Select the values you demonstrated this quarter and describe how</p>
-          <ValueChipSelector companyValues={companyValues} value={valueAssessments} onChange={setValueAssessments} disabled={readOnly || isPending} />
-        </div>
-      </section>
-
-      {/* NEXT QUARTER SECTION */}
-      <section className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-6">
-        <div>
-          <h3 className="text-card-title text-lr-accent">Next Quarter</h3>
-          <p className="text-xs text-lr-muted mt-1">Set your goals and first-month MITs</p>
-        </div>
-
-        <div className="space-y-3">
-          <p className="text-section-label">Goals</p>
-          <div className="space-y-3">
-            {nextGoals.map((goal, index) => (
-              <div key={goal.id} className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface p-4 space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="flex-1 space-y-3">
-                    <div className="space-y-1">
-                      <Label className="text-caption">Goal</Label>
-                      <Input value={goal.title} onChange={(e) => updateNextGoal(index, { title: e.target.value })} disabled={readOnly || isPending} placeholder="What do you want to achieve next quarter?" className="bg-lr-surface border-lr-border text-lr-text text-sm h-9" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-caption">Description</Label>
-                      <Textarea value={goal.description} onChange={(e) => updateNextGoal(index, { description: e.target.value })} disabled={readOnly || isPending} placeholder="Brief description or success criteria…" className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[72px] resize-y" />
-                    </div>
-                  </div>
-                  {!readOnly && nextGoals.length > 1 && (
-                    <button type="button" onClick={() => removeNextGoal(index)} className="mt-1 text-lr-muted hover:text-lr-error transition-colors flex-shrink-0" aria-label="Remove goal">
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-            {!readOnly && (
-              <Button type="button" variant="outline" size="sm" onClick={addNextGoal} className="w-full gap-1.5 border-lr-accent text-lr-accent hover:bg-lr-accent-dim text-xs">
-                <Plus className="h-3.5 w-3.5" /> New goal
-              </Button>
-            )}
+            <div className="space-y-2">
+              <p className="text-section-label">Values</p>
+              <p className="text-xs text-lr-muted">Select the values you demonstrated this quarter and describe how</p>
+              <ValueChipSelector companyValues={companyValues} value={valueAssessments} onChange={setValueAssessments} disabled={readOnly || isPending} />
+            </div>
           </div>
-        </div>
 
-        <div className="space-y-2">
-          <p className="text-section-label">First Month MITs</p>
-          <p className="text-xs text-lr-muted">These will carry over to the review section of your first monthly check-in next quarter.</p>
-          <MitPlanList value={nextMits} onChange={setNextMits} linkOptions={goalLinkOptions} linkLabel="Quarterly goal" noLinkLabel="Unrelated to quarterly goals" disabled={readOnly || isPending} />
-        </div>
-      </section>
+          {error && (
+            <div className="rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div>
+          )}
 
-      {error && (
-        <div className="rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div>
+          {!readOnly && (
+            <div className="flex justify-end">
+              <Button type="button" onClick={saveAndAdvance} disabled={isPending} className="bg-lr-accent hover:bg-lr-accent/90 text-white gap-2">
+                {isPending ? 'Saving…' : <>Next Quarter <ArrowRight className="h-4 w-4" /></>}
+              </Button>
+            </div>
+          )}
+        </div>
       )}
 
-      {!readOnly && (
-        <div className="flex items-center gap-3">
-          <Button type="button" onClick={save} disabled={isPending} variant="outline" className="border-lr-border text-lr-text hover:bg-lr-surface">
-            {isPending ? 'Saving…' : 'Save Draft'}
-          </Button>
-          <Button type="button" onClick={submit} disabled={isPending} className="bg-lr-accent hover:bg-lr-accent/90 text-white">
-            {isPending ? 'Submitting…' : 'Submit Check-in'}
-          </Button>
-          {savedAt && <span className="text-xs text-lr-muted">Saved {savedAt.toLocaleTimeString()}</span>}
+      {/* Next Quarter tab */}
+      {step === 'plan' && (
+        <div className="space-y-5">
+          <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-6">
+            <div className="space-y-3">
+              <p className="text-section-label">Goals</p>
+              <div className="space-y-3">
+                {nextGoals.map((goal, index) => (
+                  <div key={goal.id} className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1 space-y-3">
+                        <div className="space-y-1">
+                          <Label className="text-caption">Goal</Label>
+                          <Input value={goal.title} onChange={(e) => updateNextGoal(index, { title: e.target.value })} disabled={readOnly || isPending} placeholder="What do you want to achieve next quarter?" className="bg-lr-surface border-lr-border text-lr-text text-sm h-9" />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-caption">Description</Label>
+                          <Textarea value={goal.description} onChange={(e) => updateNextGoal(index, { description: e.target.value })} disabled={readOnly || isPending} placeholder="Brief description or success criteria…" className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[72px] resize-y" />
+                        </div>
+                      </div>
+                      {!readOnly && nextGoals.length > 1 && (
+                        <button type="button" onClick={() => removeNextGoal(index)} className="mt-1 text-lr-muted hover:text-lr-error transition-colors flex-shrink-0" aria-label="Remove goal">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {!readOnly && (
+                  <Button type="button" variant="outline" size="sm" onClick={addNextGoal} className="w-full gap-1.5 border-lr-accent text-lr-accent hover:bg-lr-accent-dim text-xs">
+                    <Plus className="h-3.5 w-3.5" /> New goal
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-section-label">First Month MITs</p>
+              <p className="text-xs text-lr-muted">These will carry over to the review section of your first monthly check-in next quarter.</p>
+              <MitPlanList value={nextMits} onChange={setNextMits} linkOptions={goalLinkOptions} linkLabel="Quarterly goal" noLinkLabel="Unrelated to quarterly goals" disabled={readOnly || isPending} />
+            </div>
+          </div>
+
+          {error && (
+            <div className="rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">{error}</div>
+          )}
+
+          {!readOnly && (
+            <div className="flex items-center gap-3">
+              <Button type="button" onClick={save} disabled={isPending} variant="outline" className="border-lr-border text-lr-text hover:bg-lr-surface">
+                {isPending ? 'Saving…' : 'Save Draft'}
+              </Button>
+              <Button type="button" onClick={submit} disabled={isPending} className="bg-lr-accent hover:bg-lr-accent/90 text-white">
+                {isPending ? 'Submitting…' : 'Submit Check-in'}
+              </Button>
+              {savedAt && <span className="text-xs text-lr-muted">Saved {savedAt.toLocaleTimeString()}</span>}
+            </div>
+          )}
         </div>
       )}
     </div>
