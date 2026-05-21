@@ -36,6 +36,7 @@ export default function Sidebar({ role }: SidebarProps) {
   const myWorkNav: NavItem[] = [
     { href: '/checkins', label: 'Monthly Check-ins', icon: ClipboardList },
     { href: '/quarterly-checkins', label: 'Quarterly Reviews', icon: CalendarCheck },
+    { href: '/org', label: 'Org Chart', icon: Network },
     { href: '/guide', label: 'Framework Guide', icon: BookOpen },
   ]
 
@@ -45,7 +46,6 @@ export default function Sidebar({ role }: SidebarProps) {
 
   const adminNav: NavItem[] = role === 'HR_ADMIN' ? [
     { href: '/admin/users', label: 'Users', icon: UserCog },
-    { href: '/admin/org', label: 'Org Chart', icon: Network },
     { href: '/admin/scores', label: 'Scores', icon: BarChart2 },
     { href: '/admin/scores/calibration', label: 'Calibration', icon: SlidersHorizontal },
   ] : []
