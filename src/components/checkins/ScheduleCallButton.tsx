@@ -63,38 +63,38 @@ export default function ScheduleCallButton({
       </Button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-1.5 z-50 w-48 rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-bg shadow-[var(--shadow-lr-dropdown)] p-3 space-y-3">
-          <p className="text-xs font-semibold text-lr-text">Recurrence</p>
-          <div className="space-y-1">
-            {[
-              { value: false, label: 'One-time' },
-              { value: true,  label: recurrenceLabel },
-            ].map((opt) => (
-              <button
-                key={String(opt.value)}
-                type="button"
-                onClick={() => setRecurring(opt.value)}
-                className={[
-                  'w-full flex items-center justify-between px-2.5 py-1.5 rounded-[var(--radius-lr)] text-xs transition-colors',
-                  recurring === opt.value
-                    ? 'bg-lr-accent-dim text-lr-accent font-medium'
-                    : 'text-lr-text hover:bg-lr-surface',
-                ].join(' ')}
-              >
-                {opt.label}
-                {recurring === opt.value && <Check className="h-3 w-3" />}
-              </button>
-            ))}
+        <div className="absolute right-0 top-full mt-2 z-50 w-52 rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-bg shadow-lg p-2 space-y-1.5">
+          <p className="text-[11px] font-semibold text-lr-muted uppercase tracking-wide px-2 pt-1">Recurrence</p>
+          {[
+            { value: false, label: 'One-time' },
+            { value: true,  label: recurrenceLabel },
+          ].map((opt) => (
+            <button
+              key={String(opt.value)}
+              type="button"
+              onClick={() => setRecurring(opt.value)}
+              className={[
+                'w-full flex items-center justify-between px-2.5 py-2 rounded-[var(--radius-lr)] text-sm transition-colors',
+                recurring === opt.value
+                  ? 'bg-lr-accent-dim text-lr-accent font-medium'
+                  : 'text-lr-text hover:bg-lr-surface',
+              ].join(' ')}
+            >
+              {opt.label}
+              {recurring === opt.value && <Check className="h-3.5 w-3.5" />}
+            </button>
+          ))}
+          <div className="pt-1 border-t border-lr-border">
+            <Button
+              type="button"
+              size="sm"
+              onClick={schedule}
+              className="w-full bg-lr-accent hover:bg-lr-accent/90 text-white text-xs gap-1.5"
+            >
+              <CalendarPlus className="h-3.5 w-3.5" />
+              Open in Google Calendar
+            </Button>
           </div>
-          <Button
-            type="button"
-            size="sm"
-            onClick={schedule}
-            className="w-full bg-lr-accent hover:bg-lr-accent/90 text-white text-xs gap-1.5"
-          >
-            <CalendarPlus className="h-3.5 w-3.5" />
-            Open in Google Calendar
-          </Button>
         </div>
       )}
     </div>

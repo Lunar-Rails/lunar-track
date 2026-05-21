@@ -141,7 +141,7 @@ export default async function NewQuarterlyCheckinPage({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4 flex-wrap max-w-3xl">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-kicker">{period.name}</p>
           <h1 className="text-page-title mt-1">

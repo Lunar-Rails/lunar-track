@@ -87,7 +87,7 @@ export default async function CheckinDetailPage({
 
   return (
     <div className="space-y-6">
-      <div className="max-w-3xl flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-kicker">{checkin.period.name}</p>
           <h1 className="text-page-title mt-1">
