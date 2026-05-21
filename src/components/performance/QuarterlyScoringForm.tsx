@@ -19,11 +19,11 @@ import type {
 } from '@/lib/types/database'
 
 const SCORE_LABELS: Record<number, string> = {
-  1: 'Significantly below expectations',
-  2: 'Below expectations',
+  1: 'Outstanding',
+  2: 'Exceeds expectations',
   3: 'Meets expectations',
-  4: 'Exceeds expectations',
-  5: 'Outstanding',
+  4: 'Below expectations',
+  5: 'Significantly below expectations',
 }
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -109,14 +109,14 @@ function ScoreColumn({
         <Label className="text-caption">Score</Label>
         <div className="flex gap-1.5">
           {[1, 2, 3, 4, 5].map((n) => {
-            const locked = aiBuilderLocked && n === 5
+            const locked = aiBuilderLocked && n < 4
             return (
               <button
                 key={n}
                 type="button"
                 disabled={disabled || locked}
                 onClick={() => onScoreChange(n)}
-                title={locked ? 'Score 5 requires AI Builder to be confirmed' : undefined}
+                title={locked ? 'Scores 1–3 require AI Builder to be confirmed' : undefined}
                 className={`flex-1 rounded-[var(--radius-lr)] border py-2.5 text-sm font-bold transition-colors ${
                   score === n
                     ? 'border-lr-accent bg-lr-accent-dim text-lr-accent'
@@ -132,7 +132,7 @@ function ScoreColumn({
         </div>
         {aiBuilderLocked && (
           <p className="text-xs text-lr-gold">
-            ⚠ Score 5 locked — confirm AI Builder above to unlock.
+            ⚠ Scores 1–3 locked — confirm AI Builder above to unlock.
           </p>
         )}
         <p className="text-xs text-lr-accent font-medium">
@@ -170,20 +170,20 @@ export default function QuarterlyScoringForm({
 
   function handleAiBuilderChange(checked: boolean) {
     setAiBuilderActive(checked)
-    // Auto-cap BV score to 4 if manager unchecks while score is 5
-    if (!checked && behavioursValues > 4) setBehavioursValues(4)
+    // Auto-set BV to 4 if manager unchecks and score is currently 1, 2, or 3
+    if (!checked && behavioursValues < 4) setBehavioursValues(4)
   }
 
   function handleBvScoreChange(v: number) {
-    if (!aiBuilderActive && v > 4) return // silently block — button stays visually disabled
+    if (!aiBuilderActive && v < 4) return // block 1, 2, 3 without AI Builder
     setBehavioursValues(v)
   }
 
   function onSave() {
     setError(null)
     setSaved(false)
-    if (!aiBuilderActive && behavioursValues > 4) {
-      setError('Behaviours/Values score cannot exceed 4 when AI Builder is not confirmed by the manager.')
+    if (!aiBuilderActive && behavioursValues < 4) {
+      setError('Behaviours/Values score cannot be 1–3 without AI Builder confirmed by the manager.')
       return
     }
     startTransition(async () => {
