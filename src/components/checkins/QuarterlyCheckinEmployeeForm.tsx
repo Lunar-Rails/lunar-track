@@ -1,7 +1,7 @@
 'use client'
 
-import { useTransition, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useTransition, useState, useEffect } from 'react'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ArrowRight } from 'lucide-react'
 import GoalAchievementList from '@/components/checkins/GoalAchievementList'
@@ -51,10 +51,18 @@ export default function QuarterlyCheckinEmployeeForm({
   periodId, checkin, companyValues, monthlyReflections, monthlyMoods = [], initialGoals, okrOptions, readOnly = false,
 }: QuarterlyCheckinEmployeeFormProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
-  const [step, setStep] = useState<Step>('review')
+  const [step, setStep] = useState<Step>(() => searchParams.get('step') === 'plan' ? 'plan' : 'review')
+
+  useEffect(() => {
+    if (searchParams.get('step')) {
+      router.replace(pathname, { scroll: false })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [goals, setGoals] = useState<QuarterlyGoalReview[]>(() => initGoals(checkin, initialGoals))
   const [valueAssessments, setValueAssessments] = useState<ValueAssessment[]>(() => initValueAssessments(checkin))
@@ -82,8 +90,8 @@ export default function QuarterlyCheckinEmployeeForm({
         setError(result.error)
       } else {
         setSavedAt(new Date())
-        if (result.id) router.replace(`/quarterly-checkins/${result.id}`)
-        setStep('plan')
+        if (result.id) router.replace(`/quarterly-checkins/${result.id}?step=plan`)
+        else setStep('plan')
       }
     })
   }

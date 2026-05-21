@@ -1,7 +1,7 @@
 'use client'
 
-import { useTransition, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useTransition, useState, useEffect } from 'react'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
@@ -52,12 +52,21 @@ export default function EmployeeCheckinForm({
   periodId, month, year, checkin, okrOptions, readOnly = false,
 }: EmployeeCheckinFormProps) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
-  const [step, setStep] = useState<Step>('review')
+  const [step, setStep] = useState<Step>(() => searchParams.get('step') === 'plan' ? 'plan' : 'review')
   const [reviewMits, setReviewMits] = useState<ReviewMit[]>(() => initReviewMits(checkin))
   const [nextMits, setNextMits] = useState<PlanMit[]>(() => initPlanMits(checkin))
+
+  // Remove ?step param from URL once consumed so back/refresh don't re-apply it
+  useEffect(() => {
+    if (searchParams.get('step')) {
+      router.replace(pathname, { scroll: false })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [doneWell, setDoneWell] = useState(checkin?.done_well ?? '')
   const [doDifferently, setDoDifferently] = useState(checkin?.do_differently ?? '')
   const [moodEnergy, setMoodEnergy] = useState<MoodEnergy | null>(checkin?.mood_energy ?? null)
@@ -86,8 +95,8 @@ export default function EmployeeCheckinForm({
         setError(result.error)
       } else {
         setSavedAt(new Date())
-        if (result.id) router.replace(`/checkins/${result.id}`)
-        setStep('plan')
+        if (result.id) router.replace(`/checkins/${result.id}?step=plan`)
+        else setStep('plan')
       }
     })
   }
