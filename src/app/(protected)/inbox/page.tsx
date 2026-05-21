@@ -181,6 +181,11 @@ export default async function InboxPage() {
 
   const totalItems = pendingCheckins.length + pendingOkrs.length + pendingQuarterlyCheckins.length
 
+  function urgencyGroup(submittedAt: string): 'overdue' | 'this-week' {
+    const days = Math.floor((Date.now() - new Date(submittedAt).getTime()) / 86400000)
+    return days > 7 ? 'overdue' : 'this-week'
+  }
+
   function timeAgo(dateStr: string): string {
     const diff = Date.now() - new Date(dateStr).getTime()
     const hours = Math.floor(diff / 3600000)
@@ -220,26 +225,42 @@ export default async function InboxPage() {
           </h2>
         </div>
 
-        <div className="space-y-2">
-          {pendingCheckins.map((c) => (
-            <Link key={c.id} href={`/checkins/${c.id}`}>
-              <div className="rounded-[var(--radius-lr-lg)] border border-lr-gold/30 bg-lr-glass backdrop-blur-[8px] p-4 hover:bg-lr-surface transition-colors cursor-pointer">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-lr-text">{c.employee_name}</p>
-                    <p className="text-xs text-lr-muted">{c.employee_email}</p>
-                  </div>
-                  <div className="text-right">
-                    <Badge variant="outline" className="text-xs bg-lr-gold-dim text-lr-gold border-lr-gold/20 mb-1">
-                      Awaiting review
-                    </Badge>
-                    <p className="text-xs text-lr-muted">{MONTH_NAMES[c.month - 1]} {c.year} · {c.period_name}</p>
-                    <p className="text-xs text-lr-muted">{timeAgo(c.employee_submitted_at)}</p>
-                  </div>
+        <div className="space-y-4">
+          {(['overdue', 'this-week'] as const)
+            .map((group) => ({
+              group,
+              label: group === 'overdue' ? 'Overdue (>7 days)' : 'This week',
+              accent: group === 'overdue' ? 'border-red-500/30 bg-red-500/5' : 'border-lr-gold/30 bg-lr-glass',
+              badge: group === 'overdue' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-lr-gold-dim text-lr-gold border-lr-gold/20',
+              badgeText: group === 'overdue' ? 'Overdue' : 'Awaiting review',
+              items: pendingCheckins.filter((c) => urgencyGroup(c.employee_submitted_at) === group),
+            }))
+            .filter(({ items }) => items.length > 0)
+            .map(({ group, label, accent, badge, badgeText, items }) => (
+              <div key={group}>
+                <p className="text-[11px] font-semibold text-lr-muted uppercase tracking-wide mb-2">{label}</p>
+                <div className="space-y-2">
+                  {items.map((c) => (
+                    <Link key={c.id} href={`/checkins/${c.id}`}>
+                      <div className={`rounded-[var(--radius-lr-lg)] border backdrop-blur-[8px] p-4 hover:bg-lr-surface transition-colors cursor-pointer ${accent}`}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-lr-text">{c.employee_name}</p>
+                            <p className="text-xs text-lr-muted">{c.employee_email}</p>
+                          </div>
+                          <div className="text-right">
+                            <Badge variant="outline" className={`text-xs mb-1 ${badge}`}>{badgeText}</Badge>
+                            <p className="text-xs text-lr-muted">{MONTH_NAMES[c.month - 1]} {c.year} · {c.period_name}</p>
+                            <p className="text-xs text-lr-muted">{timeAgo(c.employee_submitted_at)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
                 </div>
               </div>
-            </Link>
-          ))}
+            ))
+          }
         </div>
       </section>
       )}
@@ -253,26 +274,42 @@ export default async function InboxPage() {
               {pendingQuarterlyCheckins.length}
             </span>
           </h2>
-          <div className="space-y-2">
-            {pendingQuarterlyCheckins.map((c) => (
-              <Link key={c.id} href={`/quarterly-checkins/${c.id}`}>
-                <div className="rounded-[var(--radius-lr-lg)] border border-lr-gold/30 bg-lr-glass backdrop-blur-[8px] p-4 hover:bg-lr-surface transition-colors cursor-pointer">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium text-lr-text">{c.employee_name}</p>
-                      <p className="text-xs text-lr-muted">{c.employee_email}</p>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant="outline" className="text-xs bg-lr-gold-dim text-lr-gold border-lr-gold/20 mb-1">
-                        Awaiting review
-                      </Badge>
-                      <p className="text-xs text-lr-muted">Q{c.period_quarter} {c.period_year} · {c.period_name}</p>
-                      <p className="text-xs text-lr-muted">{timeAgo(c.employee_submitted_at)}</p>
-                    </div>
+          <div className="space-y-4">
+            {(['overdue', 'this-week'] as const)
+              .map((group) => ({
+                group,
+                label: group === 'overdue' ? 'Overdue (>7 days)' : 'This week',
+                accent: group === 'overdue' ? 'border-red-500/30 bg-red-500/5' : 'border-lr-gold/30 bg-lr-glass',
+                badge: group === 'overdue' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-lr-gold-dim text-lr-gold border-lr-gold/20',
+                badgeText: group === 'overdue' ? 'Overdue' : 'Awaiting review',
+                items: pendingQuarterlyCheckins.filter((c) => urgencyGroup(c.employee_submitted_at) === group),
+              }))
+              .filter(({ items }) => items.length > 0)
+              .map(({ group, label, accent, badge, badgeText, items }) => (
+                <div key={group}>
+                  <p className="text-[11px] font-semibold text-lr-muted uppercase tracking-wide mb-2">{label}</p>
+                  <div className="space-y-2">
+                    {items.map((c) => (
+                      <Link key={c.id} href={`/quarterly-checkins/${c.id}`}>
+                        <div className={`rounded-[var(--radius-lr-lg)] border backdrop-blur-[8px] p-4 hover:bg-lr-surface transition-colors cursor-pointer ${accent}`}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-sm font-medium text-lr-text">{c.employee_name}</p>
+                              <p className="text-xs text-lr-muted">{c.employee_email}</p>
+                            </div>
+                            <div className="text-right">
+                              <Badge variant="outline" className={`text-xs mb-1 ${badge}`}>{badgeText}</Badge>
+                              <p className="text-xs text-lr-muted">Q{c.period_quarter} {c.period_year} · {c.period_name}</p>
+                              <p className="text-xs text-lr-muted">{timeAgo(c.employee_submitted_at)}</p>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
                   </div>
                 </div>
-              </Link>
-            ))}
+              ))
+            }
           </div>
         </section>
       )}
