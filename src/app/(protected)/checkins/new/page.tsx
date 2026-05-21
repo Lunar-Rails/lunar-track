@@ -50,6 +50,14 @@ export default async function NewCheckinPage({
 
   const existing = (existingRaw ?? []) as { id: string; month: number; year: number }[]
 
+  // First-ever check-in? Used to pre-fill the review section for new hires.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { count: totalCheckins } = await (supabase as any)
+    .from('checkins')
+    .select('id', { count: 'exact', head: true })
+    .eq('employee_id', user.id)
+  const isFirstCheckin = (totalCheckins ?? 0) === 0
+
   const monthOptions = months.map((m) => ({
     month: m,
     year: period.year,
@@ -138,6 +146,7 @@ export default async function NewCheckinPage({
         checkin={null}
         okrOptions={okrOptions}
         readOnly={false}
+        isFirstCheckin={isFirstCheckin}
       />
     </div>
   )

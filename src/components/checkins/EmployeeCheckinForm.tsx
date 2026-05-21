@@ -18,10 +18,24 @@ interface EmployeeCheckinFormProps {
   checkin: Checkin | null
   okrOptions: LinkOption[]
   readOnly?: boolean
+  isFirstCheckin?: boolean
 }
 
-function initReviewMits(checkin: Checkin | null): ReviewMit[] {
-  if (!checkin) return [{ title: '', description: '', okr_id: null, okr_label: null, status: 'not_achieved' }]
+function initReviewMits(checkin: Checkin | null, isFirstCheckin: boolean): ReviewMit[] {
+  if (!checkin) {
+    // A brand-new employee's first-ever check-in has nothing to review yet,
+    // so pre-fill the one thing they've already done: getting hired.
+    if (isFirstCheckin) {
+      return [{
+        title: 'Get hired',
+        description: 'Start working for the best company in the world!',
+        okr_id: null,
+        okr_label: null,
+        status: 'achieved',
+      }]
+    }
+    return [{ title: '', description: '', okr_id: null, okr_label: null, status: 'not_achieved' }]
+  }
   if (checkin.mits && checkin.mits.length > 0) {
     return checkin.mits.map((m) => ({
       title: m.title,
@@ -48,14 +62,14 @@ function initPlanMits(checkin: Checkin | null): PlanMit[] {
 type Step = 'review' | 'plan'
 
 export default function EmployeeCheckinForm({
-  periodId, month, year, checkin, okrOptions, readOnly = false,
+  periodId, month, year, checkin, okrOptions, readOnly = false, isFirstCheckin = false,
 }: EmployeeCheckinFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [step, setStep] = useState<Step>('review')
-  const [reviewMits, setReviewMits] = useState<ReviewMit[]>(() => initReviewMits(checkin))
+  const [reviewMits, setReviewMits] = useState<ReviewMit[]>(() => initReviewMits(checkin, isFirstCheckin))
   const [nextMits, setNextMits] = useState<PlanMit[]>(() => initPlanMits(checkin))
   const [doneWell, setDoneWell] = useState(checkin?.done_well ?? '')
   const [doDifferently, setDoDifferently] = useState(checkin?.do_differently ?? '')
