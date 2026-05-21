@@ -44,6 +44,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         className={`${spaceGrotesk.variable} ${inter.variable} bg-lr-bg text-lr-text antialiased font-sans`}
+        suppressHydrationWarning
       >
         <ThemeProvider>
           <NuqsAdapter>{children}</NuqsAdapter>
