@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import QuarterlyCheckinEmployeeForm from '@/components/checkins/QuarterlyCheckinEmployeeForm'
 import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
 import type { CompanyValue, QuarterlyCheckin, PerformancePeriod, Profile } from '@/lib/types/database'
+import type { MonthlyMood } from '@/components/checkins/MoodTrendSummary'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,6 +63,23 @@ export default async function QuarterlyCheckinDetailPage({
 
   const employeeSubmitted = !!checkin.employee_submitted_at
 
+  // Load mood data from monthly check-ins for this period
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: moodCheckinsRaw } = await (supabase as any)
+    .from('checkins')
+    .select('month, year, mood_energy, mood_productivity')
+    .eq('employee_id', checkin.employee_id)
+    .eq('period_id', checkin.period_id)
+    .order('month', { ascending: true })
+    .limit(3)
+
+  const monthlyMoods: MonthlyMood[] = (moodCheckinsRaw ?? []).map((c: { month: number; year: number; mood_energy: string | null; mood_productivity: string | null }) => ({
+    month: c.month,
+    year: c.year,
+    mood_energy: c.mood_energy as MonthlyMood['mood_energy'],
+    mood_productivity: c.mood_productivity as MonthlyMood['mood_productivity'],
+  }))
+
   // Fetch manager email for calendar invite
   let managerEmail: string | null = null
   if (profile.manager_id) {
@@ -103,6 +121,7 @@ export default async function QuarterlyCheckinDetailPage({
         checkin={checkin}
         companyValues={companyValues}
         monthlyReflections={[]}
+        monthlyMoods={monthlyMoods}
         initialGoals={[]}
         readOnly={!isOwner || employeeSubmitted}
       />
