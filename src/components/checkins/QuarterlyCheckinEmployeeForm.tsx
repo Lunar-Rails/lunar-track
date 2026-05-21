@@ -185,7 +185,7 @@ export default function QuarterlyCheckinEmployeeForm({
 
       {/* Review tab */}
       {step === 'review' && (
-        <div className="space-y-5 max-w-3xl">
+        <div className="space-y-5">
           <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-6">
             <div className="space-y-3">
               <div>
@@ -228,7 +228,7 @@ export default function QuarterlyCheckinEmployeeForm({
 
       {/* Next Quarter tab */}
       {step === 'plan' && (
-        <div className="space-y-5 max-w-3xl">
+        <div className="space-y-5">
           <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-5 space-y-6">
             <div className="space-y-3">
               <div>
