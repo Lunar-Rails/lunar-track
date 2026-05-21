@@ -1,6 +1,7 @@
 'use client'
 
 import type { MoodEnergy, MoodProductivity } from '@/lib/types/database'
+import { ENERGY_OPTIONS, PRODUCTIVITY_OPTIONS } from '@/lib/constants/mood'
 
 interface MoodSelectorProps {
   energy: MoodEnergy | null
@@ -9,19 +10,6 @@ interface MoodSelectorProps {
   onProductivityChange: (value: MoodProductivity) => void
   disabled?: boolean
 }
-
-const ENERGY_OPTIONS: { value: MoodEnergy; emoji: string; label: string }[] = [
-  { value: 'terrible', emoji: '😩', label: 'Terrible' },
-  { value: 'meh', emoji: '😐', label: 'Meh' },
-  { value: 'okay', emoji: '🙂', label: 'Okay' },
-  { value: 'great', emoji: '🔥', label: 'Great' },
-]
-
-const PRODUCTIVITY_OPTIONS: { value: MoodProductivity; emoji: string; label: string }[] = [
-  { value: 'waste', emoji: '🐌', label: 'Waste of time' },
-  { value: 'fine', emoji: '👍', label: "Can't complain" },
-  { value: 'ludicrous', emoji: '🚀', label: 'LudicrousSpeed' },
-]
 
 export default function MoodSelector({
   energy,

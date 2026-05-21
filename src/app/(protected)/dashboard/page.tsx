@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import PendingApprovals from '@/components/dashboard/PendingApprovals'
+import PulseCard, { type MonthlyMoodEntry } from '@/components/dashboard/PulseCard'
 import type { Profile, SubordinateRow, PerformancePeriod, Checkin, QuarterlyScore, CompanyValue, QuarterlyCheckin, ValueSelfAssessment, ValueAssessment } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -70,9 +71,10 @@ export default async function DashboardPage() {
   let myOkrs: { id: string; title: string; status: string }[] = []
   let latestScore: QuarterlyScore | null = null
   let hasNewScore = false
+  let moodHistory: MonthlyMoodEntry[] = []
 
   if (openPeriod) {
-    const [checkinRes, okrsRes, scoreRes] = await Promise.all([
+    const [checkinRes, okrsRes, scoreRes, moodRes] = await Promise.all([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any)
         .from('checkins')
@@ -98,6 +100,15 @@ export default async function DashboardPage() {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any)
+        .from('checkins')
+        .select('month, year, mood_energy, mood_productivity')
+        .eq('employee_id', user.id)
+        .not('mood_energy', 'is', null)
+        .order('year', { ascending: false })
+        .order('month', { ascending: false })
+        .limit(3),
     ])
     thisMonthCheckin = checkinRes.data as Checkin | null
     myOkrs = (okrsRes.data ?? []) as { id: string; title: string; status: string }[]
@@ -108,6 +119,7 @@ export default async function DashboardPage() {
     }
     latestScore = scoreRes.data as QuarterlyScore | null
     hasNewScore = !!latestScore
+    moodHistory = ((moodRes.data ?? []) as MonthlyMoodEntry[]).reverse()
   }
 
   // For managers/HR: direct reports + pending items
@@ -341,6 +353,16 @@ export default async function DashboardPage() {
       {/* Pending team join requests */}
       {(profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') && pendingRequests.length > 0 && (
         <PendingApprovals requests={pendingRequests} />
+      )}
+
+      {/* My Pulse — mood tracking summary */}
+      {openPeriod && (
+        <PulseCard
+          currentEnergy={thisMonthCheckin?.mood_energy ?? null}
+          currentProductivity={thisMonthCheckin?.mood_productivity ?? null}
+          hasCheckinThisMonth={!!thisMonthCheckin?.employee_submitted_at}
+          trend={moodHistory}
+        />
       )}
 
       {/* Current quarter goals — all roles */}
