@@ -1,14 +1,14 @@
 /**
- * LunarTrack email notifications via Resend.
+ * CiaoBob email notifications via Resend.
  *
  * Usage: Set RESEND_API_KEY in .env.local to enable.
  * Without the key the helper silently no-ops — safe in dev / CI.
  *
- * From address: set RESEND_FROM in .env.local (default: LunarTrack <noreply@lunartrack.internal>)
+ * From address: set RESEND_FROM in .env.local (default: CiaoBob <noreply@lunartrack.internal>)
  */
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY
-const FROM_ADDRESS = process.env.RESEND_FROM ?? 'LunarTrack <noreply@lunartrack.internal>'
+const FROM_ADDRESS = process.env.RESEND_FROM ?? 'CiaoBob <noreply@lunartrack.internal>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
@@ -55,9 +55,9 @@ function baseTemplate(content: string): string {
 </head>
 <body>
   <div class="container">
-    <div class="logo">🌙 LunarTrack</div>
+    <div class="logo">🌙 CiaoBob</div>
     <div class="content">${content}</div>
-    <div class="footer">LunarTrack — Internal Performance Management · <a href="${APP_URL}" style="color:#7c5cfc;">Open app</a></div>
+    <div class="footer">CiaoBob — Internal Performance Management · <a href="${APP_URL}" style="color:#7c5cfc;">Open app</a></div>
   </div>
 </body>
 </html>
@@ -171,10 +171,10 @@ export async function notifyEmployeeOnboardingApproved(opts: {
 
   await sendEmail(
     employeeEmail,
-    'You\'ve been added to a team on LunarTrack',
+    'You\'ve been added to a team on CiaoBob',
     baseTemplate(`
       <p>${greeting}</p>
-      <p>You've been approved and assigned to <strong>${managerName}</strong>'s team on LunarTrack.</p>
+      <p>You've been approved and assigned to <strong>${managerName}</strong>'s team on CiaoBob.</p>
       <p>You can now access check-ins, OKRs, and your performance results.</p>
       <a href="${APP_URL}/dashboard" class="cta">Go to dashboard →</a>
     `),

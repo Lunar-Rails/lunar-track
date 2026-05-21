@@ -40,7 +40,7 @@ export default function Header({ profile, inboxCount = 0 }: HeaderProps) {
         <div className="flex items-center gap-2">
           <Image src="/lunar-rails-icon.svg" alt="Lunar Rails" width={28} height={28} />
           <span className="font-display font-bold text-lg text-lr-text tracking-tight">
-            LunarTrack
+            CiaoBob
           </span>
         </div>
 
