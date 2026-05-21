@@ -23,16 +23,14 @@ async function getCallerProfile(supabase: Awaited<ReturnType<typeof createClient
   return data as Profile | null
 }
 
-const initiativeSchema = z.object({ title: z.string().min(1).max(200) })
-const keyResultSchema = z.object({
-  title: z.string().min(1, 'Key result title is required').max(200),
-  initiatives: z.array(initiativeSchema).min(1, 'Each key result needs at least one initiative'),
-})
 const okrPayloadSchema = z.object({
   periodId: z.string().uuid(),
-  title: z.string().min(1, 'Objective title is required').max(200),
+  title: z.string().min(1, 'Goal title is required').max(200),
   description: z.string().max(2000).optional(),
-  keyResults: z.array(keyResultSchema).min(1, 'Add at least one key result'),
+  keyResults: z.array(z.object({
+    title: z.string().min(1).max(200),
+    initiatives: z.array(z.object({ title: z.string().min(1).max(200) })),
+  })).optional().default([]),
 })
 
 export async function createOkr(formData: FormData): Promise<ActionResult> {
