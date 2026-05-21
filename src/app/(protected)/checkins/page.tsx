@@ -85,19 +85,25 @@ export default async function CheckinsPage() {
           )}
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3">
           {checkins.map((checkin) => {
             const employeeSubmitted = !!checkin.employee_submitted_at
 
             return (
               <Link key={checkin.id} href={`/checkins/${checkin.id}`}>
-                <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-4 hover:bg-lr-surface transition-colors cursor-pointer">
+                <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] px-5 py-4 hover:bg-lr-surface hover:border-lr-accent/30 transition-all cursor-pointer group">
                   <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-lr-text">
-                        {MONTH_NAMES[checkin.month - 1]} {checkin.year}
-                      </p>
-                      <p className="text-caption text-lr-muted mt-0.5">{checkin.period.name}</p>
+                    <div className="flex items-center gap-3">
+                      <div className={[
+                        'w-1 h-8 rounded-full shrink-0 transition-colors',
+                        employeeSubmitted ? 'bg-lr-cyan/60' : 'bg-lr-border group-hover:bg-lr-accent/40',
+                      ].join(' ')} />
+                      <div>
+                        <p className="text-sm font-semibold text-lr-text">
+                          {MONTH_NAMES[checkin.month - 1]} {checkin.year}
+                        </p>
+                        <p className="text-xs text-lr-muted mt-0.5">{checkin.period.name}</p>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       {employeeSubmitted ? (
