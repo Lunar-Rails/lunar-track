@@ -337,9 +337,21 @@ export type Database = {
         Args: { manager_uuid: string }
         Returns: SubordinateRow[]
       }
+      get_managers: {
+        Args: Record<string, never>
+        Returns: Pick<Profile, 'id' | 'email' | 'full_name'>[]
+      }
       get_pending_okr_count: {
         Args: { manager_uuid: string }
         Returns: number
+      }
+      approve_team_request: {
+        Args: { employee_uuid: string }
+        Returns: undefined
+      }
+      decline_team_request: {
+        Args: { employee_uuid: string }
+        Returns: undefined
       }
     }
     Enums: {

@@ -1,58 +1,226 @@
 -- ============================================================
 -- 00010_org_structure.sql
--- Sets up the full Lunar Rails reporting hierarchy from the
--- General Report spreadsheet (2026-05-14).
+-- Seeds auth.users + profiles for the org roster, then sets up
+-- the full Lunar Rails reporting hierarchy from the General Report
+-- spreadsheet (2026-05-14).
 -- ============================================================
 
 -- ----------------------------------------------------------------
--- STEP 1: Update full_name on every profile to match the spreadsheet
+-- STEP 0: Seed auth.users, profiles, and auth.identities
+-- Confirmed emails let Google OAuth sign-in attach on first login.
+-- auth.identities rows are required for GoTrue user lookup.
 -- ----------------------------------------------------------------
-UPDATE profiles SET full_name = 'Agustin Krupka Buendia'          WHERE email = 'kenobi@lunarrails.io';
-UPDATE profiles SET full_name = 'Alberto Manzaneque Garcia'        WHERE email = 'alberto@lunarrails.io';
-UPDATE profiles SET full_name = 'Ali Elkerm'                       WHERE email = 'ali@lunarrails.io';
-UPDATE profiles SET full_name = 'Anjali Surana'                    WHERE email = 'anjali@lunarrails.io';
-UPDATE profiles SET full_name = 'Ashwini Sewa'                     WHERE email = 'ashwini@lunarrails.io';
-UPDATE profiles SET full_name = 'Ben Cuddy'                        WHERE email = 'ben@lunarrails.io';
-UPDATE profiles SET full_name = 'Callum Byrne'                     WHERE email = 'callum@lunarrails.io';
-UPDATE profiles SET full_name = 'Chris Collins'                    WHERE email = 'chris@lunarrails.io';
-UPDATE profiles SET full_name = 'Elton Lu'                         WHERE email = 'elton@lunarrails.io';
-UPDATE profiles SET full_name = 'Faith M.'                         WHERE email = 'faith@lunarrails.io';
-UPDATE profiles SET full_name = 'Francesco Vivoli'                 WHERE email = 'francesco@lunarrails.io';
-UPDATE profiles SET full_name = 'Guido Verhoeff'                   WHERE email = 'guido@vroeff.nl';
-UPDATE profiles SET full_name = 'Henrique Gomes'                   WHERE email = 'henrique@lunarrails.io';
-UPDATE profiles SET full_name = 'Ivonne Bagus'                     WHERE email = 'ivonne@lunarrails.io';
-UPDATE profiles SET full_name = 'Jenny Aquino'                     WHERE email = 'jenny@lunarrails.io';
-UPDATE profiles SET full_name = 'Jose Antonio'                     WHERE email = 'jose@lunarrails.io';
-UPDATE profiles SET full_name = 'Jyoti Das'                        WHERE email = 'jyoti@lunarrails.io';
-UPDATE profiles SET full_name = 'Kallie Erasmus'                   WHERE email = 'kallie@lunarrails.io';
-UPDATE profiles SET full_name = 'Karla Lissette Bernabel Avelar'   WHERE email = 'karla@40acres.pro';
-UPDATE profiles SET full_name = 'Kevin Ayala'                      WHERE email = 'kevin@40acres.pro';
-UPDATE profiles SET full_name = 'Lisa Halpern'                     WHERE email = 'lisa@lunarrails.io';
-UPDATE profiles SET full_name = 'Lucy Brattan'                     WHERE email = 'lucy@lunarrails.io';
-UPDATE profiles SET full_name = 'Mark Singh'                       WHERE email = 'mark@lunarrails.io';
-UPDATE profiles SET full_name = 'Marthe Buffiere'                  WHERE email = 'marthe@lunarrails.io';
-UPDATE profiles SET full_name = 'Max B.'                           WHERE email = 'max@lunarrails.io';
-UPDATE profiles SET full_name = 'Nyashadzashe Mupfudze'            WHERE email = 'nyasha@lunarrails.io';
-UPDATE profiles SET full_name = 'Olubunmi Bolaji-Owonifari'        WHERE email = 'olubunmi@lunarrails.io';
-UPDATE profiles SET full_name = 'Pedro Gómez'                      WHERE email = 'pedro@lunarrails.io';
-UPDATE profiles SET full_name = 'Randa Azzam'                      WHERE email = 'randa@lunarrails.io';
-UPDATE profiles SET full_name = 'Rey Hersano'                      WHERE email = 'rey@lunarrails.io';
-UPDATE profiles SET full_name = 'Riza Forrester'                   WHERE email = 'riza@lunarrails.io';
-UPDATE profiles SET full_name = 'Robert Ramos'                     WHERE email = 'robert@lunarrails.io';
-UPDATE profiles SET full_name = 'Ronnie David'                     WHERE email = 'ronnie@lunarrails.io';
-UPDATE profiles SET full_name = 'Sara Osiris'                      WHERE email = 'sara@lunarrails.io';
-UPDATE profiles SET full_name = 'Sherin John George'               WHERE email = 'sherin@lunarrails.io';
-UPDATE profiles SET full_name = 'Shilpa Susain Thomas'             WHERE email = 'shilpa@lunarrails.io';
-UPDATE profiles SET full_name = 'Sofia Driotez'                    WHERE email = 'sofia@40acres.pro';
-UPDATE profiles SET full_name = 'Stanislav Kerimov'                WHERE email = 'stanislav@lunarrails.io';
+WITH roster (email, full_name) AS (
+  VALUES
+    ('kenobi@lunarrails.io',         'Agustin Krupka Buendia'),
+    ('alberto@lunarrails.io',        'Alberto Manzaneque Garcia'),
+    ('ali@lunarrails.io',            'Ali Elkerm'),
+    ('anjali@lunarrails.io',         'Anjali Surana'),
+    ('ashwini@lunarrails.io',        'Ashwini Sewa'),
+    ('ben@lunarrails.io',            'Ben Cuddy'),
+    ('callum@lunarrails.io',         'Callum Byrne'),
+    ('chris@lunarrails.io',          'Chris Collins'),
+    ('elton@lunarrails.io',          'Elton Lu'),
+    ('faith@lunarrails.io',          'Faith M.'),
+    ('francesco@lunarrails.io',      'Francesco Vivoli'),
+    ('guido@vroeff.nl',              'Guido Verhoeff'),
+    ('henrique@lunarrails.io',       'Henrique Gomes'),
+    ('ivonne@lunarrails.io',         'Ivonne Bagus'),
+    ('jenny@lunarrails.io',          'Jenny Aquino'),
+    ('jose@lunarrails.io',           'Jose Antonio'),
+    ('jyoti@lunarrails.io',          'Jyoti Das'),
+    ('kallie@lunarrails.io',         'Kallie Erasmus'),
+    ('karla@40acres.pro',            'Karla Lissette Bernabel Avelar'),
+    ('kevin@40acres.pro',            'Kevin Ayala'),
+    ('lisa@lunarrails.io',           'Lisa Halpern'),
+    ('lucy@lunarrails.io',           'Lucy Brattan'),
+    ('mark@lunarrails.io',           'Mark Singh'),
+    ('marthe@lunarrails.io',         'Marthe Buffiere'),
+    ('max@lunarrails.io',            'Max B.'),
+    ('nyasha@lunarrails.io',         'Nyashadzashe Mupfudze'),
+    ('olubunmi@lunarrails.io',       'Olubunmi Bolaji-Owonifari'),
+    ('pedro@lunarrails.io',          'Pedro Gómez'),
+    ('randa@lunarrails.io',          'Randa Azzam'),
+    ('rey@lunarrails.io',            'Rey Hersano'),
+    ('riza@lunarrails.io',           'Riza Forrester'),
+    ('robert@lunarrails.io',         'Robert Ramos'),
+    ('ronnie@lunarrails.io',         'Ronnie David'),
+    ('sara@lunarrails.io',           'Sara Osiris'),
+    ('sherin@lunarrails.io',         'Sherin John George'),
+    ('shilpa@lunarrails.io',         'Shilpa Susain Thomas'),
+    ('sofia@40acres.pro',            'Sofia Driotez'),
+    ('stanislav@lunarrails.io',      'Stanislav Kerimov')
+)
+INSERT INTO auth.users (
+  instance_id,
+  id,
+  aud,
+  role,
+  email,
+  encrypted_password,
+  email_confirmed_at,
+  raw_app_meta_data,
+  raw_user_meta_data,
+  created_at,
+  updated_at,
+  confirmation_token,
+  email_change,
+  email_change_token_new,
+  recovery_token,
+  is_sso_user
+)
+SELECT
+  '00000000-0000-0000-0000-000000000000'::uuid,
+  gen_random_uuid(),
+  'authenticated',
+  'authenticated',
+  r.email,
+  '',
+  now(),
+  '{"provider":"google","providers":["google"]}'::jsonb,
+  jsonb_build_object('full_name', r.full_name, 'email', r.email),
+  now(),
+  now(),
+  '',
+  '',
+  '',
+  '',
+  false
+FROM roster r
+WHERE NOT EXISTS (
+  SELECT 1 FROM auth.users u WHERE lower(u.email) = lower(r.email)
+);
+
+WITH roster (email, full_name) AS (
+  VALUES
+    ('kenobi@lunarrails.io',         'Agustin Krupka Buendia'),
+    ('alberto@lunarrails.io',        'Alberto Manzaneque Garcia'),
+    ('ali@lunarrails.io',            'Ali Elkerm'),
+    ('anjali@lunarrails.io',         'Anjali Surana'),
+    ('ashwini@lunarrails.io',        'Ashwini Sewa'),
+    ('ben@lunarrails.io',            'Ben Cuddy'),
+    ('callum@lunarrails.io',         'Callum Byrne'),
+    ('chris@lunarrails.io',          'Chris Collins'),
+    ('elton@lunarrails.io',          'Elton Lu'),
+    ('faith@lunarrails.io',          'Faith M.'),
+    ('francesco@lunarrails.io',      'Francesco Vivoli'),
+    ('guido@vroeff.nl',              'Guido Verhoeff'),
+    ('henrique@lunarrails.io',       'Henrique Gomes'),
+    ('ivonne@lunarrails.io',         'Ivonne Bagus'),
+    ('jenny@lunarrails.io',          'Jenny Aquino'),
+    ('jose@lunarrails.io',           'Jose Antonio'),
+    ('jyoti@lunarrails.io',          'Jyoti Das'),
+    ('kallie@lunarrails.io',         'Kallie Erasmus'),
+    ('karla@40acres.pro',            'Karla Lissette Bernabel Avelar'),
+    ('kevin@40acres.pro',            'Kevin Ayala'),
+    ('lisa@lunarrails.io',           'Lisa Halpern'),
+    ('lucy@lunarrails.io',           'Lucy Brattan'),
+    ('mark@lunarrails.io',           'Mark Singh'),
+    ('marthe@lunarrails.io',         'Marthe Buffiere'),
+    ('max@lunarrails.io',            'Max B.'),
+    ('nyasha@lunarrails.io',         'Nyashadzashe Mupfudze'),
+    ('olubunmi@lunarrails.io',       'Olubunmi Bolaji-Owonifari'),
+    ('pedro@lunarrails.io',          'Pedro Gómez'),
+    ('randa@lunarrails.io',          'Randa Azzam'),
+    ('rey@lunarrails.io',            'Rey Hersano'),
+    ('riza@lunarrails.io',           'Riza Forrester'),
+    ('robert@lunarrails.io',         'Robert Ramos'),
+    ('ronnie@lunarrails.io',         'Ronnie David'),
+    ('sara@lunarrails.io',           'Sara Osiris'),
+    ('sherin@lunarrails.io',         'Sherin John George'),
+    ('shilpa@lunarrails.io',         'Shilpa Susain Thomas'),
+    ('sofia@40acres.pro',            'Sofia Driotez'),
+    ('stanislav@lunarrails.io',      'Stanislav Kerimov')
+)
+INSERT INTO profiles (id, email, full_name)
+SELECT u.id, r.email, r.full_name
+FROM roster r
+JOIN auth.users u ON lower(u.email) = lower(r.email)
+ON CONFLICT (id) DO UPDATE SET
+  email = EXCLUDED.email,
+  full_name = EXCLUDED.full_name,
+  updated_at = now();
+
+WITH roster (email) AS (
+  VALUES
+    ('kenobi@lunarrails.io'),
+    ('alberto@lunarrails.io'),
+    ('ali@lunarrails.io'),
+    ('anjali@lunarrails.io'),
+    ('ashwini@lunarrails.io'),
+    ('ben@lunarrails.io'),
+    ('callum@lunarrails.io'),
+    ('chris@lunarrails.io'),
+    ('elton@lunarrails.io'),
+    ('faith@lunarrails.io'),
+    ('francesco@lunarrails.io'),
+    ('guido@vroeff.nl'),
+    ('henrique@lunarrails.io'),
+    ('ivonne@lunarrails.io'),
+    ('jenny@lunarrails.io'),
+    ('jose@lunarrails.io'),
+    ('jyoti@lunarrails.io'),
+    ('kallie@lunarrails.io'),
+    ('karla@40acres.pro'),
+    ('kevin@40acres.pro'),
+    ('lisa@lunarrails.io'),
+    ('lucy@lunarrails.io'),
+    ('mark@lunarrails.io'),
+    ('marthe@lunarrails.io'),
+    ('max@lunarrails.io'),
+    ('nyasha@lunarrails.io'),
+    ('olubunmi@lunarrails.io'),
+    ('pedro@lunarrails.io'),
+    ('randa@lunarrails.io'),
+    ('rey@lunarrails.io'),
+    ('riza@lunarrails.io'),
+    ('robert@lunarrails.io'),
+    ('ronnie@lunarrails.io'),
+    ('sara@lunarrails.io'),
+    ('sherin@lunarrails.io'),
+    ('shilpa@lunarrails.io'),
+    ('sofia@40acres.pro'),
+    ('stanislav@lunarrails.io')
+)
+INSERT INTO auth.identities (
+  id,
+  user_id,
+  provider_id,
+  provider,
+  identity_data,
+  last_sign_in_at,
+  created_at,
+  updated_at
+)
+SELECT
+  gen_random_uuid(),
+  u.id,
+  u.id::text,
+  'email',
+  jsonb_build_object(
+    'sub', u.id::text,
+    'email', u.email,
+    'email_verified', true,
+    'phone_verified', false
+  ),
+  NULL,
+  u.created_at,
+  u.created_at
+FROM roster r
+JOIN auth.users u ON lower(u.email) = lower(r.email)
+WHERE NOT EXISTS (
+  SELECT 1 FROM auth.identities i
+  WHERE i.user_id = u.id AND i.provider = 'email'
+)
+ON CONFLICT (provider_id, provider) DO NOTHING;
 
 -- ----------------------------------------------------------------
--- STEP 2: Clear all existing manager links (clean slate)
+-- STEP 1: Clear all existing manager links (clean slate)
 -- ----------------------------------------------------------------
 UPDATE profiles SET manager_id = NULL, role = 'EMPLOYEE';
 
 -- ----------------------------------------------------------------
--- STEP 3: Set roles for leaders
+-- STEP 2: Set roles for leaders
 -- ----------------------------------------------------------------
 UPDATE profiles SET role = 'HR_ADMIN' WHERE email IN (
   'mark@lunarrails.io',
@@ -73,7 +241,7 @@ UPDATE profiles SET role = 'MANAGER' WHERE email IN (
 );
 
 -- ----------------------------------------------------------------
--- STEP 4: Set manager_id — direct reports to Mark Singh (CEO)
+-- STEP 3: Set manager_id — direct reports to Mark Singh (CEO)
 -- ----------------------------------------------------------------
 UPDATE profiles
 SET manager_id = (SELECT id FROM profiles WHERE email = 'mark@lunarrails.io')
@@ -198,7 +366,7 @@ WHERE email IN (
 );
 
 -- ----------------------------------------------------------------
--- STEP 5: Rebuild org_closure from scratch
+-- STEP 4: Rebuild org_closure from scratch
 -- ----------------------------------------------------------------
 TRUNCATE org_closure;
 
