@@ -206,74 +206,68 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Employee: Cycle status card */}
+      {/* Employee: What's next card */}
       {profile.role === 'EMPLOYEE' && openPeriod && (
-        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-6 shadow-[var(--shadow-lr-card)]">
-          <h2 className="text-card-title mb-5">Quarter Progress</h2>
-          <div className="grid grid-cols-2 gap-4">
-            {/* Check-in this month */}
-            <div className="rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface p-4 space-y-2">
-              <p className="text-caption">{MONTH_NAMES[currentMonth - 1]} Check-in</p>
-              {thisMonthCheckin?.manager_submitted_at ? (
-                <div>
-                  <p className="text-2xl">✓</p>
-                  <p className="text-xs text-lr-cyan font-medium">Complete</p>
-                </div>
-              ) : thisMonthCheckin?.employee_submitted_at ? (
-                <div>
-                  <p className="text-2xl">⏳</p>
-                  <p className="text-xs text-lr-gold font-medium">Awaiting manager</p>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-2xl">○</p>
-                  <p className="text-xs text-lr-muted">Not started</p>
-                </div>
-              )}
-              <Link
-                href={thisMonthCheckin ? `/checkins/${thisMonthCheckin.id}` : '/checkins/new'}
-                className="block text-xs text-lr-accent hover:underline"
-              >
-                {thisMonthCheckin ? 'View check-in' : 'Start check-in'} →
-              </Link>
-            </div>
-
-            {/* OKRs */}
-            <div className="rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface p-4 space-y-2">
-              <p className="text-caption">Goals</p>
-              {myOkrCounts.total === 0 ? (
-                <div>
-                  <p className="text-2xl">○</p>
-                  <p className="text-xs text-lr-muted">None set</p>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-2xl font-bold text-lr-text">{myOkrCounts.approved}<span className="text-sm text-lr-muted">/{myOkrCounts.total}</span></p>
-                  <p className="text-xs text-lr-muted">approved</p>
-                  {myOkrCounts.pending > 0 && (
-                    <p className="text-xs text-lr-gold">{myOkrCounts.pending} pending</p>
-                  )}
-                </div>
-              )}
-              <Link href="/okrs" className="block text-xs text-lr-accent hover:underline">
-                {myOkrCounts.total === 0 ? 'Set Goals' : 'View Goals'} →
-              </Link>
-            </div>
-
+        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 shadow-[var(--shadow-lr-card)] space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-card-title">What&apos;s next</h2>
+            {daysLeft !== null && (
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                daysLeft <= 7
+                  ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                  : daysLeft <= 14
+                  ? 'bg-lr-gold-dim text-lr-gold border-lr-gold/20'
+                  : 'bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20'
+              }`}>
+                {daysLeft > 0 ? `${daysLeft}d left in ${openPeriod.name}` : 'Period ended'}
+              </span>
+            )}
           </div>
 
-          {/* Quick actions */}
-          <div className="mt-5 pt-5 border-t border-lr-border flex gap-3 flex-wrap">
-            {!thisMonthCheckin?.employee_submitted_at && (
-              <Link href="/checkins/new" className="rounded-[var(--radius-lr)] border border-lr-accent bg-lr-accent px-4 py-2 text-sm text-white hover:bg-lr-accent/90 transition-colors font-medium">
-                Start check-in
-              </Link>
+          {/* Next action */}
+          <div className="rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface p-4">
+            {!thisMonthCheckin?.employee_submitted_at ? (
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-lr-text">{MONTH_NAMES[currentMonth - 1]} check-in due</p>
+                  <p className="text-xs text-lr-muted mt-0.5">Fill in your MITs and reflection for this month</p>
+                </div>
+                <Link
+                  href="/checkins/new"
+                  className="shrink-0 rounded-[var(--radius-lr)] bg-lr-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-lr-accent/90 transition-colors"
+                >
+                  Start →
+                </Link>
+              </div>
+            ) : thisMonthCheckin.manager_submitted_at ? (
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-lr-text">{MONTH_NAMES[currentMonth - 1]} check-in complete</p>
+                  <p className="text-xs text-lr-muted mt-0.5">Your manager has reviewed your check-in</p>
+                </div>
+                <Link href={`/checkins/${thisMonthCheckin.id}`} className="text-xs text-lr-accent hover:underline shrink-0">View →</Link>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-lr-text">{MONTH_NAMES[currentMonth - 1]} check-in submitted</p>
+                  <p className="text-xs text-lr-gold mt-0.5">Awaiting manager review</p>
+                </div>
+                <Link href={`/checkins/${thisMonthCheckin.id}`} className="text-xs text-lr-accent hover:underline shrink-0">View →</Link>
+              </div>
             )}
-            <Link href="/okrs/new" className="rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface px-4 py-2 text-sm text-lr-text hover:bg-lr-surface-2 transition-colors">
-              New Goal
-            </Link>
-            <Link href="/okrs" className="rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface px-4 py-2 text-sm text-lr-text hover:bg-lr-surface-2 transition-colors">
-              My Goals
+          </div>
+
+          {/* Goals summary */}
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-lr-muted">
+              {myOkrCounts.total === 0
+                ? 'No goals set this quarter'
+                : `${myOkrCounts.approved} of ${myOkrCounts.total} goal${myOkrCounts.total !== 1 ? 's' : ''} approved`}
+              {myOkrCounts.pending > 0 && <span className="text-lr-gold ml-1">· {myOkrCounts.pending} pending</span>}
+            </span>
+            <Link href="/okrs" className="text-xs text-lr-accent hover:underline">
+              {myOkrCounts.total === 0 ? 'Set goals' : 'View goals'} →
             </Link>
           </div>
         </div>
@@ -287,34 +281,32 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* Manager / HR Admin: inbox summary */}
-      {(profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') && (pendingCheckins > 0 || pendingOkrs > 0) && (
-        <div className="rounded-[var(--radius-lr-lg)] border border-lr-gold/30 bg-lr-gold-dim p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-lr-gold mb-1">Action needed</h2>
-              <div className="flex gap-4 text-sm text-lr-gold/80">
-                {pendingCheckins > 0 && (
-                  <span>📋 {pendingCheckins} check-in{pendingCheckins !== 1 ? 's' : ''} to review</span>
-                )}
-                {pendingOkrs > 0 && (
-                  <span>🎯 {pendingOkrs} Goal{pendingOkrs !== 1 ? 's' : ''} to approve</span>
-                )}
-              </div>
-            </div>
-            <div className="flex gap-2">
+      {/* Manager / HR Admin: pending actions */}
+      {(profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') && (
+        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 shadow-[var(--shadow-lr-card)]">
+          <h2 className="text-card-title mb-4">Pending actions</h2>
+          {pendingCheckins === 0 && pendingOkrs === 0 ? (
+            <p className="text-sm text-lr-cyan">All caught up — no pending reviews or approvals.</p>
+          ) : (
+            <div className="space-y-2">
               {pendingCheckins > 0 && (
-                <Link href="/inbox" className="rounded-[var(--radius-lr)] border border-lr-gold/40 bg-lr-gold/10 px-3 py-1.5 text-xs text-lr-gold hover:bg-lr-gold/20 transition-colors font-medium">
-                  Inbox →
+                <Link href="/inbox">
+                  <div className="flex items-center justify-between rounded-[var(--radius-lr)] border border-lr-gold/30 bg-lr-gold-dim px-3 py-2.5 hover:bg-lr-gold/10 transition-colors">
+                    <span className="text-sm text-lr-gold">📋 {pendingCheckins} check-in{pendingCheckins !== 1 ? 's' : ''} to review</span>
+                    <span className="text-xs text-lr-gold/70">Inbox →</span>
+                  </div>
                 </Link>
               )}
               {pendingOkrs > 0 && (
-                <Link href="/inbox" className="rounded-[var(--radius-lr)] border border-lr-gold/40 bg-lr-gold/10 px-3 py-1.5 text-xs text-lr-gold hover:bg-lr-gold/20 transition-colors font-medium">
-                  Goals to approve →
+                <Link href="/inbox">
+                  <div className="flex items-center justify-between rounded-[var(--radius-lr)] border border-lr-accent/20 bg-lr-accent-dim px-3 py-2.5 hover:bg-lr-accent/10 transition-colors">
+                    <span className="text-sm text-lr-accent">🎯 {pendingOkrs} goal{pendingOkrs !== 1 ? 's' : ''} to approve</span>
+                    <span className="text-xs text-lr-accent/70">Inbox →</span>
+                  </div>
                 </Link>
               )}
             </div>
-          </div>
+          )}
         </div>
       )}
 
