@@ -231,6 +231,29 @@ async function carryMitsToFirstMonthOfNextQuarter(
   }
 }
 
+export async function deleteQuarterlyCheckin(formData: FormData): Promise<ActionResult> {
+  const supabase = await createClient()
+  const caller = await getCallerProfile(supabase)
+  if (!caller) return { error: 'Not authenticated' }
+
+  const checkinId = formData.get('checkinId')?.toString()
+  if (!checkinId) return { error: 'Missing checkin ID' }
+
+  // Only allow deleting own check-ins
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('quarterly_checkins')
+    .delete()
+    .eq('id', checkinId)
+    .eq('employee_id', caller.id)
+
+  if (error) return { error: error.message }
+
+  revalidatePath('/quarterly-checkins')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
+
 async function syncNextQuarterGoalsToOkrs(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,

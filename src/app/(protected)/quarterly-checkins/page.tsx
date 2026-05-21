@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
+import DeleteQuarterlyCheckinButton from '@/components/checkins/DeleteQuarterlyCheckinButton'
 import type { PerformancePeriod, QuarterlyCheckin } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -79,8 +80,8 @@ export default async function QuarterlyCheckinsPage() {
             const employeeSubmitted = !!qc.employee_submitted_at
 
             return (
-              <Link key={qc.id} href={`/quarterly-checkins/${qc.id}`}>
-                <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-4 hover:bg-lr-surface transition-colors cursor-pointer">
+              <div key={qc.id} className="group flex items-center gap-2 rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] hover:bg-lr-surface transition-colors">
+                <Link href={`/quarterly-checkins/${qc.id}`} className="flex-1 p-4">
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-medium text-lr-text">
@@ -105,8 +106,11 @@ export default async function QuarterlyCheckinsPage() {
                       )}
                     </div>
                   </div>
+                </Link>
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity pr-3">
+                  <DeleteQuarterlyCheckinButton checkinId={qc.id} />
                 </div>
-              </Link>
+              </div>
             )
           })}
         </div>
