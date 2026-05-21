@@ -370,16 +370,6 @@ export default async function DashboardPage() {
         <PendingApprovals requests={pendingRequests} />
       )}
 
-      {/* My Pulse — mood tracking summary */}
-      {openPeriod && (
-        <PulseCard
-          currentEnergy={thisMonthCheckin?.mood_energy ?? null}
-          currentProductivity={thisMonthCheckin?.mood_productivity ?? null}
-          hasCheckinThisMonth={!!thisMonthCheckin?.employee_submitted_at}
-          trend={moodHistory}
-        />
-      )}
-
       {/* Current quarter goals — all roles */}
       {myOkrs.length > 0 && openPeriod && (
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 shadow-[var(--shadow-lr-card)]">
@@ -451,6 +441,16 @@ export default async function DashboardPage() {
             })()}
           </div>
         </div>
+      )}
+
+      {/* My Pulse — mood tracking summary */}
+      {openPeriod && (
+        <PulseCard
+          currentEnergy={thisMonthCheckin?.mood_energy ?? null}
+          currentProductivity={thisMonthCheckin?.mood_productivity ?? null}
+          hasCheckinThisMonth={!!thisMonthCheckin?.employee_submitted_at}
+          trend={moodHistory}
+        />
       )}
 
       {/* Profile card — collapsed at bottom */}
