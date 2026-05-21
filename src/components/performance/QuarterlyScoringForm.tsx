@@ -26,7 +26,7 @@ const SCORE_LABELS: Record<number, string> = {
   5: 'Outstanding',
 }
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 type OkrWithProgress = Okr & {
   key_results: (KeyResult & { initiatives: Initiative[] })[]

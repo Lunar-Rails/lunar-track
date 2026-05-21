@@ -85,7 +85,7 @@ export async function upsertCompanyValue(formData: FormData): Promise<ActionResu
   } else {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await (supabase as any)
-      .from('company_values').insert(rest).select().single()
+      .from('company_values').upsert(rest, { onConflict: 'name' }).select().single()
     if (error) return { error: 'Failed to create value: ' + error.message }
     revalidatePath('/admin/values')
     return { success: true, value: data as CompanyValue }
