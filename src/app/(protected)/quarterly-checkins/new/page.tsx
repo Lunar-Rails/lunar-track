@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import QuarterlyCheckinEmployeeForm from '@/components/checkins/QuarterlyCheckinEmployeeForm'
 import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
-import type { CompanyValue, QuarterlyCheckin, PerformancePeriod, QuarterlyGoal, QuarterlyGoalReview } from '@/lib/types/database'
+import type { CompanyValue, QuarterlyCheckin, PerformancePeriod, QuarterlyGoalReview } from '@/lib/types/database'
+import type { LinkOption } from '@/components/checkins/MitPlanList'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,7 +65,7 @@ export default async function NewQuarterlyCheckinPage({
 
   if (!period || !periodId) {
     return (
-      <div className="space-y-6 max-w-3xl">
+      <div className="space-y-6">
         <h1 className="text-page-title">Quarterly Check-in</h1>
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-12 text-center">
           <p className="text-body text-lr-muted">No open performance period found.</p>
@@ -113,31 +114,34 @@ export default async function NewQuarterlyCheckinPage({
     do_differently: c.do_differently,
   }))
 
-  // Fetch previous quarter's check-in to get goals
+  // Load goals from okrs table for this period — single source of truth
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: prevPeriodRaw } = await (supabase as any)
-    .from('performance_periods')
-    .select('id')
-    .eq('year', period.quarter === 1 ? period.year - 1 : period.year)
-    .eq('quarter', period.quarter === 1 ? 4 : period.quarter - 1)
-    .maybeSingle()
+  const { data: okrsRaw } = await (supabase as any)
+    .from('okrs')
+    .select('id, title, description')
+    .eq('employee_id', user.id)
+    .eq('period_id', periodId)
+    .is('deleted_at', null)
+    .order('created_at', { ascending: true })
 
-  let prevQuarterGoals: QuarterlyGoalReview[] = []
-  if (prevPeriodRaw?.id) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: prevCheckin } = await (supabase as any)
-      .from('quarterly_checkins')
-      .select('next_quarter_goals')
-      .eq('employee_id', profile.id)
-      .eq('period_id', prevPeriodRaw.id)
-      .maybeSingle()
-    if (prevCheckin?.next_quarter_goals) {
-      prevQuarterGoals = (prevCheckin.next_quarter_goals as QuarterlyGoal[]).map((g) => ({
-        ...g,
-        status: null,
-      }))
-    }
-  }
+  const okrsForPeriod = (okrsRaw ?? []) as { id: string; title: string; description: string | null }[]
+
+  // If there's an existing draft, merge its saved achievement statuses with the live okrs list
+  const savedGoalStatus = new Map(
+    ((existing?.goals as QuarterlyGoalReview[] | null) ?? []).map((g) => [g.id, g.status])
+  )
+
+  const initialGoals: QuarterlyGoalReview[] = okrsForPeriod.map((o) => ({
+    id: o.id,
+    title: o.title,
+    description: o.description ?? '',
+    status: savedGoalStatus.get(o.id) ?? null,
+  }))
+
+  const okrOptions: LinkOption[] = okrsForPeriod.map((o) => ({
+    id: o.id,
+    label: o.title,
+  }))
 
   return (
     <div className="space-y-6">
@@ -165,7 +169,8 @@ export default async function NewQuarterlyCheckinPage({
         checkin={existing}
         companyValues={companyValues}
         monthlyReflections={monthlyReflections}
-        initialGoals={prevQuarterGoals}
+        initialGoals={initialGoals}
+        okrOptions={okrOptions}
         readOnly={false}
       />
     </div>
