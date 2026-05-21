@@ -135,6 +135,26 @@ export default function ManagerCheckinForm({ checkin, readOnly = false }: Manage
           </div>
         ))}
 
+        {/* Employee's planned MITs — read-only context */}
+        {(checkin.next_mits ?? []).filter((m) => m.title.trim()).length > 0 && (
+          <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/50 p-4 space-y-2">
+            <p className="text-xs font-semibold text-lr-text">Employee&apos;s planned commitments for next month</p>
+            <p className="text-[11px] text-lr-muted">These are what the employee committed in their plan tab. Use as a starting point.</p>
+            <ul className="space-y-1.5 mt-2">
+              {(checkin.next_mits ?? []).filter((m) => m.title.trim()).map((m, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="text-[11px] font-mono text-lr-accent shrink-0 mt-0.5">{i + 1}</span>
+                  <div>
+                    <p className="text-xs text-lr-text font-medium">{m.title}</p>
+                    {m.description && <p className="text-[11px] text-lr-muted">{m.description}</p>}
+                    {m.okr_label && <p className="text-[11px] text-lr-accent/70 mt-0.5">Goal: {m.okr_label}</p>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Next Month's MITs — dynamic */}
         <section>
           <div className="flex items-center justify-between mb-4">
