@@ -4,11 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import QuarterlyCheckinEmployeeForm from '@/components/checkins/QuarterlyCheckinEmployeeForm'
 import QuarterlyCheckinManagerForm from '@/components/checkins/QuarterlyCheckinManagerForm'
-import type { CompanyValue, QuarterlyCheckin, PerformancePeriod, Profile, Okr, KeyResult, Initiative } from '@/lib/types/database'
-
-type OkrWithHierarchy = Okr & {
-  key_results: (KeyResult & { initiatives: Initiative[] })[]
-}
+import type { CompanyValue, QuarterlyCheckin, PerformancePeriod, Profile } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,28 +53,6 @@ export default async function QuarterlyCheckinDetailPage({
       .eq('ancestor_id', user.id).eq('descendant_id', checkin.employee_id).gt('depth', 0).maybeSingle()
     if (!closureCheck) redirect('/checkins')
   }
-
-  // Employee OKRs to render in form, with full hierarchy so the form can show live progress
-  // (KR statuses + initiative completion). Approved-only — DRAFT OKRs have no meaningful progress.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: okrsRaw } = await (supabase as any)
-    .from('okrs')
-    .select('*, key_results(*, initiatives(*))')
-    .eq('employee_id', checkin.employee_id)
-    .eq('period_id', checkin.period_id)
-    .in('status', ['APPROVED', 'DRAFT', 'PENDING_REVIEW', 'REVISION_REQUESTED'])
-    .order('created_at', { ascending: true })
-
-  const allOkrs = ((okrsRaw ?? []) as OkrWithHierarchy[]).map((okr) => {
-    const krs = [...(okr.key_results ?? [])]
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((kr) => ({
-        ...kr,
-        initiatives: [...(kr.initiatives ?? [])].sort((a, b) => a.sort_order - b.sort_order),
-      }))
-    return { ...okr, key_results: krs }
-  })
-  const employeeOkrs = allOkrs.filter((okr) => okr.status === 'APPROVED' || okr.status === 'DRAFT')
 
   // Company values
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,9 +104,9 @@ export default async function QuarterlyCheckinDetailPage({
           <QuarterlyCheckinEmployeeForm
             periodId={checkin.period_id}
             checkin={checkin}
-            employeeOkrs={employeeOkrs}
-            allOkrs={allOkrs}
             companyValues={companyValues}
+            monthlyReflections={[]}
+            initialGoals={[]}
             readOnly={!isOwner || employeeSubmitted}
           />
         </TabsContent>
