@@ -42,6 +42,7 @@ export interface Okr {
   manager_comment: string | null
   created_at: string
   updated_at: string
+  deleted_at: string | null
 }
 
 export type KeyResultProgressStatus = 'not_started' | 'in_progress' | 'on_track' | 'at_risk' | 'done'

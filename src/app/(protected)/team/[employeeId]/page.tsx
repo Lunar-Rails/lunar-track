@@ -176,16 +176,22 @@ export default async function TeamMemberPage({
   for (const s of allScores) scoreByPeriod.set(s.period_id, s)
 
   const okrsByPeriod = new Map<string, OkrWithProgress[]>()
+  const deletedOkrsByPeriod = new Map<string, OkrWithProgress[]>()
   for (const o of allOkrs) {
-    if (!okrsByPeriod.has(o.period_id)) okrsByPeriod.set(o.period_id, [])
-    okrsByPeriod.get(o.period_id)!.push(o)
+    if (o.deleted_at) {
+      if (!deletedOkrsByPeriod.has(o.period_id)) deletedOkrsByPeriod.set(o.period_id, [])
+      deletedOkrsByPeriod.get(o.period_id)!.push(o)
+    } else {
+      if (!okrsByPeriod.has(o.period_id)) okrsByPeriod.set(o.period_id, [])
+      okrsByPeriod.get(o.period_id)!.push(o)
+    }
   }
 
   const activePeriodIds = new Set([
     ...allCheckins.map((c) => c.period_id),
     ...allQCheckins.map((q) => q.period_id),
     ...allScores.map((s) => s.period_id),
-    ...allOkrs.map((o) => o.period_id),
+    ...allOkrs.map((o) => o.period_id), // includes deleted okrs
   ])
   const periods = allPeriods.filter((p) => p.status === 'open' || activePeriodIds.has(p.id))
 
@@ -236,6 +242,7 @@ export default async function TeamMemberPage({
         const qCheckin = qCheckinByPeriod.get(period.id)
         const score = scoreByPeriod.get(period.id)
         const periodOkrs = okrsByPeriod.get(period.id) ?? []
+        const deletedPeriodOkrs = deletedOkrsByPeriod.get(period.id) ?? []
 
         // Collect all MITs from submitted check-ins in this period
         type MitEntry = { month: number; mit: ReviewMit }
@@ -356,7 +363,7 @@ export default async function TeamMemberPage({
                       <div key={okr.id} className="rounded-[var(--radius-lr)] border border-lr-border/50 bg-lr-surface/20 overflow-hidden">
                         {/* Goal header */}
                         <div className="flex items-center gap-3 px-3 py-2 bg-lr-surface/30">
-                          <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${okr.status === 'APPROVED' ? 'bg-lr-accent' : 'bg-lr-muted/50'}`} />
+                          <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-lr-accent/60" />
                           <p className="text-xs font-medium text-lr-text flex-1 min-w-0">{okr.title}</p>
                           <div className="flex items-center gap-2.5 shrink-0">
                             {qGoal?.status && (
@@ -415,6 +422,24 @@ export default async function TeamMemberPage({
                       </div>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* Deleted goals log */}
+              {deletedPeriodOkrs.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-semibold text-lr-muted/50 uppercase tracking-wider">Deleted goals</p>
+                  {deletedPeriodOkrs.map((okr) => (
+                    <div key={okr.id} className="flex items-center gap-2 px-3 py-2 rounded-[var(--radius-lr)] border border-lr-border/30 bg-lr-surface/10 opacity-50">
+                      <span className="h-1.5 w-1.5 rounded-full bg-lr-muted/30 shrink-0" />
+                      <p className="text-xs text-lr-muted line-through flex-1 min-w-0 truncate">{okr.title}</p>
+                      {okr.deleted_at && (
+                        <span className="text-[10px] text-lr-muted/40 shrink-0">
+                          {format(new Date(okr.deleted_at), 'MMM d')}
+                        </span>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
 

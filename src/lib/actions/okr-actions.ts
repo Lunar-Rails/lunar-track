@@ -23,16 +23,14 @@ async function getCallerProfile(supabase: Awaited<ReturnType<typeof createClient
   return data as Profile | null
 }
 
-const initiativeSchema = z.object({ title: z.string().min(1).max(200) })
-const keyResultSchema = z.object({
-  title: z.string().min(1, 'Key result title is required').max(200),
-  initiatives: z.array(initiativeSchema).min(1, 'Each key result needs at least one initiative'),
-})
 const okrPayloadSchema = z.object({
   periodId: z.string().uuid(),
-  title: z.string().min(1, 'Objective title is required').max(200),
+  title: z.string().min(1, 'Goal title is required').max(200),
   description: z.string().max(2000).optional(),
-  keyResults: z.array(keyResultSchema).min(1, 'Add at least one key result'),
+  keyResults: z.array(z.object({
+    title: z.string().min(1).max(200),
+    initiatives: z.array(z.object({ title: z.string().min(1).max(200) })),
+  })).optional().default([]),
 })
 
 export async function createOkr(formData: FormData): Promise<ActionResult> {
@@ -60,7 +58,7 @@ export async function createOkr(formData: FormData): Promise<ActionResult> {
       period_id: parsed.periodId,
       title: parsed.title,
       description: parsed.description ?? null,
-      status: 'DRAFT',
+      status: 'APPROVED',
     })
     .select('id')
     .single()
@@ -171,6 +169,27 @@ export async function updateOkr(formData: FormData): Promise<ActionResult> {
 
   revalidatePath(`/okrs/${okrId}`)
   revalidatePath('/okrs')
+  return { success: true }
+}
+
+export async function deleteOkr(formData: FormData): Promise<ActionResult> {
+  const supabase = await createClient()
+  const caller = await getCallerProfile(supabase)
+  if (!caller) return { error: 'Not authenticated' }
+
+  const okrId = formData.get('okrId') as string
+  if (!okrId) return { error: 'Missing OKR id' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: okrRaw } = await (supabase as any).from('okrs').select('employee_id').eq('id', okrId).single()
+  const okr = okrRaw as { employee_id: string } | null
+  if (!okr || okr.employee_id !== caller.id) return { error: 'OKR not found' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase as any).from('okrs').update({ deleted_at: new Date().toISOString() }).eq('id', okrId)
+
+  revalidatePath('/okrs')
+  revalidatePath('/dashboard')
   return { success: true }
 }
 

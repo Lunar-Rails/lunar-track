@@ -72,9 +72,11 @@ export default async function DashboardPage() {
   let latestScore: QuarterlyScore | null = null
   let hasNewScore = false
   let moodHistory: MonthlyMoodEntry[] = []
+  // Map from okr id → achievement status from quarterly check-in
+  let goalAchievementMap = new Map<string, 'achieved' | 'not_achieved'>()
 
   if (openPeriod) {
-    const [checkinRes, okrsRes, scoreRes, moodRes] = await Promise.all([
+    const [checkinRes, okrsRes, scoreRes, moodRes, qCheckinRes] = await Promise.all([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any)
         .from('checkins')
@@ -90,6 +92,7 @@ export default async function DashboardPage() {
         .select('id, title, status')
         .eq('employee_id', user.id)
         .eq('period_id', openPeriod.id)
+        .is('deleted_at', null)
         .order('created_at', { ascending: true }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any)
@@ -109,6 +112,13 @@ export default async function DashboardPage() {
         .order('year', { ascending: false })
         .order('month', { ascending: false })
         .limit(3),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any)
+        .from('quarterly_checkins')
+        .select('goals')
+        .eq('employee_id', user.id)
+        .eq('period_id', openPeriod.id)
+        .maybeSingle(),
     ])
     thisMonthCheckin = checkinRes.data as Checkin | null
     myOkrs = (okrsRes.data ?? []) as { id: string; title: string; status: string }[]
@@ -120,6 +130,12 @@ export default async function DashboardPage() {
     latestScore = scoreRes.data as QuarterlyScore | null
     hasNewScore = !!latestScore
     moodHistory = ((moodRes.data ?? []) as MonthlyMoodEntry[]).reverse()
+
+    // Build achievement map from quarterly check-in goals JSONB
+    const qGoals = (qCheckinRes.data?.goals ?? []) as { id: string; status: 'achieved' | 'not_achieved' | null }[]
+    goalAchievementMap = new Map(
+      qGoals.filter((g) => g.status).map((g) => [g.id, g.status as 'achieved' | 'not_achieved'])
+    )
   }
 
   // For managers/HR: direct reports + pending items
@@ -262,7 +278,7 @@ export default async function DashboardPage() {
                   <p className="text-xs text-lr-muted mt-0.5">Fill in your MITs and reflection for this month</p>
                 </div>
                 <Link
-                  href="/checkins/new"
+                  href={`/checkins/new?periodId=${openPeriod.id}`}
                   className="shrink-0 rounded-[var(--radius-lr)] bg-lr-accent px-3 py-1.5 text-xs font-medium text-white hover:bg-lr-accent/90 transition-colors"
                 >
                   Start →
@@ -374,21 +390,20 @@ export default async function DashboardPage() {
           </div>
           <ul className="space-y-2">
             {myOkrs.map((okr) => {
+              const achievement = goalAchievementMap.get(okr.id)
               const statusColor =
-                okr.status === 'APPROVED' ? 'bg-green-500' :
-                okr.status === 'PENDING_REVIEW' ? 'bg-lr-gold' :
-                okr.status === 'REVISION_REQUESTED' ? 'bg-red-400' :
-                'bg-lr-muted/40'
+                achievement === 'achieved' ? 'bg-green-500' :
+                achievement === 'not_achieved' ? 'bg-red-400' :
+                'bg-lr-accent/60'
               const statusLabel =
-                okr.status === 'APPROVED' ? 'Approved' :
-                okr.status === 'PENDING_REVIEW' ? 'Pending' :
-                okr.status === 'REVISION_REQUESTED' ? 'Revision needed' :
-                'Draft'
+                achievement === 'achieved' ? 'Achieved' :
+                achievement === 'not_achieved' ? 'Not achieved' :
+                'In progress'
               return (
                 <li key={okr.id} className="flex items-center gap-3 rounded-[var(--radius-lr)] border border-lr-border/50 bg-lr-surface/30 px-3 py-2.5">
                   <span className={`h-2 w-2 rounded-full shrink-0 ${statusColor}`} />
                   <span className="text-sm text-lr-text flex-1 min-w-0 truncate">{okr.title}</span>
-                  <span className="text-[10px] text-lr-muted shrink-0">{statusLabel}</span>
+                  <span className={`text-[10px] shrink-0 ${achievement === 'achieved' ? 'text-green-400' : achievement === 'not_achieved' ? 'text-red-400' : 'text-lr-accent/70'}`}>{statusLabel}</span>
                 </li>
               )
             })}

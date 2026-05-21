@@ -32,4 +32,5 @@ tsconfig.tsbuildinfo
 
 */.temp
 
+# Local Netlify folder
 .netlify/
