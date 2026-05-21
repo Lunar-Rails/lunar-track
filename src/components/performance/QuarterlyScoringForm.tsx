@@ -346,19 +346,12 @@ export default function QuarterlyScoringForm({
                 )
               })}
             </div>
-          ) : companyValues.length > 0 ? (
-            <div className="space-y-2">
-              {companyValues.map((cv) => (
-                <div key={cv.id}>
-                  <p className="text-xs font-medium text-lr-text">{cv.name}</p>
-                  {cv.description && (
-                    <p className="text-xs text-lr-muted leading-snug">{cv.description}</p>
-                  )}
-                </div>
-              ))}
-            </div>
           ) : (
-            <p className="text-xs text-lr-muted/60 italic">No values configured</p>
+            <p className="text-xs text-lr-muted/60 italic">
+              {employeeQuarterlyCheckin
+                ? 'No values cited in the quarterly review.'
+                : 'Employee has not submitted a quarterly review yet.'}
+            </p>
           )}
         </ScoreColumn>
       </div>
