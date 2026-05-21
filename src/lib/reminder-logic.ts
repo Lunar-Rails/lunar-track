@@ -167,3 +167,44 @@ export function getEffectiveDate(override?: string): Date {
   }
   return new Date()
 }
+
+// ---------------------------------------------------------------------------
+// Multi-workspace Slack token helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Parses the SLACK_WORKSPACE_TOKENS env var.
+ *
+ * Expected format (JSON object keyed by email domain):
+ *   {"lunarrails.io":"xoxb-aaa","chainlabs.ai":"xoxb-bbb","podproza.cz":"xoxb-ccc"}
+ *
+ * Returns an empty object on parse failure so the function degrades gracefully.
+ */
+export function parseWorkspaceTokens(json: string): Record<string, string> {
+  try {
+    const parsed = JSON.parse(json)
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return {}
+    // Keep only string-valued entries
+    return Object.fromEntries(
+      Object.entries(parsed).filter(([, v]) => typeof v === 'string'),
+    ) as Record<string, string>
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Returns the Slack bot token for the workspace that owns the given email address,
+ * or null if the domain is not configured.
+ *
+ * @param email    Full email address, e.g. "alice@lunarrails.io"
+ * @param tokenMap Domain → token map produced by parseWorkspaceTokens()
+ */
+export function getTokenForEmail(
+  email: string,
+  tokenMap: Record<string, string>,
+): string | null {
+  const domain = email.split('@')[1]?.toLowerCase()
+  if (!domain) return null
+  return tokenMap[domain] ?? null
+}

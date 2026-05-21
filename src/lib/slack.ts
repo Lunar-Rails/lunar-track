@@ -1,10 +1,11 @@
 /**
  * CiaoBob Slack integration helpers.
  *
- * Usage: set SLACK_BOT_TOKEN in Netlify environment variables (Functions scope).
- * Without the token the helpers no-op in non-production environments.
+ * All public functions accept an explicit `token` so they work across multiple
+ * Slack workspaces. The token is the bot's `xoxb-...` value for the workspace
+ * that owns the target user's email domain.
  *
- * Required bot token scopes:
+ * Required bot token scopes (per workspace):
  *   - users:read.email   (look up users by email)
  *   - im:write           (open DM conversations)
  *   - chat:write         (post messages)
@@ -14,22 +15,11 @@ import type { SlackBlock } from './reminder-logic'
 
 const SLACK_API = 'https://slack.com/api'
 
-function getBotToken(): string | undefined {
-  return process.env.SLACK_BOT_TOKEN
-}
-
 async function slackPost<T extends { ok: boolean; error?: string }>(
   endpoint: string,
   body: Record<string, unknown>,
+  token: string,
 ): Promise<T | null> {
-  const token = getBotToken()
-  if (!token) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log(`[slack] No SLACK_BOT_TOKEN — would call ${endpoint}`, body)
-    }
-    return null
-  }
-
   try {
     const res = await fetch(`${SLACK_API}/${endpoint}`, {
       method: 'POST',
@@ -52,13 +42,18 @@ async function slackPost<T extends { ok: boolean; error?: string }>(
 }
 
 /**
- * Looks up a Slack user ID by their email address.
+ * Looks up a Slack user ID by their email address within the workspace
+ * identified by `token`.
  * Returns the Slack user ID (e.g. "U012AB3CD") or null if not found.
  */
-export async function lookupSlackUserByEmail(email: string): Promise<string | null> {
+export async function lookupSlackUserByEmail(
+  email: string,
+  token: string,
+): Promise<string | null> {
   const data = await slackPost<{ ok: boolean; error?: string; user?: { id: string } }>(
     'users.lookupByEmail',
     { email },
+    token,
   )
   return data?.user?.id ?? null
 }
@@ -67,20 +62,25 @@ export async function lookupSlackUserByEmail(email: string): Promise<string | nu
  * Opens a direct message channel with a Slack user.
  * Returns the channel ID or null on failure.
  */
-async function openDMChannel(slackUserId: string): Promise<string | null> {
+async function openDMChannel(slackUserId: string, token: string): Promise<string | null> {
   const data = await slackPost<{ ok: boolean; error?: string; channel?: { id: string } }>(
     'conversations.open',
     { users: slackUserId },
+    token,
   )
   return data?.channel?.id ?? null
 }
 
 /**
- * Sends a Block Kit DM to a Slack user.
+ * Sends a Block Kit DM to a Slack user in the workspace identified by `token`.
  * Returns true if the message was sent successfully.
  */
-export async function sendSlackDM(slackUserId: string, blocks: SlackBlock[]): Promise<boolean> {
-  const channelId = await openDMChannel(slackUserId)
+export async function sendSlackDM(
+  slackUserId: string,
+  blocks: SlackBlock[],
+  token: string,
+): Promise<boolean> {
+  const channelId = await openDMChannel(slackUserId, token)
   if (!channelId) return false
 
   const data = await slackPost<{ ok: boolean; error?: string }>(
@@ -94,6 +94,7 @@ export async function sendSlackDM(slackUserId: string, blocks: SlackBlock[]): Pr
         .map(b => (b.text as { text: string }).text)
         .join(' '),
     },
+    token,
   )
   return data?.ok === true
 }

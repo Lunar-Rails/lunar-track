@@ -6,6 +6,8 @@ import {
   getReminderPeriod,
   getEffectiveDate,
   buildReminderMessage,
+  parseWorkspaceTokens,
+  getTokenForEmail,
   type ReminderType,
   type ReminderPeriod,
 } from '../../src/lib/reminder-logic'
@@ -36,11 +38,18 @@ export default async function handler(): Promise<Response> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://ciaobob.app'
+  const workspaceTokensJson = process.env.SLACK_WORKSPACE_TOKENS ?? '{}'
 
   if (!supabaseUrl || !serviceRoleKey) {
     const err = '[slack-reminders] Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY'
     console.error(err)
     return new Response(err, { status: 500 })
+  }
+
+  const tokenMap = parseWorkspaceTokens(workspaceTokensJson)
+
+  if (Object.keys(tokenMap).length === 0) {
+    console.warn('[slack-reminders] SLACK_WORKSPACE_TOKENS is empty or unparseable — no reminders will be sent.')
   }
 
   const supabase = createClient(supabaseUrl, serviceRoleKey)
@@ -72,7 +81,9 @@ export default async function handler(): Promise<Response> {
   )
 
   const results = await Promise.allSettled(
-    pendingProfiles.map(profile => sendReminderToEmployee(profile, type, period, appUrl)),
+    pendingProfiles.map(profile =>
+      sendReminderToEmployee(profile, type, period, appUrl, tokenMap),
+    ),
   )
 
   const sent = results.filter(r => r.status === 'fulfilled' && r.value === 'sent').length
@@ -90,7 +101,6 @@ async function fetchSubmittedEmployeeIds(
   period: ReminderPeriod,
 ): Promise<Set<string>> {
   if (type === 'quarterly') {
-    // Find the performance_period id for this quarter
     const { data: pp } = await supabase
       .from('performance_periods')
       .select('id')
@@ -130,8 +140,17 @@ async function sendReminderToEmployee(
   type: ReminderType,
   period: ReminderPeriod,
   appUrl: string,
+  tokenMap: Record<string, string>,
 ): Promise<'sent' | 'skipped'> {
-  const slackUserId = await lookupSlackUserByEmail(profile.email)
+  const token = getTokenForEmail(profile.email, tokenMap)
+  if (!token) {
+    console.warn(
+      `[slack-reminders] No Slack workspace token configured for domain of ${profile.email}, skipping.`,
+    )
+    return 'skipped'
+  }
+
+  const slackUserId = await lookupSlackUserByEmail(profile.email, token)
   if (!slackUserId) {
     console.log(
       `[slack-reminders] No Slack user found for ${profile.email}, skipping.`,
@@ -140,7 +159,7 @@ async function sendReminderToEmployee(
   }
 
   const blocks = buildReminderMessage(type, period, appUrl)
-  const ok = await sendSlackDM(slackUserId, blocks)
+  const ok = await sendSlackDM(slackUserId, blocks, token)
 
   if (ok) {
     console.log(

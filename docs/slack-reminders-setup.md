@@ -2,15 +2,19 @@
 
 CiaoBob sends automated Slack DMs to employees who haven't submitted their check-in 1 week before month-end. This is handled by a Netlify Scheduled Function that runs daily at 09:00 UTC.
 
+Multiple Slack workspaces are supported — CiaoBob maps each employee's email domain to the correct workspace bot token automatically.
+
 ---
 
-## 1. Create the CiaoBob Slack App
+## 1. Create the CiaoBob Slack App (once per workspace)
+
+The CiaoBob app must be installed in **each** Slack workspace where employees are members. Repeat these steps for every workspace (e.g. lunarrails.io, chainlabs.ai, podproza.cz).
 
 ### Create the app
 
 1. Go to [https://api.slack.com/apps](https://api.slack.com/apps)
 2. Click **Create New App** → **From scratch**
-3. Name it `CiaoBob`, select the BCOMM Slack workspace
+3. Name it `CiaoBob`, select the target Slack workspace
 4. Click **Create App**
 
 ### Add bot scopes
@@ -30,11 +34,11 @@ CiaoBob sends automated Slack DMs to employees who haven't submitted their check
 1. Scroll up on the **OAuth & Permissions** page
 2. Click **Install to Workspace** → **Allow**
 3. Copy the **Bot User OAuth Token** (starts with `xoxb-...`)
+4. Repeat for each workspace and keep all tokens handy
 
 ### Optional: Customize the bot appearance
 
-- Under **Basic Information → Display Information**, set the name to `CiaoBob` and upload the app icon
-- This is what employees will see as the sender of their reminder DMs
+Under **Basic Information → Display Information**, set the name to `CiaoBob` and upload the app icon. Employees will see CiaoBob as the sender of their reminder DMs.
 
 ---
 
@@ -44,11 +48,27 @@ In the Netlify dashboard go to **Site configuration → Environment variables** 
 
 | Variable | Value | Notes |
 |----------|-------|-------|
-| `SLACK_BOT_TOKEN` | `xoxb-...` | The bot token from step 1 |
+| `SLACK_WORKSPACE_TOKENS` | JSON object (see below) | Maps email domain → bot token |
 | `SUPABASE_SERVICE_ROLE_KEY` | `<service role key>` | From Supabase Dashboard → Project Settings → API. May be auto-provisioned by the Netlify Supabase integration. |
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://<project>.supabase.co` | Already set if the app is deployed |
 | `NEXT_PUBLIC_APP_URL` | `https://<your-domain>` | Already set for email notifications |
 | `REMINDER_DATE_OVERRIDE` | (optional) | ISO date string, e.g. `2026-01-24T09:00:00Z`. Used for testing — overrides "today" so you can trigger a reminder outside the natural date. Remove after testing. |
+
+### SLACK_WORKSPACE_TOKENS format
+
+Set this to a JSON object where each key is an email domain and each value is the corresponding workspace bot token:
+
+```json
+{
+  "lunarrails.io": "xoxb-aaa-...",
+  "chainlabs.ai": "xoxb-bbb-...",
+  "podproza.cz": "xoxb-ccc-..."
+}
+```
+
+The function extracts the domain from each employee's profile email and looks up the matching token. Employees whose email domain has no entry are silently skipped with a warning in the function log.
+
+To add a new workspace later, install the CiaoBob app in it and add the new domain/token pair to this JSON — no code changes required.
 
 > **Note:** The Netlify Supabase integration (Site configuration → Integrations → Supabase) may automatically inject `SUPABASE_SERVICE_ROLE_KEY` and `NEXT_PUBLIC_SUPABASE_URL`. Check there first before adding them manually.
 

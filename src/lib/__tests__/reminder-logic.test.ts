@@ -7,6 +7,8 @@ import {
   getReminderPeriod,
   buildReminderMessage,
   getEffectiveDate,
+  parseWorkspaceTokens,
+  getTokenForEmail,
 } from '../reminder-logic'
 
 // ---------------------------------------------------------------------------
@@ -178,6 +180,75 @@ describe('buildReminderMessage', () => {
   })
 })
 
+// ---------------------------------------------------------------------------
+// parseWorkspaceTokens
+// ---------------------------------------------------------------------------
+describe('parseWorkspaceTokens', () => {
+  it('parses a valid JSON token map', () => {
+    const json = JSON.stringify({
+      'lunarrails.io': 'xoxb-aaa',
+      'chainlabs.ai': 'xoxb-bbb',
+      'podproza.cz': 'xoxb-ccc',
+    })
+    const result = parseWorkspaceTokens(json)
+    expect(result['lunarrails.io']).toBe('xoxb-aaa')
+    expect(result['chainlabs.ai']).toBe('xoxb-bbb')
+    expect(result['podproza.cz']).toBe('xoxb-ccc')
+  })
+
+  it('returns empty object for invalid JSON', () => {
+    expect(parseWorkspaceTokens('not-json')).toEqual({})
+  })
+
+  it('returns empty object for an empty string', () => {
+    expect(parseWorkspaceTokens('')).toEqual({})
+  })
+
+  it('returns empty object for JSON array (wrong shape)', () => {
+    expect(parseWorkspaceTokens('["xoxb-aaa"]')).toEqual({})
+  })
+
+  it('strips non-string values', () => {
+    const json = JSON.stringify({ 'lunarrails.io': 'xoxb-aaa', 'bad.domain': 42 })
+    const result = parseWorkspaceTokens(json)
+    expect(result['lunarrails.io']).toBe('xoxb-aaa')
+    expect(result['bad.domain']).toBeUndefined()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// getTokenForEmail
+// ---------------------------------------------------------------------------
+describe('getTokenForEmail', () => {
+  const tokenMap = {
+    'lunarrails.io': 'xoxb-aaa',
+    'chainlabs.ai': 'xoxb-bbb',
+    'podproza.cz': 'xoxb-ccc',
+  }
+
+  it('returns the correct token for a known domain', () => {
+    expect(getTokenForEmail('alice@lunarrails.io', tokenMap)).toBe('xoxb-aaa')
+    expect(getTokenForEmail('bob@chainlabs.ai', tokenMap)).toBe('xoxb-bbb')
+    expect(getTokenForEmail('carol@podproza.cz', tokenMap)).toBe('xoxb-ccc')
+  })
+
+  it('is case-insensitive for the domain part', () => {
+    expect(getTokenForEmail('alice@LunarRails.IO', tokenMap)).toBe('xoxb-aaa')
+    expect(getTokenForEmail('bob@CHAINLABS.AI', tokenMap)).toBe('xoxb-bbb')
+  })
+
+  it('returns null for an unknown domain', () => {
+    expect(getTokenForEmail('dave@unknown.com', tokenMap)).toBeNull()
+  })
+
+  it('returns null for an email with no @ sign', () => {
+    expect(getTokenForEmail('not-an-email', tokenMap)).toBeNull()
+  })
+
+  it('returns null when the token map is empty', () => {
+    expect(getTokenForEmail('alice@lunarrails.io', {})).toBeNull()
+  })
+})
 // ---------------------------------------------------------------------------
 // getEffectiveDate
 // ---------------------------------------------------------------------------
