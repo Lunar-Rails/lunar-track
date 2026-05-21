@@ -13,6 +13,7 @@ import {
   CalendarCheck,
   BarChart2,
   SlidersHorizontal,
+  TrendingUp,
 } from 'lucide-react'
 import type { UserRole } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
@@ -37,6 +38,7 @@ export default function Sidebar({ role }: SidebarProps) {
   const myWorkNav: NavItem[] = [
     { href: '/checkins', label: 'Monthly Check-ins', icon: ClipboardList },
     { href: '/quarterly-checkins', label: 'Quarterly Reviews', icon: CalendarCheck },
+    { href: '/my-performance', label: 'My Performance', icon: TrendingUp },
     { href: '/guide', label: 'Framework Guide', icon: BookOpen },
   ]
 
