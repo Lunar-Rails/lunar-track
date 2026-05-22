@@ -39,7 +39,7 @@ export default function MagicLinkForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="email" className="text-caption">Email address</Label>
+        <Label htmlFor="email" className="text-sm font-medium text-gray-700">Email address</Label>
         <Input
           id="email"
           type="email"
@@ -48,12 +48,12 @@ export default function MagicLinkForm() {
           onChange={(e) => setEmail(e.target.value)}
           disabled={isPending}
           required
-          className="h-10 bg-lr-surface border-lr-border text-lr-text placeholder:text-lr-muted"
+          className="h-10 bg-white border-gray-300 text-gray-900 placeholder:text-gray-400 focus:border-violet-500 focus:ring-violet-500"
         />
       </div>
 
       {error && (
-        <p className="text-xs text-red-400">{error}</p>
+        <p className="text-xs text-red-600">{error}</p>
       )}
 
       <Button
@@ -64,7 +64,7 @@ export default function MagicLinkForm() {
         {isPending ? 'Sending…' : 'Send magic link'}
       </Button>
 
-      <p className="text-center text-xs text-lr-muted">
+      <p className="text-center text-xs text-gray-400">
         Enter your email — we&apos;ll send a one-click sign-in link.
       </p>
     </form>

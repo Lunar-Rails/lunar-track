@@ -25,18 +25,18 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-lr-bg px-4">
-      <div className="w-full max-w-md rounded-[var(--radius-lr-xl)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-8 shadow-[var(--shadow-lr-card)]">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
         <div className="mb-8 text-center">
           <div className="flex justify-center mb-4">
             <Image src="/logo-full.svg" alt="CiaoBob" width={160} height={40} priority />
           </div>
-          <p className="text-body text-lr-muted">BCOMM Performance Management</p>
+          <p className="text-sm text-gray-500">BCOMM Performance Management</p>
         </div>
 
         {error && (
-          <div className="mb-6 rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-3">
-            <p className="text-sm text-red-400">
+          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+            <p className="text-sm text-red-600">
               {error === 'domain'
                 ? 'Sign-in is restricted to authorized company domains.'
                 : 'Authentication failed. Please try again.'}
@@ -45,22 +45,22 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         )}
 
         {user && !error && !sent && (
-          <div className="mb-6 rounded-[var(--radius-lr)] border border-amber-500/20 bg-amber-500/10 px-4 py-3">
-            <p className="text-sm text-amber-300">You are signed in, but your profile could not be provisioned yet.</p>
-            <p className="text-xs text-amber-200/80 mt-1">Try reloading once. If it persists, the server-side Supabase RPC cache may still be warming up.</p>
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-sm text-amber-700">You are signed in, but your profile could not be provisioned yet.</p>
+            <p className="text-xs text-amber-600 mt-1">Try reloading once. If it persists, the server-side Supabase RPC cache may still be warming up.</p>
           </div>
         )}
 
         {sent ? (
           <div className="text-center space-y-4">
-            <div className="rounded-[var(--radius-lr-lg)] border border-lr-cyan/20 bg-lr-cyan-dim px-4 py-6">
-              <p className="text-sm text-lr-cyan font-medium">Check your email</p>
-              <p className="text-xs text-lr-muted mt-2">
-                We sent a magic link to <strong className="text-lr-text">{sent}</strong>.<br />
+            <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-6">
+              <p className="text-sm text-violet-700 font-medium">Check your email</p>
+              <p className="text-xs text-gray-500 mt-2">
+                We sent a magic link to <strong className="text-gray-800">{sent}</strong>.<br />
                 Click the link to sign in — it expires in 1 hour.
               </p>
             </div>
-            <a href="/login" className="text-xs text-lr-muted hover:text-lr-text transition-colors">
+            <a href="/login" className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
               Use a different email
             </a>
           </div>
