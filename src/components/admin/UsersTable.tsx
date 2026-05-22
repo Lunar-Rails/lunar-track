@@ -239,8 +239,8 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
         </div>
       )}
 
-      {/* Table — header sticks below the fixed topbar (top-14 = 56px) */}
-      <div className="rounded-[var(--radius-lr-lg)] border border-lr-border overflow-x-auto">
+      {/* Table — overflow-x-auto removed so sticky <th> uses main as scroll container */}
+      <div className="rounded-[var(--radius-lr-lg)] border border-lr-border">
           <Table className="border-separate border-spacing-0">
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
