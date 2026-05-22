@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { MoodEnergy, MoodProductivity } from '@/lib/types/database'
+import type { MoodEnergy, MoodProductivity, PulseOption } from '@/lib/types/database'
 import { ENERGY_META, PRODUCTIVITY_META, ENERGY_OPTIONS, PRODUCTIVITY_OPTIONS } from '@/lib/constants/mood'
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -16,20 +16,28 @@ interface PulseCardProps {
   currentProductivity: MoodProductivity | null
   hasCheckinThisMonth: boolean
   trend: MonthlyMoodEntry[]
+  pulseOptions?: PulseOption[]
 }
 
-// Matches the LR palette used in My Values — red/amber/cyan/violet gradient
-const ENERGY_CELL: Record<MoodEnergy, string> = {
+// Default fallback Tailwind classes (used when no DB options available)
+const ENERGY_CELL_DEFAULT: Record<MoodEnergy, string> = {
   terrible: 'bg-red-400/60',
   meh:      'bg-amber-400/60',
   okay:     'bg-lr-cyan/60',
   great:    'bg-lr-accent',
 }
 
-const PRODUCTIVITY_CELL: Record<MoodProductivity, string> = {
+const PRODUCTIVITY_CELL_DEFAULT: Record<MoodProductivity, string> = {
   waste:     'bg-red-400/50',
   fine:      'bg-lr-cyan/55',
   ludicrous: 'bg-lr-accent',
+}
+
+function hexToRgba(hex: string, alpha: number) {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
 
 export default function PulseCard({
@@ -37,10 +45,34 @@ export default function PulseCard({
   currentProductivity,
   hasCheckinThisMonth,
   trend,
+  pulseOptions = [],
 }: PulseCardProps) {
   const currentMonth = new Date().getMonth() + 1
   const moodMap = new Map(trend.map((e) => [e.month, e]))
   const hasAnyData = trend.some((e) => e.mood_energy || e.mood_productivity)
+
+  // Build option maps from DB data; fall back to defaults if not available
+  const energyOptMap = new Map(pulseOptions.filter((o) => o.type === 'energy').map((o) => [o.slug, o]))
+  const flowOptMap = new Map(pulseOptions.filter((o) => o.type === 'flow').map((o) => [o.slug, o]))
+
+  function energyCellStyle(val: MoodEnergy): { className?: string; style?: React.CSSProperties } {
+    const opt = energyOptMap.get(val)
+    if (!opt) return { className: ENERGY_CELL_DEFAULT[val] }
+    return { style: { backgroundColor: hexToRgba(opt.color, 0.65) } }
+  }
+
+  function flowCellStyle(val: MoodProductivity): { className?: string; style?: React.CSSProperties } {
+    const opt = flowOptMap.get(val)
+    if (!opt) return { className: PRODUCTIVITY_CELL_DEFAULT[val] }
+    return { style: { backgroundColor: hexToRgba(opt.color, 0.65) } }
+  }
+
+  function energyLabel(val: MoodEnergy) {
+    return energyOptMap.get(val)?.label ?? ENERGY_META[val].label
+  }
+  function flowLabel(val: MoodProductivity) {
+    return flowOptMap.get(val)?.label ?? PRODUCTIVITY_META[val].label
+  }
 
   return (
     <div className="rounded-[var(--radius-lr-lg)] overflow-hidden border border-lr-border shadow-[var(--shadow-lr-card)] bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.12),transparent_60%),radial-gradient(ellipse_at_bottom_left,rgba(6,182,212,0.08),transparent_60%)] bg-lr-glass backdrop-blur-[8px]">
@@ -62,14 +94,14 @@ export default function PulseCard({
               <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border bg-lr-accent/15 border-lr-accent/35 text-lr-accent">
                 <span>{ENERGY_META[currentEnergy].emoji}</span>
                 <span className="text-[10px] opacity-60 uppercase tracking-wide">Energy</span>
-                <span>{ENERGY_META[currentEnergy].label}</span>
+                <span>{energyLabel(currentEnergy)}</span>
               </div>
             )}
             {currentProductivity && (
               <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border bg-lr-cyan-dim border-lr-cyan/30 text-lr-cyan">
                 <span>{PRODUCTIVITY_META[currentProductivity].emoji}</span>
                 <span className="text-[10px] opacity-60 uppercase tracking-wide">Flow</span>
-                <span>{PRODUCTIVITY_META[currentProductivity].label}</span>
+                <span>{flowLabel(currentProductivity)}</span>
               </div>
             )}
           </div>
@@ -94,15 +126,17 @@ export default function PulseCard({
               {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => {
                 const val = moodMap.get(month)?.mood_energy ?? null
                 const isCurrent = month === currentMonth
+                const cs = val ? energyCellStyle(val) : null
                 return (
                   <div
                     key={month}
-                    title={val ? `${MONTH_NAMES[month - 1]} · ${ENERGY_META[val].label} ${ENERGY_META[val].emoji}` : MONTH_NAMES[month - 1]}
+                    title={val ? `${MONTH_NAMES[month - 1]} · ${energyLabel(val)} ${ENERGY_META[val].emoji}` : MONTH_NAMES[month - 1]}
                     className={[
                       'h-4 flex-1 rounded-[2px] transition-all',
-                      val ? ENERGY_CELL[val] : 'bg-lr-border/50',
+                      cs ? (cs.className ?? '') : 'bg-lr-border/50',
                       isCurrent ? 'ring-1 ring-lr-accent/70 ring-offset-0' : '',
                     ].filter(Boolean).join(' ')}
+                    style={cs?.style}
                   />
                 )
               })}
@@ -116,15 +150,17 @@ export default function PulseCard({
               {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => {
                 const val = moodMap.get(month)?.mood_productivity ?? null
                 const isCurrent = month === currentMonth
+                const cs = val ? flowCellStyle(val) : null
                 return (
                   <div
                     key={month}
-                    title={val ? `${MONTH_NAMES[month - 1]} · ${PRODUCTIVITY_META[val].label} ${PRODUCTIVITY_META[val].emoji}` : MONTH_NAMES[month - 1]}
+                    title={val ? `${MONTH_NAMES[month - 1]} · ${flowLabel(val)} ${PRODUCTIVITY_META[val].emoji}` : MONTH_NAMES[month - 1]}
                     className={[
                       'h-4 flex-1 rounded-[2px] transition-all',
-                      val ? PRODUCTIVITY_CELL[val] : 'bg-lr-border/50',
+                      cs ? (cs.className ?? '') : 'bg-lr-border/50',
                       isCurrent ? 'ring-1 ring-lr-accent/70 ring-offset-0' : '',
                     ].filter(Boolean).join(' ')}
+                    style={cs?.style}
                   />
                 )
               })}
@@ -156,23 +192,35 @@ export default function PulseCard({
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] uppercase tracking-wide font-semibold text-lr-muted">Energy</span>
               <div className="flex items-center gap-2 flex-wrap">
-                {ENERGY_OPTIONS.map((opt) => (
-                  <div key={opt.value} className="flex items-center gap-1">
-                    <div className={`w-2.5 h-2.5 rounded-[2px] ${ENERGY_CELL[opt.value].split(' ')[0]}`} />
-                    <span className="text-[9px] text-lr-muted/60">{opt.label}</span>
-                  </div>
-                ))}
+                {ENERGY_OPTIONS.map((opt) => {
+                  const cs = energyCellStyle(opt.value)
+                  return (
+                    <div key={opt.value} className="flex items-center gap-1">
+                      <div
+                        className={`w-2.5 h-2.5 rounded-[2px] ${cs.className?.split(' ')[0] ?? ''}`}
+                        style={cs.style}
+                      />
+                      <span className="text-[9px] text-lr-muted/60">{energyLabel(opt.value)}</span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-[10px] uppercase tracking-wide font-semibold text-lr-muted">Flow</span>
               <div className="flex items-center gap-2 flex-wrap">
-                {PRODUCTIVITY_OPTIONS.map((opt) => (
-                  <div key={opt.value} className="flex items-center gap-1">
-                    <div className={`w-2.5 h-2.5 rounded-[2px] ${PRODUCTIVITY_CELL[opt.value].split(' ')[0]}`} />
-                    <span className="text-[9px] text-lr-muted/60">{opt.label}</span>
-                  </div>
-                ))}
+                {PRODUCTIVITY_OPTIONS.map((opt) => {
+                  const cs = flowCellStyle(opt.value)
+                  return (
+                    <div key={opt.value} className="flex items-center gap-1">
+                      <div
+                        className={`w-2.5 h-2.5 rounded-[2px] ${cs.className?.split(' ')[0] ?? ''}`}
+                        style={cs.style}
+                      />
+                      <span className="text-[9px] text-lr-muted/60">{flowLabel(opt.value)}</span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           </div>

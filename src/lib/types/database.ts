@@ -176,6 +176,16 @@ export interface CompanyValue {
   created_at?: string
 }
 
+export interface PulseOption {
+  id: string
+  type: 'energy' | 'flow'
+  slug: string
+  label: string
+  color: string  // hex e.g. "#7c5cfc"
+  emoji: string
+  sort_order: number
+}
+
 export interface ValueRating {
   value_id: string
   value_name: string

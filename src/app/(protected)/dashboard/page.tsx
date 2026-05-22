@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import PendingApprovals from '@/components/dashboard/PendingApprovals'
 import PulseCard, { type MonthlyMoodEntry } from '@/components/dashboard/PulseCard'
-import type { Profile, SubordinateRow, PerformancePeriod, Checkin, QuarterlyScore, CompanyValue, QuarterlyCheckin, ValueSelfAssessment, ValueAssessment } from '@/lib/types/database'
+import type { Profile, SubordinateRow, PerformancePeriod, Checkin, QuarterlyScore, CompanyValue, QuarterlyCheckin, ValueSelfAssessment, ValueAssessment, PulseOption } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -190,6 +190,12 @@ export default async function DashboardPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: valuesRaw } = await (supabase as any).from('company_values').select('*').order('sort_order')
   const companyValues = (valuesRaw ?? []) as CompanyValue[]
+
+  // Pulse options (for customised labels/colours on the pulse card)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: pulseOptionsRaw } = await (supabase as any)
+    .from('pulse_options').select('*').order('type').order('sort_order')
+  const pulseOptions = (pulseOptionsRaw ?? []) as PulseOption[]
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: myQCheckinsRaw } = await (supabase as any)
@@ -448,6 +454,7 @@ export default async function DashboardPage() {
           currentProductivity={thisMonthCheckin?.mood_productivity ?? null}
           hasCheckinThisMonth={!!thisMonthCheckin?.employee_submitted_at}
           trend={moodHistory}
+          pulseOptions={pulseOptions}
         />
       )}
 
