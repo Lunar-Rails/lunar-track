@@ -14,7 +14,7 @@ export default function StandardLayout({ profile, inboxCount = 0, children }: St
       <Header profile={profile} inboxCount={inboxCount} />
       <div className="flex pt-14">
         <Sidebar role={profile.role} />
-        <main className="flex-1 ml-56 p-6">
+        <main className="flex-1 ml-56 p-6 overflow-y-auto h-[calc(100vh-56px)]">
           <div className="mx-auto max-w-[var(--max-width-lr-app)]">
             {children}
           </div>

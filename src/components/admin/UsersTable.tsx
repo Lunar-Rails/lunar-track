@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useTransition } from 'react'
+import { useState, useMemo, useTransition, useEffect, useRef } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -52,6 +52,19 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+
+  const filterRef = useRef<HTMLDivElement>(null)
+  const [filterH, setFilterH] = useState(56)
+
+  useEffect(() => {
+    const el = filterRef.current
+    if (!el) return
+    const update = () => setFilterH(el.offsetHeight)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   // Derive unique domains from user list
   const domains = useMemo(() => {
@@ -179,8 +192,12 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
 
   return (
     <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex items-center gap-3 flex-wrap">
+      {/* Filters — sticky just below the page header */}
+      <div
+        ref={filterRef}
+        className="flex items-center gap-3 flex-wrap sticky z-20 bg-white py-3 -mx-6 px-6"
+        style={{ top: 'var(--admin-sticky-header-h, 0px)' }}
+      >
         <Input
           placeholder="Search by name or email…"
           value={globalFilter}
@@ -231,7 +248,8 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
                   {headerGroup.headers.map((header) => (
                     <TableHead
                       key={header.id}
-                      className="sticky top-14 z-20 text-section-label bg-white py-3 border-b border-lr-border shadow-[0_1px_0_0_rgba(0,0,0,0.06)]"
+                      className="sticky z-20 text-section-label bg-white py-3 border-b border-lr-border shadow-[0_1px_0_0_rgba(0,0,0,0.06)]"
+                      style={{ top: `calc(var(--admin-sticky-header-h, 0px) + ${filterH}px)` }}
                     >
                       {flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import UsersTable from '@/components/admin/UsersTable'
 import CompanyValuesAdmin from '@/components/admin/CompanyValuesAdmin'
 import PulseOptionsAdmin from '@/components/admin/PulseOptionsAdmin'
+import StickyAdminHeader from '@/components/admin/StickyAdminHeader'
 import type { Profile, CompanyValue, PulseOption } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -52,43 +53,41 @@ export default async function OrganizationSettingsPage({ searchParams }: PagePro
   }
 
   return (
-    <div className="space-y-6">
-      {/* Page header */}
-      <div>
+    <>
+      <StickyAdminHeader>
         <h1 className="text-page-title">Organization Settings</h1>
         <p className="text-body text-lr-muted mt-1">Manage users, company values, and pulse configuration</p>
+        <div className="flex items-center gap-1 border-b border-lr-border mt-4">
+          {TABS.map((t) => (
+            <Link
+              key={t.id}
+              href={`/admin/settings?tab=${t.id}`}
+              className={[
+                'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
+                activeTab === t.id
+                  ? 'border-lr-accent text-lr-accent'
+                  : 'border-transparent text-lr-muted hover:text-lr-text',
+              ].join(' ')}
+            >
+              {t.label}
+            </Link>
+          ))}
+        </div>
+      </StickyAdminHeader>
+
+      <div className="pt-4">
+        {activeTab === 'users' && (
+          <UsersTable users={profiles} allUsers={allUsers} />
+        )}
+
+        {activeTab === 'values' && (
+          <CompanyValuesAdmin initialValues={companyValues} />
+        )}
+
+        {activeTab === 'pulse' && (
+          <PulseOptionsAdmin options={pulseOptions} />
+        )}
       </div>
-
-      {/* Tab bar */}
-      <div className="flex items-center gap-1 border-b border-lr-border">
-        {TABS.map((t) => (
-          <Link
-            key={t.id}
-            href={`/admin/settings?tab=${t.id}`}
-            className={[
-              'px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors',
-              activeTab === t.id
-                ? 'border-lr-accent text-lr-accent'
-                : 'border-transparent text-lr-muted hover:text-lr-text',
-            ].join(' ')}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      {activeTab === 'users' && (
-        <UsersTable users={profiles} allUsers={allUsers} />
-      )}
-
-      {activeTab === 'values' && (
-        <CompanyValuesAdmin initialValues={companyValues} />
-      )}
-
-      {activeTab === 'pulse' && (
-        <PulseOptionsAdmin options={pulseOptions} />
-      )}
-    </div>
+    </>
   )
 }
