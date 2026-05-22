@@ -224,7 +224,7 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
 
       {/* Table with sticky header */}
       <div className="rounded-[var(--radius-lr-lg)] border border-lr-border overflow-hidden">
-        <div className="max-h-[60vh] overflow-y-auto">
+        <div className="h-[calc(100vh-280px)] overflow-y-auto">
           <Table className="border-separate border-spacing-0">
             <TableHeader>
               {table.getHeaderGroups().map((headerGroup) => (
@@ -232,7 +232,7 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
                   {headerGroup.headers.map((header) => (
                     <TableHead
                       key={header.id}
-                      className="sticky top-0 z-10 text-section-label bg-lr-surface py-3 border-b border-lr-border shadow-[0_1px_0_0_var(--color-lr-border)]"
+                      className="sticky top-0 z-10 text-section-label bg-white py-3 border-b border-lr-border shadow-[0_1px_0_0_rgba(0,0,0,0.06)]"
                     >
                       {flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
