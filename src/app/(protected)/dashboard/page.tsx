@@ -108,10 +108,8 @@ export default async function DashboardPage() {
         .from('checkins')
         .select('month, year, mood_energy, mood_productivity')
         .eq('employee_id', user.id)
-        .not('mood_energy', 'is', null)
-        .order('year', { ascending: false })
-        .order('month', { ascending: false })
-        .limit(3),
+        .eq('year', currentYear)
+        .order('month', { ascending: true }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any)
         .from('quarterly_checkins')
@@ -129,7 +127,7 @@ export default async function DashboardPage() {
     }
     latestScore = scoreRes.data as QuarterlyScore | null
     hasNewScore = !!latestScore
-    moodHistory = ((moodRes.data ?? []) as MonthlyMoodEntry[]).reverse()
+    moodHistory = (moodRes.data ?? []) as MonthlyMoodEntry[]
 
     // Build achievement map from quarterly check-in goals JSONB
     const qGoals = (qCheckinRes.data?.goals ?? []) as { id: string; status: 'achieved' | 'not_achieved' | null }[]
@@ -416,7 +414,7 @@ export default async function DashboardPage() {
                 const filled = use === 0 ? 0 : Math.max(1, Math.round((use / maxUse) * TOTAL_SQUARES))
                 return (
                   <div key={v.id} className="flex items-center gap-3">
-                    <span className="text-sm text-lr-text w-36 shrink-0 truncate" title={v.description}>{v.name}</span>
+                    <span className="text-sm text-lr-text shrink-0 min-w-[150px] max-w-[200px] leading-snug">{v.name}</span>
                     <div className="flex items-center gap-1 flex-1">
                       {Array.from({ length: TOTAL_SQUARES }).map((_, i) => (
                         <div
