@@ -1,22 +1,6 @@
 'use client'
 
-import { useState, useMemo, useTransition, useEffect, useRef } from 'react'
-import {
-  useReactTable,
-  getCoreRowModel,
-  getFilteredRowModel,
-  flexRender,
-  type ColumnDef,
-} from '@tanstack/react-table'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
-import { Input } from '@/components/ui/input'
+import { useState, useMemo, useTransition } from 'react'
 import {
   Select,
   SelectContent,
@@ -24,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import RoleSelect from '@/components/admin/RoleSelect'
 import ManagerSelect from '@/components/admin/ManagerSelect'
@@ -45,6 +30,9 @@ function getDomain(email: string): string {
   return email.split('@')[1] ?? ''
 }
 
+// Shared column template — header labels and data rows both use this
+const COLS = '2fr 2fr 150px minmax(0,1.5fr) 100px 80px'
+
 export default function UsersTable({ users, allUsers }: UsersTableProps) {
   const [globalFilter, setGlobalFilter] = useState('')
   const [roleFilter, setRoleFilter] = useState<UserRole | 'ALL'>('ALL')
@@ -53,20 +41,6 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
-  const filterRef = useRef<HTMLDivElement>(null)
-  const [filterH, setFilterH] = useState(56)
-
-  useEffect(() => {
-    const el = filterRef.current
-    if (!el) return
-    const update = () => setFilterH(el.offsetHeight)
-    update()
-    const ro = new ResizeObserver(update)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-
-  // Derive unique domains from user list
   const domains = useMemo(() => {
     const set = new Set(users.map((u) => getDomain(u.email)).filter(Boolean))
     return Array.from(set).sort()
@@ -101,185 +75,133 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
     })
   }
 
-  const columns: ColumnDef<Profile>[] = [
-    {
-      accessorKey: 'full_name',
-      header: 'Name',
-      cell: ({ row }) => {
-        const u = row.original
-        return (
-          <div className="flex items-center gap-2">
-            <Avatar className="h-7 w-7 shrink-0">
-              <AvatarImage src={u.avatar_url ?? undefined} />
-              <AvatarFallback className="bg-lr-accent text-white text-xs">
-                {getInitials(u.full_name, u.email)}
-              </AvatarFallback>
-            </Avatar>
-            <span className="text-sm text-lr-text">{u.full_name ?? u.email}</span>
-          </div>
-        )
-      },
-    },
-    {
-      accessorKey: 'email',
-      header: 'Email',
-      cell: ({ getValue }) => (
-        <span className="text-sm text-lr-muted">{getValue() as string}</span>
-      ),
-    },
-    {
-      accessorKey: 'role',
-      header: 'Role',
-      cell: ({ row }) => (
-        <RoleSelect userId={row.original.id} currentRole={row.original.role} />
-      ),
-    },
-    {
-      accessorKey: 'manager_id',
-      header: 'Manager',
-      cell: ({ row }) => {
-        const u = row.original
-        const currentManagerName = u.manager_id ? (managerMap.get(u.manager_id) ?? null) : null
-        return (
-          <div>
-            {currentManagerName && (
-              <p className="text-xs text-lr-muted mb-1">{currentManagerName}</p>
-            )}
-            <ManagerSelect
-              employeeId={u.id}
-              currentManagerId={u.manager_id}
-              allUsers={allUsers}
-            />
-          </div>
-        )
-      },
-    },
-    {
-      accessorKey: 'created_at',
-      header: 'Joined',
-      cell: ({ getValue }) => (
-        <span className="text-xs text-lr-muted">
-          {format(new Date(getValue() as string), 'MMM d, yyyy')}
-        </span>
-      ),
-    },
-    {
-      id: 'actions',
-      header: '',
-      cell: ({ row }) => {
-        const u = row.original
-        const isRemoving = removingId === u.id
-        return (
-          <button
-            type="button"
-            disabled={isPending || isRemoving}
-            onClick={() => handleRemove(u.id, u.full_name ?? u.email)}
-            className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-          >
-            {isRemoving ? 'Removing…' : 'Remove'}
-          </button>
-        )
-      },
-    },
-  ]
-
-  const table = useReactTable({
-    data: filteredData,
-    columns,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-  })
-
   return (
-    <div className="space-y-4">
-      {/* Filters — sticky just below the page header */}
+    <div>
+      {/*
+       * Single sticky block: filter bar + column headers together.
+       * One element, one top value — no cascading measurements.
+       */}
       <div
-        ref={filterRef}
-        className="flex items-center gap-3 flex-wrap sticky z-20 bg-white py-3 -mx-6 px-6"
+        className="sticky z-20 bg-white -mx-6 px-6"
         style={{ top: 'var(--admin-sticky-header-h, 0px)' }}
       >
-        <Input
-          placeholder="Search by name or email…"
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
-          className="max-w-xs h-9 bg-lr-surface border-lr-border text-lr-text placeholder:text-lr-muted text-sm"
-        />
-        <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as UserRole | 'ALL')}>
-          <SelectTrigger className="w-36 h-9 bg-lr-surface border-lr-border text-sm text-lr-text">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="bg-lr-surface border-lr-border">
-            <SelectItem value="ALL">All roles</SelectItem>
-            <SelectItem value="EMPLOYEE">Employee</SelectItem>
-            <SelectItem value="MANAGER">Manager</SelectItem>
-            <SelectItem value="HR_ADMIN">HR Admin</SelectItem>
-          </SelectContent>
-        </Select>
-        {domains.length > 1 && (
-          <Select value={domainFilter} onValueChange={setDomainFilter}>
-            <SelectTrigger className="w-44 h-9 bg-lr-surface border-lr-border text-sm text-lr-text">
-              <SelectValue placeholder="All companies" />
+        {/* Filter bar */}
+        <div className="flex items-center gap-3 flex-wrap py-3">
+          <Input
+            placeholder="Search by name or email…"
+            value={globalFilter}
+            onChange={(e) => setGlobalFilter(e.target.value)}
+            className="max-w-xs h-9 bg-lr-surface border-lr-border text-lr-text placeholder:text-lr-muted text-sm"
+          />
+          <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as UserRole | 'ALL')}>
+            <SelectTrigger className="w-36 h-9 bg-lr-surface border-lr-border text-sm text-lr-text">
+              <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-lr-surface border-lr-border">
-              <SelectItem value="ALL">All companies</SelectItem>
-              {domains.map((d) => (
-                <SelectItem key={d} value={d}>@{d}</SelectItem>
-              ))}
+              <SelectItem value="ALL">All roles</SelectItem>
+              <SelectItem value="EMPLOYEE">Employee</SelectItem>
+              <SelectItem value="MANAGER">Manager</SelectItem>
+              <SelectItem value="HR_ADMIN">HR Admin</SelectItem>
             </SelectContent>
           </Select>
-        )}
-        <span className="text-caption ml-auto">
-          {filteredData.length} user{filteredData.length !== 1 ? 's' : ''}
-        </span>
+          {domains.length > 1 && (
+            <Select value={domainFilter} onValueChange={setDomainFilter}>
+              <SelectTrigger className="w-44 h-9 bg-lr-surface border-lr-border text-sm text-lr-text">
+                <SelectValue placeholder="All companies" />
+              </SelectTrigger>
+              <SelectContent className="bg-lr-surface border-lr-border">
+                <SelectItem value="ALL">All companies</SelectItem>
+                {domains.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    @{d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <span className="text-caption ml-auto">
+            {filteredData.length} user{filteredData.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+
+        {/* Column header row — same grid template as data rows */}
+        <div
+          className="grid text-section-label border-y border-lr-border shadow-[0_1px_0_0_rgba(0,0,0,0.06)]"
+          style={{ gridTemplateColumns: COLS }}
+        >
+          <div className="py-3 px-4">Name</div>
+          <div className="py-3 px-4">Email</div>
+          <div className="py-3 px-4">Role</div>
+          <div className="py-3 px-4">Manager</div>
+          <div className="py-3 px-4">Joined</div>
+          <div className="py-3 px-4" />
+        </div>
       </div>
 
       {removeError && (
-        <div className="rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400">
+        <div className="mt-3 rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400">
           {removeError}
         </div>
       )}
 
-      {/* Table — overflow-x-auto removed so sticky <th> uses main as scroll container */}
-      <div className="rounded-[var(--radius-lr-lg)] border border-lr-border">
-          <Table className="border-separate border-spacing-0">
-            <TableHeader>
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                  {headerGroup.headers.map((header) => (
-                    <TableHead
-                      key={header.id}
-                      className="sticky z-20 text-section-label bg-white py-3 border-b border-lr-border shadow-[0_1px_0_0_rgba(0,0,0,0.06)]"
-                      style={{ top: `calc(var(--admin-sticky-header-h, 0px) + ${filterH}px)` }}
-                    >
-                      {flexRender(header.column.columnDef.header, header.getContext())}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody>
-              {table.getRowModel().rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} className="text-center py-8 text-lr-muted">
-                    No users found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className="border-b border-lr-border hover:bg-lr-surface transition-colors"
+      {/* Data rows — only these scroll */}
+      <div className="rounded-[var(--radius-lr-lg)] border border-lr-border mt-4">
+        {filteredData.length === 0 ? (
+          <div className="text-center py-8 text-sm text-lr-muted">No users found.</div>
+        ) : (
+          filteredData.map((u) => {
+            const isRemoving = removingId === u.id
+            const currentManagerName = u.manager_id ? (managerMap.get(u.manager_id) ?? null) : null
+            return (
+              <div
+                key={u.id}
+                className="grid border-b border-lr-border last:border-0 hover:bg-lr-surface transition-colors"
+                style={{ gridTemplateColumns: COLS }}
+              >
+                <div className="py-3 px-4 flex items-center gap-2 min-w-0">
+                  <Avatar className="h-7 w-7 shrink-0">
+                    <AvatarImage src={u.avatar_url ?? undefined} />
+                    <AvatarFallback className="bg-lr-accent text-white text-xs">
+                      {getInitials(u.full_name, u.email)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-sm text-lr-text truncate">{u.full_name ?? u.email}</span>
+                </div>
+                <div className="py-3 px-4 flex items-center min-w-0">
+                  <span className="text-sm text-lr-muted truncate">{u.email}</span>
+                </div>
+                <div className="py-3 px-4 flex items-center">
+                  <RoleSelect userId={u.id} currentRole={u.role} />
+                </div>
+                <div className="py-3 px-4 flex flex-col justify-center min-w-0">
+                  {currentManagerName && (
+                    <p className="text-xs text-lr-muted mb-1 truncate">{currentManagerName}</p>
+                  )}
+                  <ManagerSelect
+                    employeeId={u.id}
+                    currentManagerId={u.manager_id}
+                    allUsers={allUsers}
+                  />
+                </div>
+                <div className="py-3 px-4 flex items-center">
+                  <span className="text-xs text-lr-muted">
+                    {format(new Date(u.created_at), 'MMM d, yyyy')}
+                  </span>
+                </div>
+                <div className="py-3 px-4 flex items-center">
+                  <button
+                    type="button"
+                    disabled={isPending || isRemoving}
+                    onClick={() => handleRemove(u.id, u.full_name ?? u.email)}
+                    className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                   >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id} className="py-3">
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                    {isRemoving ? 'Removing…' : 'Remove'}
+                  </button>
+                </div>
+              </div>
+            )
+          })
+        )}
       </div>
     </div>
   )
