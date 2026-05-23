@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import PendingApprovals from '@/components/dashboard/PendingApprovals'
 import PulseCard, { type MonthlyMoodEntry } from '@/components/dashboard/PulseCard'
+import TeamReadiness from '@/components/dashboard/TeamReadiness'
 import type { Profile, SubordinateRow, PerformancePeriod, Checkin, QuarterlyScore, CompanyValue, QuarterlyCheckin, ValueSelfAssessment, ValueAssessment, PulseOption } from '@/lib/types/database'
 
 export const metadata: Metadata = { title: 'Dashboard · LunarTrack' }
@@ -145,6 +146,7 @@ export default async function DashboardPage() {
   let pendingCheckins = 0
   let pendingOkrs = 0
   let teamCheckinDone = 0
+  let checkinStatusMap: Record<string, { employeeSubmitted: boolean; managerSubmitted: boolean }> = {}
 
   if (profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -172,14 +174,24 @@ export default async function DashboardPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: checkinsRaw } = await (supabase as any)
         .from('checkins')
-        .select('employee_submitted_at, manager_submitted_at')
+        .select('employee_id, employee_submitted_at, manager_submitted_at')
         .in('employee_id', reportIds)
         .eq('month', currentMonth)
         .eq('year', currentYear)
 
-      const checkins = (checkinsRaw ?? []) as { employee_submitted_at: string | null; manager_submitted_at: string | null }[]
+      type CheckinRecord = { employee_id: string; employee_submitted_at: string | null; manager_submitted_at: string | null }
+      const checkins = (checkinsRaw ?? []) as CheckinRecord[]
       pendingCheckins = checkins.filter((c) => c.employee_submitted_at && !c.manager_submitted_at).length
       teamCheckinDone = checkins.filter((c) => !!c.manager_submitted_at).length
+
+      checkinStatusMap = {}
+      for (const report of directReports) {
+        const checkin = checkins.find((c) => c.employee_id === report.id)
+        checkinStatusMap[report.id] = {
+          employeeSubmitted: !!checkin?.employee_submitted_at,
+          managerSubmitted: !!checkin?.manager_submitted_at,
+        }
+      }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: okrCountRaw } = await (supabase as any).rpc('get_pending_okr_count', { manager_uuid: profile.id })
@@ -375,6 +387,14 @@ export default async function DashboardPage() {
       {/* Pending team join requests */}
       {(profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') && pendingRequests.length > 0 && (
         <PendingApprovals requests={pendingRequests} />
+      )}
+
+      {/* Per-person check-in status */}
+      {(profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') && directReports.length > 0 && (
+        <TeamReadiness
+          directReports={directReports}
+          checkinStatusMap={checkinStatusMap}
+        />
       )}
 
       {/* Current quarter goals — all roles */}
