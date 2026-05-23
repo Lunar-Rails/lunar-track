@@ -148,3 +148,25 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
   revalidatePath('/dashboard')
   return { success: true }
 }
+
+export async function updateNotificationPrefs(formData: FormData): Promise<ActionResult> {
+  const checkinReminders = formData.get('checkin_reminders') === 'true'
+  const reviewReminders = formData.get('review_reminders') === 'true'
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('profiles')
+    .update({
+      notification_prefs: { checkin_reminders: checkinReminders, review_reminders: reviewReminders },
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', user.id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/settings')
+  return { success: true }
+}
