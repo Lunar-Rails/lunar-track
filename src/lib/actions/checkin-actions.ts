@@ -153,14 +153,14 @@ export async function upsertCheckinEmployee(formData: FormData): Promise<ActionR
       .from('profiles').select('email, full_name').eq('id', caller.manager_id).single()
     if (mgr) {
       const { data: { user } } = await supabase.auth.getUser()
-      void notifyManagerCheckinSubmitted({
+      await notifyManagerCheckinSubmitted({
         managerEmail: mgr.email,
         managerName: mgr.full_name,
         employeeName: caller.full_name ?? (user?.email ?? 'Employee'),
         month: MONTH_NAMES[parsed.data.month - 1],
         year: parsed.data.year,
         checkinId,
-      })
+      }).catch((err) => console.error('[checkin-actions] notification failed:', err))
     }
   }
 

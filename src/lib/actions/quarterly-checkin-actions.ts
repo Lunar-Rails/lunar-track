@@ -167,14 +167,14 @@ export async function upsertQuarterlyCheckinEmployee(formData: FormData): Promis
       .from('profiles').select('email, full_name').eq('id', caller.manager_id).single()
     if (mgr) {
       const { data: { user } } = await supabase.auth.getUser()
-      void notifyManagerCheckinSubmitted({
+      await notifyManagerCheckinSubmitted({
         managerEmail: mgr.email,
         managerName: mgr.full_name,
         employeeName: caller.full_name ?? (user?.email ?? 'Employee'),
         month: period ? `Q${period.quarter}` : 'Quarterly',
         year: period?.year ?? new Date().getFullYear(),
         checkinId,
-      })
+      }).catch((err) => console.error('[quarterly-checkin-actions] notification failed:', err))
     }
   }
 

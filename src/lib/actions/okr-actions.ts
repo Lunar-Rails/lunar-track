@@ -269,14 +269,14 @@ export async function transitionOkrStatus(formData: FormData): Promise<ActionRes
     const { data: emp } = await (supabase as any)
       .from('profiles').select('email, full_name').eq('id', okr.employee_id).single()
     if (emp) {
-      void notifyEmployeeOkrStatusChanged({
+      await notifyEmployeeOkrStatusChanged({
         employeeEmail: emp.email,
         employeeName: emp.full_name,
         okrTitle: okr.title,
         newStatus: parsed.data.toStatus,
         managerName: caller.full_name ?? caller.email,
         comment: parsed.data.comment,
-      })
+      }).catch((err) => console.error('[okr-actions] notification failed:', err))
     }
   }
 
