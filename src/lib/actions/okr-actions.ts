@@ -66,36 +66,36 @@ export async function createOkr(formData: FormData): Promise<ActionResult> {
   if (okrError) return { error: 'Failed to create objective: ' + okrError.message }
   const okrId = (okr as { id: string }).id
 
-  // Create key results + their initiatives
-  for (let krIdx = 0; krIdx < parsed.keyResults.length; krIdx++) {
-    const kr = parsed.keyResults[krIdx]
+  // Batch-insert all key results at once to avoid partial-OKR states
+  if (parsed.keyResults.length > 0) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: krRow, error: krError } = await (supabase as any)
+    const { data: krRows, error: krError } = await (supabase as any)
       .from('key_results')
-      .insert({ okr_id: okrId, title: kr.title, sort_order: krIdx })
+      .insert(parsed.keyResults.map((kr, i) => ({ okr_id: okrId, title: kr.title, sort_order: i })))
       .select('id')
-      .single()
 
     if (krError) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await (supabase as any).from('okrs').delete().eq('id', okrId)
-      return { error: 'Failed to save key result: ' + krError.message }
+      return { error: 'Failed to save key results: ' + krError.message }
     }
-    const krId = (krRow as { id: string }).id
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: initError } = await (supabase as any)
-      .from('initiatives')
-      .insert(kr.initiatives.map((init, i) => ({
-        key_result_id: krId,
+    // Batch-insert all initiatives
+    const allInitiatives = (krRows as { id: string }[]).flatMap((krRow, krIdx) =>
+      parsed.keyResults[krIdx].initiatives.map((init, i) => ({
+        key_result_id: krRow.id,
         title: init.title,
         sort_order: i,
-      })))
-
-    if (initError) {
+      }))
+    )
+    if (allInitiatives.length > 0) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase as any).from('okrs').delete().eq('id', okrId)
-      return { error: 'Failed to save initiatives: ' + initError.message }
+      const { error: initError } = await (supabase as any).from('initiatives').insert(allInitiatives)
+      if (initError) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase as any).from('okrs').delete().eq('id', okrId)
+        return { error: 'Failed to save initiatives: ' + initError.message }
+      }
     }
   }
 
@@ -134,16 +134,15 @@ export async function updateOkr(formData: FormData): Promise<ActionResult> {
 
   // Update objective
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from('okrs').update({
+  const { error: okrUpdateError } = await (supabase as any).from('okrs').update({
     title: parsed.title,
     description: parsed.description ?? null,
     updated_at: new Date().toISOString(),
   }).eq('id', okrId)
+  if (okrUpdateError) return { error: 'Failed to update goal: ' + okrUpdateError.message }
 
-  // Replace all key results (cascade deletes initiatives)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from('key_results').delete().eq('okr_id', okrId)
-
+  // Insert new key results first, then delete old ones — prevents data loss if inserts fail
+  const newKrIds: string[] = []
   for (let krIdx = 0; krIdx < parsed.keyResults.length; krIdx++) {
     const kr = parsed.keyResults[krIdx]
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -155,6 +154,7 @@ export async function updateOkr(formData: FormData): Promise<ActionResult> {
 
     if (krError) return { error: 'Failed to save key result: ' + krError.message }
     const krId = (krRow as { id: string }).id
+    newKrIds.push(krId)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: initError } = await (supabase as any)
@@ -165,6 +165,15 @@ export async function updateOkr(formData: FormData): Promise<ActionResult> {
         sort_order: i,
       })))
     if (initError) return { error: 'Failed to save initiatives: ' + initError.message }
+  }
+
+  // Delete old key results (cascade deletes their initiatives)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const deleteQuery = (supabase as any).from('key_results').delete().eq('okr_id', okrId)
+  if (newKrIds.length > 0) {
+    await deleteQuery.not('id', 'in', `(${newKrIds.join(',')})`)
+  } else {
+    await deleteQuery
   }
 
   revalidatePath(`/okrs/${okrId}`)
@@ -181,9 +190,12 @@ export async function deleteOkr(formData: FormData): Promise<ActionResult> {
   if (!okrId) return { error: 'Missing OKR id' }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: okrRaw } = await (supabase as any).from('okrs').select('employee_id').eq('id', okrId).single()
-  const okr = okrRaw as { employee_id: string } | null
+  const { data: okrRaw } = await (supabase as any).from('okrs').select('employee_id, status').eq('id', okrId).single()
+  const okr = okrRaw as { employee_id: string; status: OkrStatus } | null
   if (!okr || okr.employee_id !== caller.id) return { error: 'OKR not found' }
+  if (okr.status === 'APPROVED' || okr.status === 'PENDING_REVIEW') {
+    return { error: 'Cannot delete an OKR that is pending review or approved' }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: deleteError } = await (supabase as any).from('okrs').update({ deleted_at: new Date().toISOString() }).eq('id', okrId)

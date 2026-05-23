@@ -36,6 +36,17 @@ export async function updateUserRole(formData: FormData): Promise<ActionResult> 
     return { error: 'Cannot change your own role away from HR_ADMIN' }
   }
 
+  // Prevent demoting the last HR_ADMIN
+  if (parsed.data.newRole !== 'HR_ADMIN') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { count } = await (supabase as any)
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('role', 'HR_ADMIN')
+      .neq('id', parsed.data.userId)
+    if (count === 0) return { error: 'Cannot demote the last HR Admin. Promote another user first.' }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: updateError } = await (supabase as any)
     .from('profiles')

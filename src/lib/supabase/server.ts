@@ -73,6 +73,14 @@ export async function getOrProvisionProfile(
       console.error('[supabase/server] profile fallback insert error:', insertError.message)
       return null
     }
+
+    // Also insert the self-closure row so the user appears in hierarchy queries
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from('org_closure').insert({
+      ancestor_id: user.id,
+      descendant_id: user.id,
+      depth: 0,
+    }).onConflict('ancestor_id,descendant_id').ignoreDuplicates()
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

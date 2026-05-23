@@ -114,9 +114,13 @@ export async function upsertCheckinEmployee(formData: FormData): Promise<ActionR
 
   let checkinId: string
   if (existing) {
+    // Use conditional update to guard against double-submit race condition
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: updateError } = await (supabase as any).from('checkins').update(payload).eq('id', existing.id)
+    let query = (supabase as any).from('checkins').update(payload).eq('id', existing.id)
+    if (isSubmit) query = query.is('employee_submitted_at', null)
+    const { error: updateError, count } = await query.select('id')
     if (updateError) return { error: 'Failed to save check-in: ' + updateError.message }
+    if (isSubmit && count === 0) return { error: 'Check-in already submitted. Editing is not allowed.' }
     checkinId = existing.id
   } else {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

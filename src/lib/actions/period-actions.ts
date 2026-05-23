@@ -18,6 +18,14 @@ const QUARTERS = [
 export async function ensureCurrentPeriod(): Promise<void> {
   const supabase = await createClient()
 
+  // Only run writes for managers and admins — employees have no need to seed periods
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: profileRaw } = await (supabase as any).from('profiles').select('role').eq('id', user.id).single()
+  const role = (profileRaw as { role: string } | null)?.role
+  if (role !== 'MANAGER' && role !== 'HR_ADMIN') return
+
   const now = new Date()
   const year = now.getFullYear()
   const currentQuarter = Math.ceil((now.getMonth() + 1) / 3)
