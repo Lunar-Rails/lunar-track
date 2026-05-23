@@ -11,6 +11,10 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY
 const FROM_ADDRESS = process.env.RESEND_FROM ?? 'CiaoBob <noreply@lunartrack.internal>'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
+function esc(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;')
+}
+
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
   if (!RESEND_API_KEY) {
     // No-op in dev without API key — log intent so devs can see it
@@ -140,19 +144,19 @@ export async function notifyEmployeeOkrStatusChanged(opts: {
     REVISION_REQUESTED: '🔄 Revision requested',
   }
 
-  const subject = `OKR ${statusLabel[newStatus] ?? newStatus}: "${okrTitle}"`
+  const subject = `OKR ${statusLabel[newStatus] ?? newStatus}: "${esc(okrTitle)}"`
 
   await sendEmail(
     employeeEmail,
     subject,
     baseTemplate(`
       <p>${greeting}</p>
-      <p><strong>${managerName}</strong> has updated the status of your OKR:</p>
+      <p><strong>${esc(managerName ?? '')}</strong> has updated the status of your OKR:</p>
       <blockquote style="border-left:3px solid #7c5cfc;margin:16px 0;padding:8px 16px;color:#e1e1e8;background:#12122a;border-radius:0 6px 6px 0;">
-        ${okrTitle}
+        ${esc(okrTitle)}
       </blockquote>
       <p><strong>New status:</strong> ${statusLabel[newStatus] ?? newStatus}</p>
-      ${comment ? `<p><strong>Manager note:</strong> ${comment}</p>` : ''}
+      ${comment ? `<p><strong>Manager note:</strong> ${esc(comment)}</p>` : ''}
       <a href="${APP_URL}/okrs" class="cta">View my OKRs →</a>
     `),
   )
@@ -167,14 +171,14 @@ export async function notifyEmployeeOnboardingApproved(opts: {
   managerName: string
 }): Promise<void> {
   const { employeeEmail, employeeName, managerName } = opts
-  const greeting = employeeName ? `Hi ${employeeName.split(' ')[0]},` : 'Hi,'
+  const greeting = employeeName ? `Hi ${esc(employeeName.split(' ')[0])},` : 'Hi,'
 
   await sendEmail(
     employeeEmail,
     'You\'ve been added to a team on CiaoBob',
     baseTemplate(`
       <p>${greeting}</p>
-      <p>You've been approved and assigned to <strong>${managerName}</strong>'s team on CiaoBob.</p>
+      <p>You've been approved and assigned to <strong>${esc(managerName)}</strong>'s team on CiaoBob.</p>
       <p>You can now access check-ins, OKRs, and your performance results.</p>
       <a href="${APP_URL}/dashboard" class="cta">Go to dashboard →</a>
     `),

@@ -51,7 +51,7 @@ export async function proxy(request: NextRequest) {
   return supabaseResponse
 }
 
-export const config = {
+export const proxyConfig = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],

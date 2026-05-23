@@ -19,7 +19,12 @@ interface Profile {
   full_name: string | null
 }
 
-export default async function handler(): Promise<Response> {
+export default async function handler(request: Request): Promise<Response> {
+  const reminderSecret = process.env.REMINDER_SECRET
+  if (reminderSecret && request.headers.get('x-reminder-secret') !== reminderSecret) {
+    return new Response('Forbidden', { status: 403 })
+  }
+
   const today = getEffectiveDate(process.env.REMINDER_DATE_OVERRIDE)
 
   if (!isReminderDay(today)) {
@@ -54,10 +59,11 @@ export default async function handler(): Promise<Response> {
 
   const supabase = createClient(supabaseUrl, serviceRoleKey)
 
-  // Fetch all employee profiles
+  // Fetch only EMPLOYEE profiles — managers and HR admins don't submit check-ins
   const { data: profiles, error: profilesError } = await supabase
     .from('profiles')
     .select('id, email, full_name')
+    .eq('role', 'EMPLOYEE')
 
   if (profilesError) {
     console.error('[slack-reminders] Failed to fetch profiles:', profilesError.message)
