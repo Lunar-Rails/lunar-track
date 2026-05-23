@@ -27,7 +27,6 @@ export default async function SettingsPage() {
     <div className="space-y-6 max-w-lg">
       <div>
         <h1 className="text-page-title">Settings</h1>
-        <p className="text-body text-lr-muted mt-1">Update your profile information</p>
       </div>
       <ProfileSettingsForm profile={profile} />
     </div>
