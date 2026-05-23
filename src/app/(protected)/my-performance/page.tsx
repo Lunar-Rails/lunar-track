@@ -1,16 +1,12 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { PerformancePeriod, QuarterlyScore } from '@/lib/types/database'
+import { SCORE_LABELS } from '@/lib/constants/scores'
+
+export const metadata: Metadata = { title: 'My Performance · LunarTrack' }
 
 export const dynamic = 'force-dynamic'
-
-const SCORE_LABELS: Record<number, string> = {
-  1: 'Significantly below expectations',
-  2: 'Below expectations',
-  3: 'Meets expectations',
-  4: 'Exceeds expectations',
-  5: 'Outstanding',
-}
 
 type ScoreWithPeriod = QuarterlyScore & {
   period: Pick<PerformancePeriod, 'id' | 'name' | 'quarter' | 'year'>

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ScoreDistributionChart from '@/components/analytics/ScoreDistributionChart'
@@ -5,6 +6,8 @@ import PerformerCurveChart from '@/components/analytics/PerformerCurveChart'
 import ValueUsageChart from '@/components/analytics/ValueUsageChart'
 import MoodTrendOrgChart, { ENERGY_LABEL, PROD_LABEL } from '@/components/analytics/MoodTrendOrgChart'
 import type {
+
+export const metadata: Metadata = { title: 'Analytics · LunarTrack' }
   Profile, CompanyValue, QuarterlyScore, QuarterlyCheckin,
   ValueAssessment, ValueSelfAssessment, PerformancePeriod,
 } from '@/lib/types/database'
@@ -260,7 +263,7 @@ export default async function AnalyticsPage() {
                 {scoredEmployees.map((e, i) => {
                   const s = e.raw!
                   const overall = e.score!
-                  const color = overall >= 4 ? 'text-lr-accent' : overall >= 3 ? 'text-lr-cyan' : overall >= 2 ? 'text-lr-gold' : 'text-red-400'
+                  const color = overall >= 4 ? 'text-lr-accent' : overall >= 3 ? 'text-lr-cyan' : overall >= 2 ? 'text-lr-gold' : 'text-lr-error'
                   return (
                     <tr key={e.id} className="border-b border-lr-border/20 hover:bg-lr-surface/30 transition-colors">
                       <td className="py-2.5 pr-3 text-lr-muted/50 text-xs">{i + 1}</td>
@@ -315,8 +318,8 @@ export default async function AnalyticsPage() {
           <p className="text-card-title mb-4">Goal Achievement</p>
           <div className="flex items-center gap-6 flex-wrap">
             {[
-              { label: 'Achieved', count: goalsAchieved, color: 'bg-green-500', text: 'text-green-400' },
-              { label: 'Not achieved', count: goalsNotAchieved, color: 'bg-red-500', text: 'text-red-400' },
+              { label: 'Achieved', count: goalsAchieved, color: 'bg-lr-success', text: 'text-lr-success' },
+              { label: 'Not achieved', count: goalsNotAchieved, color: 'bg-lr-error', text: 'text-lr-error' },
               { label: 'In progress', count: goalsInProgress, color: 'bg-lr-accent/60', text: 'text-lr-accent' },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-3">
@@ -329,8 +332,8 @@ export default async function AnalyticsPage() {
             ))}
             {/* Bar */}
             <div className="flex-1 min-w-48 h-3 rounded-full overflow-hidden flex">
-              <div className="bg-green-500 transition-all" style={{ width: pct(goalsAchieved, totalGoals) }} />
-              <div className="bg-red-500 transition-all" style={{ width: pct(goalsNotAchieved, totalGoals) }} />
+              <div className="bg-lr-success transition-all" style={{ width: pct(goalsAchieved, totalGoals) }} />
+              <div className="bg-lr-error transition-all" style={{ width: pct(goalsNotAchieved, totalGoals) }} />
               <div className="bg-lr-accent/60 transition-all" style={{ width: pct(goalsInProgress, totalGoals) }} />
             </div>
           </div>

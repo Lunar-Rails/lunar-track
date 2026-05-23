@@ -1,8 +1,11 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import type { Profile, SubordinateRow, PerformancePeriod } from '@/lib/types/database'
+
+export const metadata: Metadata = { title: 'Inbox · LunarTrack' }
 
 export const dynamic = 'force-dynamic'
 

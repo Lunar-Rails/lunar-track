@@ -115,8 +115,13 @@ export async function upsertQuarterlyCheckinEmployee(formData: FormData): Promis
 
   let checkinId: string
   if (existing) {
+    // Use conditional update to guard against double-submit race condition
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from('quarterly_checkins').update(payload).eq('id', existing.id)
+    let query = (supabase as any).from('quarterly_checkins').update(payload).eq('id', existing.id)
+    if (isSubmit) query = query.is('employee_submitted_at', null)
+    const { error: updateError, count } = await query.select('id')
+    if (updateError) return { error: 'Failed to save quarterly check-in: ' + updateError.message }
+    if (isSubmit && count === 0) return { error: 'Quarterly check-in already submitted. Editing is not allowed.' }
     checkinId = existing.id
   } else {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -162,14 +167,14 @@ export async function upsertQuarterlyCheckinEmployee(formData: FormData): Promis
       .from('profiles').select('email, full_name').eq('id', caller.manager_id).single()
     if (mgr) {
       const { data: { user } } = await supabase.auth.getUser()
-      void notifyManagerCheckinSubmitted({
+      await notifyManagerCheckinSubmitted({
         managerEmail: mgr.email,
         managerName: mgr.full_name,
         employeeName: caller.full_name ?? (user?.email ?? 'Employee'),
         month: period ? `Q${period.quarter}` : 'Quarterly',
         year: period?.year ?? new Date().getFullYear(),
         checkinId,
-      })
+      }).catch((err) => console.error('[quarterly-checkin-actions] notification failed:', err))
     }
   }
 
@@ -239,7 +244,16 @@ export async function deleteQuarterlyCheckin(formData: FormData): Promise<Action
   const checkinId = formData.get('checkinId')?.toString()
   if (!checkinId) return { error: 'Missing checkin ID' }
 
-  // Only allow deleting own check-ins
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existing } = await (supabase as any)
+    .from('quarterly_checkins')
+    .select('employee_id, employee_submitted_at')
+    .eq('id', checkinId)
+    .maybeSingle()
+
+  if (!existing || existing.employee_id !== caller.id) return { error: 'Check-in not found' }
+  if (existing.employee_submitted_at) return { error: 'Cannot delete a submitted check-in' }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
     .from('quarterly_checkins')
@@ -297,16 +311,19 @@ async function syncNextQuarterGoalsToOkrs(
       .eq('employee_id', employeeId)
   }
 
-  // Upsert each goal as an OKR using the goal's id as the OKR id
+  // Upsert each goal as an OKR using the goal's id as the OKR id.
+  // Only reset deleted_at for new goals (no conflict) — do not un-delete
+  // an OKR that was explicitly soft-deleted.
   for (const goal of nextQuarterGoals) {
     if (!goal.title.trim()) continue
+    const isNew = !existingIds.has(goal.id)
     await supabase.from('okrs').upsert({
       id: goal.id,
       employee_id: employeeId,
       period_id: nextPeriod.id,
       title: goal.title.trim(),
       description: goal.description ?? '',
-      deleted_at: null,
+      ...(isNew ? { deleted_at: null } : {}),
       updated_at: new Date().toISOString(),
     }, { onConflict: 'id' })
   }

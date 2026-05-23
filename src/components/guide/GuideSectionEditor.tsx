@@ -75,7 +75,7 @@ export default function GuideSectionEditor({ section }: GuideSectionEditorProps)
       </div>
 
       {error && (
-        <p className="text-xs text-red-400">{error}</p>
+        <p className="text-xs text-lr-error">{error}</p>
       )}
 
       <div className="flex gap-2">

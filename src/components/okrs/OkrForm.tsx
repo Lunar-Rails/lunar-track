@@ -61,9 +61,9 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="What do you want to achieve this quarter?"
-            className="bg-white border-lr-border text-lr-text placeholder:text-lr-muted font-medium"
+            className="bg-lr-surface border-lr-border text-lr-text placeholder:text-lr-muted font-medium"
           />
-          {titleError && <p className="text-xs text-red-500">{titleError}</p>}
+          {titleError && <p className="text-xs text-lr-error">{titleError}</p>}
         </div>
         <div className="space-y-1.5">
           <label className="text-section-label">Description <span className="text-lr-muted">(optional)</span></label>
@@ -72,14 +72,14 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
             onChange={e => setDescription(e.target.value)}
             placeholder="Brief description or success criteria..."
             rows={3}
-            className="bg-white border-lr-border text-lr-text placeholder:text-lr-muted resize-none"
+            className="bg-lr-surface border-lr-border text-lr-text placeholder:text-lr-muted resize-none"
           />
         </div>
       </div>
 
       {serverError && (
-        <div className="rounded-[var(--radius-lr)] bg-red-50 border border-red-200 px-4 py-3">
-          <p className="text-sm text-red-600">{serverError}</p>
+        <div className="rounded-[var(--radius-lr)] bg-lr-error-dim border border-lr-error/20 px-4 py-3">
+          <p className="text-sm text-lr-error">{serverError}</p>
         </div>
       )}
 

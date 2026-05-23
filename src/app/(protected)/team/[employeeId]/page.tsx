@@ -32,8 +32,8 @@ type PipStatus = 'done' | 'late' | 'pending' | 'future'
 
 function Pip({ label, status }: { label: string; status: PipStatus }) {
   const cls =
-    status === 'done' ? 'bg-green-500/15 text-green-400 border-green-500/25' :
-    status === 'late' ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+    status === 'done' ? 'bg-lr-success/15 text-lr-success border-lr-success/25' :
+    status === 'late' ? 'bg-lr-error/10 text-lr-error border-lr-error/20' :
     status === 'future' ? 'bg-lr-surface/40 text-lr-muted/40 border-lr-border/30' :
     'bg-lr-surface text-lr-muted border-lr-border'
   return (
@@ -367,7 +367,7 @@ export default async function TeamMemberPage({
                           <p className="text-xs font-medium text-lr-text flex-1 min-w-0">{okr.title}</p>
                           <div className="flex items-center gap-2.5 shrink-0">
                             {qGoal?.status && (
-                              <span className={`text-[10px] font-medium ${qGoal.status === 'achieved' ? 'text-green-400' : 'text-red-400'}`}>
+                              <span className={`text-[10px] font-medium ${qGoal.status === 'achieved' ? 'text-lr-success' : 'text-lr-error'}`}>
                                 {qGoal.status === 'achieved' ? 'Achieved' : 'Not achieved'}
                               </span>
                             )}
@@ -386,7 +386,7 @@ export default async function TeamMemberPage({
                             {linked.map(({ month, mit }, i) => (
                               <div key={i} className="flex items-start gap-2">
                                 <span className={`mt-[3px] h-1.5 w-1.5 rounded-full shrink-0 ${
-                                  mit.status === 'achieved' ? 'bg-green-400' : 'bg-red-400/70'
+                                  mit.status === 'achieved' ? 'bg-lr-success' : 'bg-lr-error/70'
                                 }`} />
                                 <p className="text-xs text-lr-text leading-snug flex-1">{mit.title}</p>
                                 <span className="text-[10px] text-lr-muted shrink-0">{MONTH_NAMES[month - 1]}</span>
@@ -413,7 +413,7 @@ export default async function TeamMemberPage({
                         {unlinkedMits.map(({ month, mit }, i) => (
                           <div key={i} className="flex items-start gap-2">
                             <span className={`mt-[3px] h-1.5 w-1.5 rounded-full shrink-0 ${
-                              mit.status === 'achieved' ? 'bg-green-400' : 'bg-red-400/70'
+                              mit.status === 'achieved' ? 'bg-lr-success' : 'bg-lr-error/70'
                             }`} />
                             <p className="text-xs text-lr-text leading-snug flex-1">{mit.title}</p>
                             <span className="text-[10px] text-lr-muted shrink-0">{MONTH_NAMES[month - 1]}</span>

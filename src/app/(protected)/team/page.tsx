@@ -1,9 +1,12 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import type { Profile, SubordinateRow } from '@/lib/types/database'
+
+export const metadata: Metadata = { title: 'My Team · LunarTrack' }
 
 export const dynamic = 'force-dynamic'
 
@@ -25,9 +28,9 @@ type PipStatus = 'done' | 'late' | 'pending' | 'future'
 function Pip({ label, status }: { label: string; status: PipStatus }) {
   const cls =
     status === 'done'
-      ? 'bg-green-500/15 text-green-400 border-green-500/25'
+      ? 'bg-lr-success/15 text-lr-success border-lr-success/25'
       : status === 'late'
-      ? 'bg-red-500/10 text-red-400 border-red-500/20'
+      ? 'bg-lr-error/10 text-lr-error border-lr-error/20'
       : status === 'future'
       ? 'bg-lr-surface/40 text-lr-muted/40 border-lr-border/30'
       : 'bg-lr-surface text-lr-muted border-lr-border'

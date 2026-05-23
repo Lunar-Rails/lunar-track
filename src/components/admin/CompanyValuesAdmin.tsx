@@ -88,7 +88,7 @@ export default function CompanyValuesAdmin({ initialValues }: CompanyValuesAdmin
   return (
     <div className="space-y-4">
       {error && (
-        <div className="rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400">
+        <div className="rounded-[var(--radius-lr)] border border-lr-error/20 bg-lr-error-dim px-4 py-2 text-sm text-lr-error">
           {error}
         </div>
       )}
@@ -174,7 +174,7 @@ export default function CompanyValuesAdmin({ initialValues }: CompanyValuesAdmin
                     type="button"
                     onClick={() => remove(v.id, v.name)}
                     disabled={isPending || deletingId === v.id || !!editing}
-                    className="p-1.5 rounded text-lr-muted hover:text-red-400 transition-colors disabled:opacity-40"
+                    className="p-1.5 rounded text-lr-muted hover:text-lr-error transition-colors disabled:opacity-40"
                     aria-label="Delete"
                   >
                     <Trash2 className="h-3.5 w-3.5" />

@@ -36,9 +36,9 @@ export default function GoalAchievementList({ value, onChange, disabled = false 
             className="flex items-center gap-1.5 text-xs font-medium flex-shrink-0 transition-colors disabled:opacity-50"
           >
             {goal.status === 'achieved' ? (
-              <><CheckCircle2 className="h-4 w-4 text-green-400" /><span className="text-green-400">Achieved</span></>
+              <><CheckCircle2 className="h-4 w-4 text-lr-success" /><span className="text-lr-success">Achieved</span></>
             ) : (
-              <><XCircle className="h-4 w-4 text-red-400" /><span className="text-red-400">Not achieved</span></>
+              <><XCircle className="h-4 w-4 text-lr-error" /><span className="text-lr-error">Not achieved</span></>
             )}
           </button>
         </div>

@@ -5,6 +5,13 @@ import { submitOnboarding } from '@/lib/actions/onboarding-actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface Manager {
   id: string
@@ -16,6 +23,7 @@ export default function OnboardingForm({ managers }: { managers: Manager[] }) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
+  const [managerId, setManagerId] = useState('')
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -58,27 +66,25 @@ export default function OnboardingForm({ managers }: { managers: Manager[] }) {
 
       <div className="space-y-2">
         <Label htmlFor="managerId" className="text-caption">Your manager</Label>
-        <select
-          id="managerId"
-          name="managerId"
-          required
-          disabled={isPending}
-          defaultValue=""
-          className="w-full h-10 rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface px-3 text-sm text-lr-text focus:outline-none focus:ring-2 focus:ring-lr-accent/50 disabled:opacity-50"
-        >
-          <option value="" disabled>Select your manager…</option>
-          {managers.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.full_name ?? m.email}
-            </option>
-          ))}
-        </select>
+        <input type="hidden" name="managerId" value={managerId} />
+        <Select value={managerId} onValueChange={setManagerId} disabled={isPending} required>
+          <SelectTrigger id="managerId" className="h-10 bg-lr-surface border-lr-border text-lr-text">
+            <SelectValue placeholder="Select your manager…" />
+          </SelectTrigger>
+          <SelectContent className="bg-lr-surface border-lr-border">
+            {managers.map((m) => (
+              <SelectItem key={m.id} value={m.id}>
+                {m.full_name ?? m.email}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <p className="text-xs text-lr-muted">
           Your manager will receive a notification and approve your access.
         </p>
       </div>
 
-      {error && <p className="text-xs text-red-400">{error}</p>}
+      {error && <p className="text-xs text-lr-error">{error}</p>}
 
       <Button
         type="submit"

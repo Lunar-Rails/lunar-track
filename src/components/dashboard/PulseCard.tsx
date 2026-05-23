@@ -21,14 +21,14 @@ interface PulseCardProps {
 
 // Default fallback Tailwind classes (used when no DB options available)
 const ENERGY_CELL_DEFAULT: Record<MoodEnergy, string> = {
-  terrible: 'bg-red-400/60',
-  meh:      'bg-amber-400/60',
+  terrible: 'bg-lr-error/60',
+  meh:      'bg-lr-warning/60',
   okay:     'bg-lr-cyan/60',
   great:    'bg-lr-accent',
 }
 
 const PRODUCTIVITY_CELL_DEFAULT: Record<MoodProductivity, string> = {
-  waste:     'bg-red-400/50',
+  waste:     'bg-lr-error/50',
   fine:      'bg-lr-cyan/55',
   ludicrous: 'bg-lr-accent',
 }

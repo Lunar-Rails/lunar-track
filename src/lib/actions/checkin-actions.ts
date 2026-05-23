@@ -114,8 +114,13 @@ export async function upsertCheckinEmployee(formData: FormData): Promise<ActionR
 
   let checkinId: string
   if (existing) {
+    // Use conditional update to guard against double-submit race condition
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from('checkins').update(payload).eq('id', existing.id)
+    let query = (supabase as any).from('checkins').update(payload).eq('id', existing.id)
+    if (isSubmit) query = query.is('employee_submitted_at', null)
+    const { error: updateError, count } = await query.select('id')
+    if (updateError) return { error: 'Failed to save check-in: ' + updateError.message }
+    if (isSubmit && count === 0) return { error: 'Check-in already submitted. Editing is not allowed.' }
     checkinId = existing.id
   } else {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -148,14 +153,14 @@ export async function upsertCheckinEmployee(formData: FormData): Promise<ActionR
       .from('profiles').select('email, full_name').eq('id', caller.manager_id).single()
     if (mgr) {
       const { data: { user } } = await supabase.auth.getUser()
-      void notifyManagerCheckinSubmitted({
+      await notifyManagerCheckinSubmitted({
         managerEmail: mgr.email,
         managerName: mgr.full_name,
         employeeName: caller.full_name ?? (user?.email ?? 'Employee'),
         month: MONTH_NAMES[parsed.data.month - 1],
         year: parsed.data.year,
         checkinId,
-      })
+      }).catch((err) => console.error('[checkin-actions] notification failed:', err))
     }
   }
 

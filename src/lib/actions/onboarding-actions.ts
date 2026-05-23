@@ -45,6 +45,12 @@ export async function approveTeamRequest(employeeId: string): Promise<ActionResu
   if (authError || !user) return { error: 'Not authenticated' }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: callerRaw } = await (supabase as any).from('profiles').select('role').eq('id', user.id).single()
+  if (!callerRaw || (callerRaw.role !== 'MANAGER' && callerRaw.role !== 'HR_ADMIN')) {
+    return { error: 'Unauthorized: Manager or HR Admin access required' }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any).rpc('approve_team_request', {
     employee_uuid: employeeId,
   })
@@ -60,6 +66,12 @@ export async function declineTeamRequest(employeeId: string): Promise<ActionResu
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Not authenticated' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: callerRaw } = await (supabase as any).from('profiles').select('role').eq('id', user.id).single()
+  if (!callerRaw || (callerRaw.role !== 'MANAGER' && callerRaw.role !== 'HR_ADMIN')) {
+    return { error: 'Unauthorized: Manager or HR Admin access required' }
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any).rpc('decline_team_request', {

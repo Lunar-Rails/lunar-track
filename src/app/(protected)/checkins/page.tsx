@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
@@ -5,6 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 import type { Checkin, PerformancePeriod } from '@/lib/types/database'
+
+export const metadata: Metadata = { title: 'Monthly Check-ins · LunarTrack' }
 
 export const dynamic = 'force-dynamic'
 
