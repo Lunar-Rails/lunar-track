@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Inbox, Menu } from 'lucide-react'
+import { Inbox, Menu, UserCircle } from 'lucide-react'
 import MobileNav from '@/components/layout/MobileNav'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -81,6 +81,13 @@ export default function Header({ profile, inboxCount = 0 }: HeaderProps) {
             </DropdownMenuItem>
             <DropdownMenuItem disabled className="opacity-60 cursor-default">
               <span className="text-xs text-lr-muted">{profile.role}</span>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-lr-border" />
+            <DropdownMenuItem asChild>
+              <Link href="/settings" className="flex items-center gap-2 cursor-pointer text-sm">
+                <UserCircle className="h-4 w-4" />
+                Settings
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-lr-border" />
             <SignOutButton />
