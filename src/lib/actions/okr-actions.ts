@@ -186,7 +186,8 @@ export async function deleteOkr(formData: FormData): Promise<ActionResult> {
   if (!okr || okr.employee_id !== caller.id) return { error: 'OKR not found' }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from('okrs').update({ deleted_at: new Date().toISOString() }).eq('id', okrId)
+  const { error: deleteError } = await (supabase as any).from('okrs').update({ deleted_at: new Date().toISOString() }).eq('id', okrId)
+  if (deleteError) return { error: 'Failed to delete OKR: ' + deleteError.message }
 
   revalidatePath('/okrs')
   revalidatePath('/dashboard')
@@ -236,11 +237,12 @@ export async function transitionOkrStatus(formData: FormData): Promise<ActionRes
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any).from('okrs').update({
+  const { error: transitionError } = await (supabase as any).from('okrs').update({
     status: parsed.data.toStatus,
     manager_comment: parsed.data.comment ?? null,
     updated_at: new Date().toISOString(),
   }).eq('id', parsed.data.okrId)
+  if (transitionError) return { error: 'Failed to update OKR status: ' + transitionError.message }
 
   revalidatePath(`/okrs/${parsed.data.okrId}`)
   revalidatePath('/okrs')

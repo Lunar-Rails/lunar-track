@@ -116,7 +116,8 @@ export async function upsertQuarterlyCheckinEmployee(formData: FormData): Promis
   let checkinId: string
   if (existing) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from('quarterly_checkins').update(payload).eq('id', existing.id)
+    const { error: updateError } = await (supabase as any).from('quarterly_checkins').update(payload).eq('id', existing.id)
+    if (updateError) return { error: 'Failed to save quarterly check-in: ' + updateError.message }
     checkinId = existing.id
   } else {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

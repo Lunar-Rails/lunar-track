@@ -115,7 +115,8 @@ export async function upsertCheckinEmployee(formData: FormData): Promise<ActionR
   let checkinId: string
   if (existing) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from('checkins').update(payload).eq('id', existing.id)
+    const { error: updateError } = await (supabase as any).from('checkins').update(payload).eq('id', existing.id)
+    if (updateError) return { error: 'Failed to save check-in: ' + updateError.message }
     checkinId = existing.id
   } else {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

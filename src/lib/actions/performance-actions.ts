@@ -128,7 +128,8 @@ export async function upsertQuarterlyScore(formData: FormData): Promise<ActionRe
   let scoreId: string
   if (existing) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from('quarterly_scores').update(payload).eq('id', existing.id)
+    const { error: updateError } = await (supabase as any).from('quarterly_scores').update(payload).eq('id', existing.id)
+    if (updateError) return { error: 'Failed to save score: ' + updateError.message }
     scoreId = existing.id
   } else {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -262,7 +263,8 @@ export async function finalizeAnnualScore(formData: FormData): Promise<ActionRes
 
   if (existing) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await (supabase as any).from('annual_scores').update(payload).eq('id', existing.id)
+    const { error: updateError } = await (supabase as any).from('annual_scores').update(payload).eq('id', existing.id)
+    if (updateError) return { error: 'Failed to save annual score: ' + updateError.message }
   } else {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any).from('annual_scores').insert(payload)
