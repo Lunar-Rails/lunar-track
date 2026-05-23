@@ -49,7 +49,7 @@ export default function Sidebar({ role }: SidebarProps) {
   ] : []
 
   return (
-    <aside className="fixed left-0 top-14 bottom-0 w-56 border-r border-lr-border bg-lr-bg/50 backdrop-blur-[8px] p-4 overflow-y-auto">
+    <aside className="hidden md:flex fixed left-0 top-14 bottom-0 w-56 flex-col border-r border-lr-border bg-lr-bg/50 backdrop-blur-[8px] p-4 overflow-y-auto">
       <nav className="space-y-1">
         {mainNav.map((item) => (
           <NavLink key={item.href} item={item} pathname={pathname} />

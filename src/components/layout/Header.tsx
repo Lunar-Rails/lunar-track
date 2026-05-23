@@ -1,6 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Inbox } from 'lucide-react'
+import { Inbox, Menu } from 'lucide-react'
+import MobileNav from '@/components/layout/MobileNav'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -36,11 +37,12 @@ export default function Header({ profile, inboxCount = 0 }: HeaderProps) {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 h-14 border-b border-lr-border bg-lr-bg/80 backdrop-blur-[24px]">
       <div className="flex h-full items-center justify-between px-4">
-        {/* Left: Logo */}
+        {/* Left: Hamburger (mobile) + Logo */}
         <div className="flex items-center gap-2">
-          <Image src="/icon-circle.svg" alt="CiaoBob" width={28} height={28} />
+          <MobileNav role={profile.role} />
+          <Image src="/icon-circle.svg" alt="LunarTrack" width={28} height={28} />
           <span className="font-display font-bold text-lg text-lr-text tracking-tight">
-            CiaoBob
+            LunarTrack
           </span>
         </div>
 
@@ -51,7 +53,7 @@ export default function Header({ profile, inboxCount = 0 }: HeaderProps) {
           <Link
             href="/inbox"
             className="relative flex items-center justify-center h-8 w-8 rounded-[var(--radius-lr)] text-lr-muted hover:text-lr-text hover:bg-lr-surface transition-colors"
-            title={inboxCount > 0 ? `Inbox · ${inboxCount} pending` : 'Inbox'}
+            aria-label={inboxCount > 0 ? `Inbox · ${inboxCount} pending` : 'Inbox'}
           >
             <Inbox className="h-4 w-4" />
             {inboxCount > 0 && (

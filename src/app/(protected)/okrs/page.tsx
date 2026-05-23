@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
@@ -5,6 +6,8 @@ import { format } from 'date-fns'
 import AddEntryButton from '@/components/okrs/AddEntryButton'
 import DeleteGoalButton from '@/components/okrs/DeleteGoalButton'
 import type { Okr, PerformancePeriod } from '@/lib/types/database'
+
+export const metadata: Metadata = { title: 'Goals (OKRs) · LunarTrack' }
 
 export const dynamic = 'force-dynamic'
 
