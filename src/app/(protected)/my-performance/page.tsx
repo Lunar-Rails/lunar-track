@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import type { PerformancePeriod, QuarterlyScore } from '@/lib/types/database'
+import type { AnnualScore, PerformancePeriod, QuarterlyScore } from '@/lib/types/database'
 import { SCORE_LABELS } from '@/lib/constants/scores'
 
 export const metadata: Metadata = { title: 'My Performance · LunarTrack' }
@@ -29,6 +29,16 @@ export default async function MyPerformancePage() {
     .order('quarter', { ascending: false, referencedTable: 'performance_periods' })
 
   const scores = (scoresRaw ?? []) as ScoreWithPeriod[]
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: annualScoresRaw } = await (supabase as any)
+    .from('annual_scores')
+    .select('*')
+    .eq('employee_id', user.id)
+    .not('finalized_at', 'is', null)
+    .order('year', { ascending: false })
+
+  const annualScores = (annualScoresRaw ?? []) as AnnualScore[]
 
   return (
     <div className="space-y-6">
@@ -78,6 +88,36 @@ export default async function MyPerformancePage() {
                   notes={score.behaviours_values_notes}
                 />
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {annualScores.length > 0 && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-lr-text">Annual Summary</h2>
+            <p className="text-sm text-lr-muted mt-0.5">Year-end scores shared by your manager</p>
+          </div>
+          {annualScores.map((score) => (
+            <div key={score.id} className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 space-y-4">
+              <h3 className="text-sm font-semibold text-lr-text">{score.year} Annual Score</h3>
+              <div className="space-y-3">
+                <ScoreRow label="Professional Mastery" value={score.final_professional_mastery} notes={null} />
+                <ScoreRow label="Goals" value={score.final_okrs_stretch_goals} notes={null} />
+                <ScoreRow label="Behaviours & Values" value={score.final_behaviours_values} notes={null} />
+                {score.final_overall !== null && (
+                  <div className="pt-2 border-t border-lr-border">
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl font-bold text-lr-gold leading-none">{score.final_overall}</span>
+                      <p className="text-sm font-medium text-lr-text">Overall</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+              {score.override_rationale && (
+                <p className="text-xs text-lr-muted pl-0">{score.override_rationale}</p>
+              )}
             </div>
           ))}
         </div>
