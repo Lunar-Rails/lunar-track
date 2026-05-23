@@ -13,7 +13,6 @@ import {
   CalendarCheck,
   BarChart2,
   Settings2,
-  UserCircle,
   Menu,
 } from 'lucide-react'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
@@ -43,7 +42,6 @@ export default function MobileNav({ role }: MobileNavProps) {
     { href: '/quarterly-checkins', label: 'Quarterly Reviews', icon: CalendarCheck },
     { href: '/org', label: 'Org Chart', icon: Network },
     { href: '/guide', label: 'Framework Guide', icon: BookOpen },
-    { href: '/settings', label: 'Settings', icon: UserCircle },
   ]
 
   const teamNav: NavItem[] = (role === 'MANAGER' || role === 'HR_ADMIN') ? [
