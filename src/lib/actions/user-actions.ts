@@ -125,3 +125,26 @@ export async function assignManager(formData: FormData): Promise<ActionResult> {
   revalidatePath('/admin/org')
   return { success: true }
 }
+
+export async function updateProfile(formData: FormData): Promise<ActionResult> {
+  const fullName = (formData.get('full_name') as string | null)?.trim() ?? ''
+  if (!fullName) return { error: 'Display name cannot be empty.' }
+  if (fullName.length > 100) return { error: 'Display name is too long.' }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('profiles')
+    .update({ full_name: fullName, updated_at: new Date().toISOString() })
+    .eq('id', user.id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/settings')
+  revalidatePath('/dashboard')
+  return { success: true }
+}
