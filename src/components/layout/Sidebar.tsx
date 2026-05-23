@@ -11,6 +11,7 @@ import {
   CalendarCheck,
   BarChart2,
   Settings2,
+  UserCircle,
 } from 'lucide-react'
 import type { UserRole } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
@@ -37,6 +38,7 @@ export default function Sidebar({ role }: SidebarProps) {
     { href: '/quarterly-checkins', label: 'Quarterly Reviews', icon: CalendarCheck },
     { href: '/org', label: 'Org Chart', icon: Network },
     { href: '/guide', label: 'Framework Guide', icon: BookOpen },
+    { href: '/settings', label: 'Settings', icon: UserCircle },
   ]
 
   const teamNav: NavItem[] = (role === 'MANAGER' || role === 'HR_ADMIN') ? [
