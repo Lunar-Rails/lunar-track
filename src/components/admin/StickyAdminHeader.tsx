@@ -19,7 +19,7 @@ export default function StickyAdminHeader({ children }: { children: React.ReactN
   return (
     <div
       ref={ref}
-      className="sticky top-0 bg-white z-30 -mx-6 px-6 pt-6 pb-4 border-b border-gray-100"
+      className="sticky top-0 bg-lr-bg z-30 -mx-6 px-6 pt-6 pb-4 border-b border-lr-border"
     >
       {children}
     </div>

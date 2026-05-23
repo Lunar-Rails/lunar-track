@@ -8,6 +8,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import RoleSelect from '@/components/admin/RoleSelect'
@@ -40,6 +50,7 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
   const [removingId, setRemovingId] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [pendingRemove, setPendingRemove] = useState<{ id: string; name: string } | null>(null)
 
   const domains = useMemo(() => {
     const set = new Set(users.map((u) => getDomain(u.email)).filter(Boolean))
@@ -64,10 +75,12 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
     return map
   }, [users])
 
-  function handleRemove(userId: string, userName: string) {
-    if (!confirm(`Remove ${userName}? This cannot be undone.`)) return
+  function confirmRemove() {
+    if (!pendingRemove) return
+    const { id: userId } = pendingRemove
     setRemoveError(null)
     setRemovingId(userId)
+    setPendingRemove(null)
     startTransition(async () => {
       const result = await removeUser(userId)
       setRemovingId(null)
@@ -82,7 +95,7 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
        * One element, one top value — no cascading measurements.
        */}
       <div
-        className="sticky z-20 bg-white -mx-6 px-6"
+        className="sticky z-20 bg-lr-bg -mx-6 px-6"
         style={{ top: 'var(--admin-sticky-header-h, 0px)' }}
       >
         {/* Filter bar */}
@@ -139,7 +152,7 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
       </div>
 
       {removeError && (
-        <div className="mt-3 rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-2 text-sm text-red-400">
+        <div className="mt-3 rounded-[var(--radius-lr)] border border-lr-error/20 bg-lr-error-dim px-4 py-2 text-sm text-lr-error">
           {removeError}
         </div>
       )}
@@ -192,8 +205,8 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
                   <button
                     type="button"
                     disabled={isPending || isRemoving}
-                    onClick={() => handleRemove(u.id, u.full_name ?? u.email)}
-                    className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                    onClick={() => setPendingRemove({ id: u.id, name: u.full_name ?? u.email })}
+                    className="text-xs text-lr-error hover:text-lr-error/70 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     {isRemoving ? 'Removing…' : 'Remove'}
                   </button>
@@ -203,6 +216,25 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
           })
         )}
       </div>
+      <AlertDialog open={!!pendingRemove} onOpenChange={(o) => { if (!o) setPendingRemove(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {pendingRemove?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will revoke their access to LunarTrack. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmRemove}
+              className="bg-lr-error hover:bg-lr-error/90 text-white"
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

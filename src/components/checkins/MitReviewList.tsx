@@ -122,7 +122,7 @@ export default function MitReviewList({ value, onChange, linkOptions = [], disab
                   className={[
                     'flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border transition-all',
                     mit.status === 'achieved'
-                      ? 'border-green-500/60 bg-green-500/15 text-green-400'
+                      ? 'border-lr-success/60 bg-lr-success/15 text-lr-success'
                       : 'border-transparent bg-transparent text-lr-muted/40 hover:text-lr-muted',
                     disabled ? 'cursor-default' : 'cursor-pointer',
                   ].join(' ')}
@@ -136,7 +136,7 @@ export default function MitReviewList({ value, onChange, linkOptions = [], disab
                   className={[
                     'flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium border transition-all',
                     mit.status === 'not_achieved'
-                      ? 'border-red-500/60 bg-red-500/15 text-red-400'
+                      ? 'border-lr-error/60 bg-lr-error/15 text-lr-error'
                       : 'border-transparent bg-transparent text-lr-muted/40 hover:text-lr-muted',
                     disabled ? 'cursor-default' : 'cursor-pointer',
                   ].join(' ')}

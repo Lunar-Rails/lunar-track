@@ -66,7 +66,7 @@ export default function PendingApprovals({ requests }: { requests: PendingEmploy
                 <p className="text-caption text-lr-muted truncate">{req.email}</p>
               )}
               {errors[req.id] && (
-                <p className="text-xs text-red-400 mt-1">{errors[req.id]}</p>
+                <p className="text-xs text-lr-error mt-1">{errors[req.id]}</p>
               )}
             </div>
             <div className="flex items-center gap-2 shrink-0">

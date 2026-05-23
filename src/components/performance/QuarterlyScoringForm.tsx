@@ -3,9 +3,11 @@
 import { useTransition, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { upsertQuarterlyScore } from '@/lib/actions/performance-actions'
+import { SCORE_LABELS } from '@/lib/constants/scores'
 import type {
   Checkin,
   CompanyValue,
@@ -18,13 +20,6 @@ import type {
   ValueSelfAssessment,
 } from '@/lib/types/database'
 
-const SCORE_LABELS: Record<number, string> = {
-  1: 'Outstanding',
-  2: 'Exceeds expectations',
-  3: 'Meets expectations',
-  4: 'Below expectations',
-  5: 'Significantly below expectations',
-}
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
@@ -219,13 +214,12 @@ export default function QuarterlyScoringForm({
       <div className={`flex items-start gap-3 rounded-[var(--radius-lr-lg)] border p-4 transition-colors ${
         aiBuilderActive ? 'border-lr-accent/30 bg-lr-accent-dim' : 'border-lr-border bg-lr-surface'
       }`}>
-        <input
-          type="checkbox"
+        <Checkbox
           id="ai_builder_active"
           checked={aiBuilderActive}
-          onChange={(e) => handleAiBuilderChange(e.target.checked)}
+          onCheckedChange={(checked) => handleAiBuilderChange(checked === true)}
           disabled={isPending}
-          className="mt-0.5 h-4 w-4 accent-[#7c5cfc]"
+          className="mt-0.5"
         />
         <div className="flex-1 space-y-1">
           <div className="flex items-center gap-2 flex-wrap">
@@ -284,7 +278,7 @@ export default function QuarterlyScoringForm({
                     {mits.map((mit, i) => (
                       <div key={i} className="flex items-start gap-1.5">
                         <span className={`mt-[3px] h-1.5 w-1.5 rounded-full shrink-0 ${
-                          mit.status === 'achieved' ? 'bg-green-400' : 'bg-red-400/70'
+                          mit.status === 'achieved' ? 'bg-lr-success' : 'bg-lr-error/70'
                         }`} />
                         <p className="text-xs text-lr-text leading-snug">{mit.title}</p>
                       </div>
@@ -325,7 +319,7 @@ export default function QuarterlyScoringForm({
                       <p className="text-xs font-medium text-lr-text leading-snug flex-1">{okr.title}</p>
                       {qGoal?.status && (
                         <span className={`text-[10px] font-semibold shrink-0 ${
-                          qGoal.status === 'achieved' ? 'text-green-400' : 'text-red-400'
+                          qGoal.status === 'achieved' ? 'text-lr-success' : 'text-lr-error'
                         }`}>
                           {qGoal.status === 'achieved' ? 'Achieved' : 'Not achieved'}
                         </span>
@@ -399,7 +393,7 @@ export default function QuarterlyScoringForm({
       </div>
 
       {error && (
-        <div className="rounded-[var(--radius-lr)] border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className="rounded-[var(--radius-lr)] border border-lr-error/20 bg-lr-error-dim px-4 py-3 text-sm text-lr-error">
           {error}
         </div>
       )}

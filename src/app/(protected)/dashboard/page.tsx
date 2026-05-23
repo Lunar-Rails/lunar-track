@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
@@ -5,6 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import PendingApprovals from '@/components/dashboard/PendingApprovals'
 import PulseCard, { type MonthlyMoodEntry } from '@/components/dashboard/PulseCard'
 import type { Profile, SubordinateRow, PerformancePeriod, Checkin, QuarterlyScore, CompanyValue, QuarterlyCheckin, ValueSelfAssessment, ValueAssessment, PulseOption } from '@/lib/types/database'
+
+export const metadata: Metadata = { title: 'Dashboard · LunarTrack' }
 
 export const dynamic = 'force-dynamic'
 
@@ -263,7 +266,7 @@ export default async function DashboardPage() {
             {daysLeft !== null && (
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
                 daysLeft <= 7
-                  ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                  ? 'bg-lr-error-dim text-lr-error border-lr-error/20'
                   : daysLeft <= 14
                   ? 'bg-lr-gold-dim text-lr-gold border-lr-gold/20'
                   : 'bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20'
@@ -385,8 +388,8 @@ export default async function DashboardPage() {
             {myOkrs.map((okr) => {
               const achievement = goalAchievementMap.get(okr.id)
               const statusColor =
-                achievement === 'achieved' ? 'bg-green-500' :
-                achievement === 'not_achieved' ? 'bg-red-400' :
+                achievement === 'achieved' ? 'bg-lr-success' :
+                achievement === 'not_achieved' ? 'bg-lr-error' :
                 'bg-lr-accent/60'
               const statusLabel =
                 achievement === 'achieved' ? 'Achieved' :
@@ -396,7 +399,7 @@ export default async function DashboardPage() {
                 <li key={okr.id} className="flex items-center gap-3 rounded-[var(--radius-lr)] border border-lr-border/50 bg-lr-surface/30 px-3 py-2.5">
                   <span className={`h-2 w-2 rounded-full shrink-0 ${statusColor}`} />
                   <span className="text-sm text-lr-text flex-1 min-w-0 truncate">{okr.title}</span>
-                  <span className={`text-[10px] shrink-0 ${achievement === 'achieved' ? 'text-green-400' : achievement === 'not_achieved' ? 'text-red-400' : 'text-lr-accent/70'}`}>{statusLabel}</span>
+                  <span className={`text-[10px] shrink-0 ${achievement === 'achieved' ? 'text-lr-success' : achievement === 'not_achieved' ? 'text-lr-error' : 'text-lr-accent/70'}`}>{statusLabel}</span>
                 </li>
               )
             })}
