@@ -1,7 +1,9 @@
 'use client'
 
-import { useTransition, useState } from 'react'
-import { updateProfile } from '@/lib/actions/user-actions'
+import { useTransition, useState, useRef } from 'react'
+import { Camera, Loader2 } from 'lucide-react'
+import { updateProfile, updateAvatarUrl } from '@/lib/actions/user-actions'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -28,8 +30,50 @@ export default function ProfileSettingsForm({ profile }: Props) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? null)
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const initials = getInitials(profile.full_name, profile.email)
   const roleLabel = ROLE_LABELS[profile.role] ?? profile.role
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) { setError('Please select an image file.'); return }
+    if (file.size > 5 * 1024 * 1024) { setError('Image must be under 5 MB.'); return }
+
+    setError(null)
+    setUploading(true)
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setUploading(false); return }
+
+    const ext = file.name.split('.').pop() ?? 'jpg'
+    const path = `${user.id}/avatar.${ext}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true })
+
+    if (uploadError) {
+      setError(uploadError.message)
+      setUploading(false)
+      return
+    }
+
+    const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
+    const urlWithBust = `${publicUrl}?t=${Date.now()}`
+
+    const result = await updateAvatarUrl(publicUrl)
+    if (result.error) {
+      setError(result.error)
+    } else {
+      setAvatarUrl(urlWithBust)
+    }
+    setUploading(false)
+    // reset so same file can be re-selected
+    e.target.value = ''
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -47,8 +91,34 @@ export default function ProfileSettingsForm({ profile }: Props) {
     <div className="space-y-5">
       {/* Profile header */}
       <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 flex items-center gap-4">
-        <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-lr-accent text-white text-xl font-semibold">
-          {initials}
+        <div className="relative h-16 w-16 shrink-0 group">
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={avatarUrl} alt="" className="h-16 w-16 rounded-full object-cover" />
+          ) : (
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-lr-accent text-white text-xl font-semibold">
+              {initials}
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            aria-label="Change profile photo"
+            className="absolute inset-0 flex items-center justify-center rounded-full bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity disabled:cursor-not-allowed"
+          >
+            {uploading
+              ? <Loader2 className="h-5 w-5 text-white animate-spin" />
+              : <Camera className="h-5 w-5 text-white" />
+            }
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleAvatarChange}
+          />
         </div>
         <div className="min-w-0">
           <p className="text-base font-semibold text-lr-text truncate">{profile.full_name ?? profile.email}</p>
