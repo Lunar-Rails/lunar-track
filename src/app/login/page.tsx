@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient, getOrProvisionProfile } from '@/lib/supabase/server'
 import MagicLinkForm from '@/components/auth/MagicLinkForm'
 import EmailPasswordForm from '@/components/auth/EmailPasswordForm'
+import ResendMagicLinkButton from '@/components/auth/ResendMagicLinkButton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export const metadata: Metadata = { title: 'Sign in · LunarTrack' }
@@ -104,6 +105,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             <p className="text-xs text-lr-muted">
               Tip: check your spam folder if it does not arrive within a minute.
             </p>
+            <ResendMagicLinkButton email={sent} />
             <a
               href="/login"
               className="inline-flex items-center text-xs text-lr-muted hover:text-lr-text transition-colors mt-4"
