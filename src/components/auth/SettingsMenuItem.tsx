@@ -1,14 +1,12 @@
 'use client'
 
-import { useRouter } from 'next/navigation'
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
 import { UserCircle } from 'lucide-react'
 
 export default function SettingsMenuItem() {
-  const router = useRouter()
   return (
     <DropdownMenuItem
-      onSelect={() => router.push('/settings')}
+      onSelect={() => { window.location.href = '/settings' }}
       className="cursor-pointer flex items-center gap-2 text-sm"
     >
       <UserCircle className="h-4 w-4" />
