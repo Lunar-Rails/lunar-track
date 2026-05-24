@@ -18,13 +18,13 @@ export default async function SettingsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: profileRaw } = await (supabase as any)
     .from('profiles')
-    .select('full_name, email, role, avatar_url, notification_prefs')
+    .select('full_name, email, role, avatar_url')
     .eq('id', user.id)
     .single()
-  const profile = profileRaw as Pick<Profile, 'full_name' | 'email' | 'role' | 'avatar_url' | 'notification_prefs'> | null
+  const profile = profileRaw as Pick<Profile, 'full_name' | 'email' | 'role' | 'avatar_url'> | null
   if (!profile) redirect('/dashboard')
 
-  const notifPrefs = profile.notification_prefs ?? { checkin_reminders: true, review_reminders: true }
+  const notifPrefs = { checkin_reminders: true, review_reminders: true }
 
   return (
     <div className="space-y-6 max-w-lg">
