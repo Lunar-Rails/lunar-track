@@ -8,7 +8,7 @@ export default function SettingsMenuItem() {
   const router = useRouter()
   return (
     <DropdownMenuItem
-      onClick={() => router.push('/settings')}
+      onSelect={() => router.push('/settings')}
       className="cursor-pointer flex items-center gap-2 text-sm"
     >
       <UserCircle className="h-4 w-4" />
