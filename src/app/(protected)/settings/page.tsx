@@ -27,7 +27,7 @@ export default async function SettingsPage() {
   const notifPrefs = { checkin_reminders: true, review_reminders: true }
 
   return (
-    <div className="space-y-6 max-w-lg">
+    <div className="space-y-6">
       <div>
         <h1 className="text-page-title">Settings</h1>
       </div>
