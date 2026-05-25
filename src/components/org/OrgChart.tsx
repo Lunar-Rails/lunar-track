@@ -74,8 +74,13 @@ function getInnerCircleIds(profiles: Profile[], currentUserId: string): Set<stri
 
   const ids = new Set<string>([currentUserId])
 
-  // My manager
-  if (me.manager_id) ids.add(me.manager_id)
+  // My manager + my peers (others reporting to same manager)
+  if (me.manager_id) {
+    ids.add(me.manager_id)
+    for (const p of profiles) {
+      if (p.manager_id === me.manager_id && p.id !== currentUserId) ids.add(p.id)
+    }
+  }
 
   // My direct reports + their direct reports (1 layer below)
   for (const p of profiles) {
@@ -84,6 +89,29 @@ function getInnerCircleIds(profiles: Profile[], currentUserId: string): Set<stri
       for (const pp of profiles) {
         if (pp.manager_id === p.id) ids.add(pp.id)
       }
+    }
+  }
+
+  return ids
+}
+
+function getExpandedByDefaultIds(profiles: Profile[], currentUserId: string): Set<string> {
+  const me = profiles.find(p => p.id === currentUserId)
+  if (!me) return new Set<string>()
+
+  const ids = new Set<string>()
+
+  // Walk up from me to root — each ancestor node should be expanded so I'm visible
+  let current: Profile | undefined = me
+  while (current) {
+    ids.add(current.id)
+    current = current.manager_id ? profiles.find(p => p.id === current!.manager_id) : undefined
+  }
+
+  // My peers — expand them so their direct reports are visible
+  if (me.manager_id) {
+    for (const p of profiles) {
+      if (p.manager_id === me.manager_id && p.id !== currentUserId) ids.add(p.id)
     }
   }
 
@@ -192,13 +220,13 @@ function TreeCard({ profile, profileMap, currentUserId }: { profile: Profile; pr
   )
 }
 
-function OrgNode({ node, profileMap, currentUserId, defaultCollapsed }: {
+function OrgNode({ node, profileMap, currentUserId, expandedByDefaultIds }: {
   node: TreeNode
   profileMap: Map<string, Profile>
   currentUserId: string
-  defaultCollapsed?: boolean
+  expandedByDefaultIds: Set<string>
 }) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed ?? false)
+  const [collapsed, setCollapsed] = useState(!expandedByDefaultIds.has(node.profile.id))
   const { children } = node
   const hasChildren = children.length > 0
 
@@ -221,7 +249,7 @@ function OrgNode({ node, profileMap, currentUserId, defaultCollapsed }: {
         <>
           <div className="w-px h-6 bg-lr-border shrink-0 mt-2" />
           {children.length === 1 ? (
-            <OrgNode node={children[0]} profileMap={profileMap} currentUserId={currentUserId} defaultCollapsed />
+            <OrgNode node={children[0]} profileMap={profileMap} currentUserId={currentUserId} expandedByDefaultIds={expandedByDefaultIds} />
           ) : (
             <div className="flex flex-col items-center w-full">
               <div className="flex w-full">
@@ -240,7 +268,7 @@ function OrgNode({ node, profileMap, currentUserId, defaultCollapsed }: {
               </div>
               <div className="flex gap-5">
                 {children.map(child => (
-                  <OrgNode key={child.profile.id} node={child} profileMap={profileMap} currentUserId={currentUserId} defaultCollapsed />
+                  <OrgNode key={child.profile.id} node={child} profileMap={profileMap} currentUserId={currentUserId} expandedByDefaultIds={expandedByDefaultIds} />
                 ))}
               </div>
             </div>
@@ -264,7 +292,12 @@ export default function OrgChart({ profiles, currentUserId }: OrgChartProps) {
   const [view, setView] = useState<ViewMode>('tree')
   const [search, setSearch] = useState('')
   const [companyFilter, setCompanyFilter] = useState<string | null>(null)
-  const [innerCircle, setInnerCircle] = useState(false)
+  const [innerCircle, setInnerCircle] = useState(true)
+
+  const expandedByDefaultIds = useMemo(
+    () => getExpandedByDefaultIds(profiles, currentUserId),
+    [profiles, currentUserId]
+  )
 
   // Derive unique companies from profiles
   const companies = useMemo(() => {
@@ -419,7 +452,7 @@ export default function OrgChart({ profiles, currentUserId }: OrgChartProps) {
           ) : (
             <div className="flex gap-12 justify-start min-w-max">
               {treeRoots.map(root => (
-                <OrgNode key={root.profile.id} node={root} profileMap={profileMap} currentUserId={currentUserId} />
+                <OrgNode key={root.profile.id} node={root} profileMap={profileMap} currentUserId={currentUserId} expandedByDefaultIds={expandedByDefaultIds} />
               ))}
             </div>
           )}
