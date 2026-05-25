@@ -24,7 +24,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import RoleSelect from '@/components/admin/RoleSelect'
 import ManagerSelect from '@/components/admin/ManagerSelect'
 import { removeUser } from '@/lib/actions/admin-actions'
-import { format } from 'date-fns'
 import type { Profile, UserRole } from '@/lib/types/database'
 
 interface UsersTableProps {
@@ -42,7 +41,7 @@ function getDomain(email: string): string {
 }
 
 // Shared column template — header labels and data rows both use this
-const COLS = '2fr 2fr 150px minmax(0,1.5fr) 100px 80px'
+const COLS = '2fr 2fr 150px minmax(0,1.5fr) 80px'
 
 export default function UsersTable({ users, allUsers }: UsersTableProps) {
   const router = useRouter()
@@ -152,7 +151,6 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
           <div className="py-3 px-4">Email</div>
           <div className="py-3 px-4">Role</div>
           <div className="py-3 px-4">Manager</div>
-          <div className="py-3 px-4">Joined</div>
           <div className="py-3 px-4" />
         </div>
       </div>
@@ -201,11 +199,6 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
                     currentManagerId={u.manager_id}
                     allUsers={allUsers}
                   />
-                </div>
-                <div className="py-3 px-4 flex items-center">
-                  <span className="text-xs text-lr-muted">
-                    {format(new Date(u.created_at), 'MMM d, yyyy')}
-                  </span>
                 </div>
                 <div className="py-3 px-4 flex items-center">
                   <button
