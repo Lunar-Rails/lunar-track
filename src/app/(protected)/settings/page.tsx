@@ -15,11 +15,12 @@ export default async function SettingsPage() {
   if (!user) redirect('/login')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: profileRaw } = await (supabase as any)
+  const { data: profileRaw, error: profileError } = await (supabase as any)
     .from('profiles')
-    .select('full_name, email, role, avatar_url, notification_prefs')
+    .select('*')
     .eq('id', user.id)
     .single()
+  if (profileError) console.error('[settings] profile fetch failed:', profileError.message)
   const profile = profileRaw as Pick<Profile, 'full_name' | 'email' | 'role' | 'avatar_url'> | null
   if (!profile) redirect('/dashboard')
 
