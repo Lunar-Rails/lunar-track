@@ -163,6 +163,49 @@ export async function notifyEmployeeOkrStatusChanged(opts: {
 }
 
 /**
+ * Employee invited a manager who isn't in the system yet → notify the manager.
+ */
+export async function notifyManagerInvite(opts: {
+  managerEmail: string
+  employeeName: string
+}): Promise<void> {
+  const { managerEmail, employeeName } = opts
+
+  await sendEmail(
+    managerEmail,
+    `${esc(employeeName)} has listed you as their manager on CiaoBob`,
+    baseTemplate(`
+      <p>Hi,</p>
+      <p><strong>${esc(employeeName)}</strong> has listed you as their manager on CiaoBob and is waiting for your approval.</p>
+      <p>Sign in to CiaoBob to complete your own profile setup and approve their request.</p>
+      <a href="${APP_URL}/login" class="cta">Sign in to CiaoBob →</a>
+    `),
+  )
+}
+
+/**
+ * Manager invited a new team member → notify the invitee.
+ */
+export async function notifyTeamMemberInvited(opts: {
+  inviteeEmail: string
+  managerName: string
+}): Promise<void> {
+  const { inviteeEmail, managerName } = opts
+
+  await sendEmail(
+    inviteeEmail,
+    `${esc(managerName)} has invited you to CiaoBob`,
+    baseTemplate(`
+      <p>Hi,</p>
+      <p><strong>${esc(managerName)}</strong> has added you to their team on <strong>CiaoBob</strong>, the performance management platform used across the group.</p>
+      <p>Sign in with your work Google account to set up your profile and get started.</p>
+      <a href="${APP_URL}/login" class="cta">Join CiaoBob →</a>
+      <p style="font-size:13px;color:#6b6b80;margin-top:16px;">If you weren't expecting this, you can safely ignore this email.</p>
+    `),
+  )
+}
+
+/**
  * HR approved a team join request → notify the new employee.
  */
 export async function notifyEmployeeOnboardingApproved(opts: {

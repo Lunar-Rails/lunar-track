@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef, useEffect } from 'react'
-import { submitOnboarding } from '@/lib/actions/onboarding-actions'
+import { submitOnboardingDirect } from '@/lib/actions/onboarding-actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,13 +13,16 @@ interface Manager {
   full_name: string | null
 }
 
-interface OnboardingFormProps {
+interface OnboardingFormDirectProps {
   managers: Manager[]
+  managerOptional?: boolean
   defaultFullName?: string | null
   defaultManagerId?: string | null
 }
 
 type Step = 1 | 2
+
+const NO_MANAGER_ID = '__none__'
 
 const GOAL_SUGGESTIONS = [
   'Finish setting up my CiaoBob profile',
@@ -30,22 +33,29 @@ function ManagerCombobox({
   managers,
   value,
   onChange,
+  optional,
+  disabled,
 }: {
   managers: Manager[]
   value: string
   onChange: (id: string) => void
+  optional?: boolean
+  disabled?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const selected = value
-    ? (() => {
-        const m = managers.find((m) => m.id === value)
-        return m ? { id: m.id, label: m.full_name ?? m.email } : null
-      })()
-    : null
+  const selected =
+    value === NO_MANAGER_ID
+      ? { id: NO_MANAGER_ID, label: 'No manager — I report to no one' }
+      : value
+      ? (() => {
+          const m = managers.find((m) => m.id === value)
+          return m ? { id: m.id, label: m.full_name ?? m.email } : null
+        })()
+      : null
 
   const filtered = managers.filter((m) => {
     const q = query.toLowerCase()
@@ -84,21 +94,25 @@ function ManagerCombobox({
       <div
         className="flex items-center h-10 rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface px-3 gap-2 cursor-text"
         onClick={() => {
-          setOpen(true)
-          setTimeout(() => inputRef.current?.focus(), 0)
+          if (!disabled) {
+            setOpen(true)
+            setTimeout(() => inputRef.current?.focus(), 0)
+          }
         }}
       >
         {selected ? (
           <>
             <span className="flex-1 text-sm text-lr-text truncate">{selected.label}</span>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); handleClear() }}
-              className="text-lr-muted hover:text-lr-text flex-shrink-0"
-              aria-label="Clear selection"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
+            {!disabled && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); handleClear() }}
+                className="text-lr-muted hover:text-lr-text flex-shrink-0"
+                aria-label="Clear selection"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
           </>
         ) : (
           <>
@@ -107,7 +121,8 @@ function ManagerCombobox({
               value={query}
               onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
               onFocus={() => setOpen(true)}
-              placeholder="Search your manager…"
+              placeholder={optional ? 'Search manager (optional)…' : 'Search your manager…'}
+              disabled={disabled}
               className="flex-1 bg-transparent text-sm text-lr-text placeholder:text-lr-muted outline-none min-w-0"
             />
             <ChevronDown className="h-4 w-4 text-lr-muted flex-shrink-0 pointer-events-none" />
@@ -115,8 +130,18 @@ function ManagerCombobox({
         )}
       </div>
 
-      {open && (
+      {open && !disabled && (
         <div className="absolute z-50 mt-1 w-full rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface shadow-lg max-h-56 overflow-y-auto">
+          {optional && (
+            <button
+              type="button"
+              onClick={() => handleSelect(NO_MANAGER_ID)}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-lr-muted hover:bg-lr-surface-raised hover:text-lr-text transition-colors text-left"
+            >
+              <Check className={`h-3.5 w-3.5 flex-shrink-0 ${value === NO_MANAGER_ID ? 'opacity-100 text-lr-accent' : 'opacity-0'}`} />
+              No manager — I report to no one
+            </button>
+          )}
           {filtered.length === 0 && (
             <p className="px-3 py-2 text-sm text-lr-muted">No results for "{query}"</p>
           )}
@@ -138,7 +163,7 @@ function ManagerCombobox({
   )
 }
 
-export default function OnboardingForm({ managers, defaultFullName, defaultManagerId }: OnboardingFormProps) {
+export default function OnboardingFormDirect({ managers, managerOptional = false, defaultFullName, defaultManagerId }: OnboardingFormDirectProps) {
   const [step, setStep] = useState<Step>(1)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -146,13 +171,11 @@ export default function OnboardingForm({ managers, defaultFullName, defaultManag
   // Step 1 state
   const [fullName, setFullName] = useState(defaultFullName ?? '')
   const [managerId, setManagerId] = useState(defaultManagerId ?? '')
-  const [inviteMode, setInviteMode] = useState(false)
-  const [inviteEmail, setInviteEmail] = useState('')
 
   // Step 2 state
   const [goals, setGoals] = useState<string[]>([''])
 
-  // ── Step 1 handlers ──────────────────────────────────────────────
+  // ── Step 1 ───────────────────────────────────────────────────────────
   function handleStep1Continue(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
@@ -160,18 +183,14 @@ export default function OnboardingForm({ managers, defaultFullName, defaultManag
       setError('Name must be at least 2 characters')
       return
     }
-    if (!inviteMode && !managerId) {
+    if (!managerOptional && !managerId) {
       setError('Please select your manager')
-      return
-    }
-    if (inviteMode && !inviteEmail.trim()) {
-      setError("Please enter your manager's email")
       return
     }
     setStep(2)
   }
 
-  // ── Step 2 handlers ──────────────────────────────────────────────
+  // ── Step 2 ───────────────────────────────────────────────────────────
   function addGoal() {
     if (goals.length < 5) setGoals([...goals, ''])
   }
@@ -186,7 +205,6 @@ export default function OnboardingForm({ managers, defaultFullName, defaultManag
   }
 
   function applySuggestion(suggestion: string) {
-    // Fill the first empty slot, or add a new one
     const emptyIdx = goals.findIndex((g) => g.trim() === '')
     if (emptyIdx >= 0) {
       updateGoal(emptyIdx, suggestion)
@@ -203,21 +221,20 @@ export default function OnboardingForm({ managers, defaultFullName, defaultManag
       setError('Add at least one goal')
       return
     }
+    const resolvedManagerId = managerId === NO_MANAGER_ID ? undefined : managerId || undefined
     startTransition(async () => {
-      const result = await submitOnboarding({
+      const result = await submitOnboardingDirect({
         fullName: fullName.trim(),
-        managerId: inviteMode ? undefined : managerId,
-        inviteManagerEmail: inviteMode ? inviteEmail.trim() : undefined,
+        managerId: resolvedManagerId,
         goals: validGoals.map((title) => ({ title })),
       })
-      if ('error' in result) {
+      if (result && 'error' in result) {
         setError(result.error)
       }
-      // On success the page re-renders via revalidatePath → shows pending state
     })
   }
 
-  // ── Render ────────────────────────────────────────────────────────
+  // ── Step 1 render ────────────────────────────────────────────────────
   if (step === 1) {
     return (
       <form onSubmit={handleStep1Continue} className="space-y-5">
@@ -233,46 +250,26 @@ export default function OnboardingForm({ managers, defaultFullName, defaultManag
           />
         </div>
 
-        {!inviteMode ? (
-          <div className="space-y-2">
-            <Label className="text-caption">Your manager</Label>
-            <ManagerCombobox managers={managers} value={managerId} onChange={setManagerId} />
-            <button
-              type="button"
-              onClick={() => { setInviteMode(true); setManagerId('') }}
-              className="text-xs text-lr-accent hover:underline"
-            >
-              My manager isn't listed — invite them by email
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            <Label htmlFor="inviteEmail" className="text-caption">Manager's email</Label>
-            <Input
-              id="inviteEmail"
-              type="email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              placeholder="manager@company.com"
-              className="h-10 bg-lr-surface border-lr-border text-lr-text placeholder:text-lr-muted"
-            />
-            <p className="text-xs text-lr-muted">
-              We'll send them an email invitation. Once they sign in and approve, you'll get full access.
-            </p>
-            <button
-              type="button"
-              onClick={() => { setInviteMode(false); setInviteEmail('') }}
-              className="text-xs text-lr-accent hover:underline"
-            >
-              Back to manager list
-            </button>
-          </div>
-        )}
+        <div className="space-y-2">
+          <Label className="text-caption">
+            Your manager{managerOptional && <span className="text-lr-muted ml-1">(optional)</span>}
+          </Label>
+          <ManagerCombobox
+            managers={managers}
+            value={managerId}
+            onChange={setManagerId}
+            optional={managerOptional}
+          />
+          <p className="text-xs text-lr-muted">
+            Your manager will see your check-ins and quarterly reviews.
+          </p>
+        </div>
 
         {error && <p className="text-xs text-lr-error">{error}</p>}
 
         <Button
           type="submit"
+          disabled={!managerOptional && !managerId}
           className="w-full bg-lr-accent hover:bg-lr-accent/90 text-white h-10"
         >
           Continue
@@ -281,7 +278,7 @@ export default function OnboardingForm({ managers, defaultFullName, defaultManag
     )
   }
 
-  // Step 2 — goals
+  // ── Step 2 render ────────────────────────────────────────────────────
   const usedSuggestions = new Set(goals.map((g) => g.trim()))
 
   return (
@@ -320,7 +317,6 @@ export default function OnboardingForm({ managers, defaultFullName, defaultManag
         </button>
       )}
 
-      {/* Suggestions */}
       <div className="space-y-2">
         <p className="text-xs text-lr-muted">Not sure what to add?</p>
         <div className="flex flex-wrap gap-2">
@@ -357,7 +353,7 @@ export default function OnboardingForm({ managers, defaultFullName, defaultManag
           disabled={isPending}
           className="flex-1 bg-lr-accent hover:bg-lr-accent/90 text-white h-10"
         >
-          {isPending ? 'Submitting…' : 'Submit'}
+          {isPending ? 'Setting up…' : 'Get started'}
         </Button>
       </div>
     </form>

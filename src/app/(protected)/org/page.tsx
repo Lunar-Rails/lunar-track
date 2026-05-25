@@ -1,11 +1,17 @@
+import type { Metadata } from 'next'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import OrgTree from '@/components/admin/OrgTree'
+import OrgChart from '@/components/org/OrgChart'
 import type { Profile } from '@/lib/types/database'
+
+export const metadata: Metadata = { title: 'Org Chart · CiaoBob' }
 
 export const dynamic = 'force-dynamic'
 
 export default async function OrgPage() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: profilesRaw } = await (supabase as any)
@@ -20,13 +26,11 @@ export default async function OrgPage() {
       <div>
         <h1 className="text-page-title">Org Chart</h1>
         <p className="text-body text-lr-muted mt-1">
-          Reporting structure across the organisation.
+          {profiles.length} people across the organisation.
         </p>
       </div>
 
-      <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] shadow-[var(--shadow-lr-card)] overflow-hidden">
-        <OrgTree profiles={profiles} />
-      </div>
+      <OrgChart profiles={profiles} currentUserId={user.id} />
     </div>
   )
 }

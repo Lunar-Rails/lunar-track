@@ -13,7 +13,7 @@ SET search_path = public
 AS $$
 BEGIN
   IF split_part(user_email, '@', 2) NOT IN (
-    'lunarrails.io', '40acres.pro', 'chainlabs.ai', 'podproza.cz'
+    'lunarrails.io', '40acres.pro', 'chainlabs.ai', 'podproza.cz', 'osirisconcepts.com'
   ) THEN
     RAISE EXCEPTION 'Email domain not allowed: %', split_part(user_email, '@', 2);
   END IF;

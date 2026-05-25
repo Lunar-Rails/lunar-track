@@ -22,7 +22,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   if (user) {
     const profile = await getOrProvisionProfile(supabase, user)
     if (profile) {
-      if (profile.role === 'EMPLOYEE' && !profile.is_onboarded) {
+      if (!profile.is_onboarded) {
         redirect('/onboarding')
       }
       redirect('/dashboard')

@@ -34,7 +34,8 @@ export async function removeUser(userId: string): Promise<ActionResult> {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error } = await (supabase as any).from('profiles').delete().eq('id', userId)
     if (error) return { error: 'Failed to remove user: ' + error.message }
-    revalidatePath('/admin/users')
+    revalidatePath('/admin/settings')
+    revalidatePath('/org')
     return { success: true }
   }
 
@@ -48,7 +49,8 @@ export async function removeUser(userId: string): Promise<ActionResult> {
   const { error } = await adminClient.auth.admin.deleteUser(userId)
   if (error) return { error: 'Failed to remove user: ' + error.message }
 
-  revalidatePath('/admin/users')
+  revalidatePath('/admin/settings')
+  revalidatePath('/org')
   return { success: true }
 }
 
