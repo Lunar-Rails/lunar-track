@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Inbox, HelpCircle } from 'lucide-react'
+import { Inbox, HelpCircle, BookOpen } from 'lucide-react'
 import MobileNav from '@/components/layout/MobileNav'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -92,6 +92,13 @@ export default function Header({ profile, inboxCount = 0 }: HeaderProps) {
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-lr-border" />
             <SettingsMenuItem />
+            <DropdownMenuItem
+              onSelect={() => { window.location.href = '/guide' }}
+              className="cursor-pointer flex items-center gap-2 text-sm"
+            >
+              <BookOpen className="h-4 w-4" />
+              Guide
+            </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-lr-border" />
             <SignOutButton />
           </DropdownMenuContent>
