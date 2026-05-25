@@ -85,7 +85,7 @@ export default function MagicLinkForm() {
           className="h-10 bg-lr-surface border-lr-border text-lr-text placeholder:text-lr-muted focus-visible:ring-2 focus-visible:ring-lr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lr-bg"
         />
         <p className="text-xs text-lr-muted">
-          We&apos;ll email you a one-click sign-in link. No password needed.
+          We&apos;ll email you a one-click sign-in link.
         </p>
       </div>
 

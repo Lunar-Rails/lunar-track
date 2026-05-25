@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 
 type Theme = 'dark' | 'light'
 
@@ -8,12 +8,14 @@ interface ThemeContextValue {
   theme: Theme
   toggle: () => void
   setTheme: (t: Theme) => void
+  mounted: boolean
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
   theme: 'dark',
   toggle: () => {},
   setTheme: () => {},
+  mounted: false,
 })
 
 export function useTheme() {
@@ -26,11 +28,14 @@ function applyToDOM(next: Theme) {
 }
 
 export default function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    // Runs only on the client; SSR always returns 'dark' (matches the inline script)
-    if (typeof window === 'undefined') return 'dark'
-    return (localStorage.getItem('lr-theme') as Theme | null) ?? 'dark'
-  })
+  const [theme, setThemeState] = useState<Theme>('dark')
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    const stored = (localStorage.getItem('lr-theme') as Theme | null) ?? 'dark'
+    setThemeState(stored)
+    setMounted(true)
+  }, [])
 
   function applyTheme(next: Theme) {
     applyToDOM(next)
@@ -42,7 +47,7 @@ export default function ThemeProvider({ children }: { children: React.ReactNode 
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, toggle, setTheme: applyTheme }}>
+    <ThemeContext.Provider value={{ theme, toggle, setTheme: applyTheme, mounted }}>
       {children}
     </ThemeContext.Provider>
   )

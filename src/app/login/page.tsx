@@ -3,9 +3,7 @@ import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { createClient, getOrProvisionProfile } from '@/lib/supabase/server'
 import MagicLinkForm from '@/components/auth/MagicLinkForm'
-import EmailPasswordForm from '@/components/auth/EmailPasswordForm'
 import ResendMagicLinkButton from '@/components/auth/ResendMagicLinkButton'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export const metadata: Metadata = { title: 'Sign in · LunarTrack' }
 export const dynamic = 'force-dynamic'
@@ -126,29 +124,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             </a>
           </div>
         ) : (
-          /* Auth tabs */
-          <Tabs defaultValue="email" className="w-full">
-            <TabsList className="w-full grid grid-cols-2 mb-6 bg-lr-surface border border-lr-border rounded-[var(--radius-lr)]">
-              <TabsTrigger
-                value="email"
-                className="text-xs rounded-[var(--radius-lr)] data-[state=active]:bg-lr-accent data-[state=active]:text-white data-[state=active]:shadow-none"
-              >
-                Email &amp; password
-              </TabsTrigger>
-              <TabsTrigger
-                value="magic"
-                className="text-xs rounded-[var(--radius-lr)] data-[state=active]:bg-lr-accent data-[state=active]:text-white data-[state=active]:shadow-none"
-              >
-                Magic link
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="email">
-              <EmailPasswordForm />
-            </TabsContent>
-            <TabsContent value="magic">
-              <MagicLinkForm />
-            </TabsContent>
-          </Tabs>
+          <MagicLinkForm />
         )}
       </div>
     </div>

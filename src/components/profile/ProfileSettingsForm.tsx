@@ -65,7 +65,7 @@ export default function ProfileSettingsForm({ profile }: Props) {
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
 
     const result = await updateAvatarUrl(publicUrl)
-    if (result.error) {
+    if ('error' in result) {
       setError(result.error)
     } else {
       setAvatarUrl(publicUrl)
@@ -82,7 +82,7 @@ export default function ProfileSettingsForm({ profile }: Props) {
     const formData = new FormData(e.currentTarget)
     startTransition(async () => {
       const result = await updateProfile(formData)
-      if (result.error) setError(result.error)
+      if ('error' in result) setError(result.error)
       else setSuccess(true)
     })
   }

@@ -4,7 +4,13 @@ import { Sun, Moon } from 'lucide-react'
 import { useTheme } from './ThemeProvider'
 
 export default function ThemeToggle() {
-  const { theme, toggle } = useTheme()
+  const { theme, toggle, mounted } = useTheme()
+
+  if (!mounted) {
+    return (
+      <span className="flex items-center justify-center h-8 w-8 rounded-[var(--radius-lr)] text-lr-muted" />
+    )
+  }
 
   return (
     <button

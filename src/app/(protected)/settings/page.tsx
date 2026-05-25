@@ -4,7 +4,6 @@ import { createClient } from '@/lib/supabase/server'
 import type { Profile } from '@/lib/types/database'
 import ProfileSettingsForm from '@/components/profile/ProfileSettingsForm'
 import AppearanceSection from '@/components/settings/AppearanceSection'
-import ChangePasswordSection from '@/components/settings/ChangePasswordSection'
 import NotificationsSection from '@/components/settings/NotificationsSection'
 
 export const metadata: Metadata = { title: 'Settings · LunarTrack' }
@@ -40,8 +39,7 @@ export default async function SettingsPage() {
       </div>
       <ProfileSettingsForm profile={profile} />
       <AppearanceSection />
-      <ChangePasswordSection />
-      <NotificationsSection initialPrefs={notifPrefs} />
+<NotificationsSection initialPrefs={notifPrefs} />
     </div>
   )
 }

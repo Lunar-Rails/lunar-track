@@ -43,7 +43,8 @@ export async function getOrProvisionProfile(
     return existingRaw as Profile
   }
 
-  // Backfill a profile for password/manual-auth users who bypass the OAuth callback.
+  // Backfill a profile for users who land here before the auth callback provisions them
+  // (e.g. deep-linked magic link on a new device).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: rpcError } = await (supabase as any).rpc('upsert_profile_on_login', {
     user_id: user.id,
@@ -57,8 +58,8 @@ export async function getOrProvisionProfile(
     if (!isSchemaCacheMiss) {
       console.error('[supabase/server] upsert_profile_on_login error:', rpcError.message)
     }
-    // Fallback when PostgREST RPC schema cache is unavailable: create the
-    // profile row directly so password-auth users can still reach onboarding.
+    // Fallback when PostgREST schema cache is cold — insert the profile row
+    // directly so new users can still reach onboarding.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: insertError } = await (supabase as any)
       .from('profiles')
