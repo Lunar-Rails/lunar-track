@@ -261,7 +261,7 @@ interface OrgChartProps {
 type ViewMode = 'grid' | 'tree'
 
 export default function OrgChart({ profiles, currentUserId }: OrgChartProps) {
-  const [view, setView] = useState<ViewMode>('grid')
+  const [view, setView] = useState<ViewMode>('tree')
   const [search, setSearch] = useState('')
   const [companyFilter, setCompanyFilter] = useState<string | null>(null)
   const [innerCircle, setInnerCircle] = useState(false)
