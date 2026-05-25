@@ -21,7 +21,10 @@ export default function ManagerSelect({ employeeId, currentManagerId, allUsers }
   const inputRef = useRef<HTMLInputElement>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
-  const options = allUsers.filter((u) => u.id !== employeeId)
+  const options = allUsers
+    .filter((u) => u.id !== employeeId)
+    .sort((a, b) => (a.full_name ?? a.email).localeCompare(b.full_name ?? b.email))
+
   const selected = value ? (options.find((u) => u.id === value) ?? null) : null
 
   const filtered = options.filter((u) => {
@@ -31,6 +34,16 @@ export default function ManagerSelect({ employeeId, currentManagerId, allUsers }
       u.email.toLowerCase().includes(q)
     )
   })
+
+  // Group by email domain
+  const grouped = filtered.reduce<Record<string, typeof filtered>>((acc, u) => {
+    const domain = u.email.split('@')[1] ?? 'Other'
+    if (!acc[domain]) acc[domain] = []
+    acc[domain].push(u)
+    return acc
+  }, {})
+  const domains = Object.keys(grouped).sort()
+  const isGrouped = domains.length > 1 && !query
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -134,17 +147,37 @@ export default function ManagerSelect({ employeeId, currentManagerId, allUsers }
               {filtered.length === 0 && query && (
                 <p className="px-3 py-2 text-xs text-lr-muted">No results for &quot;{query}&quot;</p>
               )}
-              {filtered.map((u) => (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => commit(u.id)}
-                  className="flex items-center gap-2 w-full px-2 py-1.5 text-xs hover:bg-lr-surface-raised transition-colors text-left"
-                >
-                  <Check className={`h-3 w-3 flex-shrink-0 ${value === u.id ? 'opacity-100 text-lr-accent' : 'opacity-0'}`} />
-                  <span className="flex-1 truncate text-lr-text">{u.full_name ?? u.email}</span>
-                </button>
-              ))}
+              {isGrouped
+                ? domains.map((domain) => (
+                    <div key={domain}>
+                      <p className="px-2 pt-2 pb-0.5 text-[10px] font-semibold text-lr-muted uppercase tracking-wider">
+                        @{domain}
+                      </p>
+                      {grouped[domain].map((u) => (
+                        <button
+                          key={u.id}
+                          type="button"
+                          onClick={() => commit(u.id)}
+                          className="flex items-center gap-2 w-full px-2 py-1.5 text-xs hover:bg-lr-surface-raised transition-colors text-left"
+                        >
+                          <Check className={`h-3 w-3 flex-shrink-0 ${value === u.id ? 'opacity-100 text-lr-accent' : 'opacity-0'}`} />
+                          <span className="flex-1 truncate text-lr-text">{u.full_name ?? u.email}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ))
+                : filtered.map((u) => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => commit(u.id)}
+                      className="flex items-center gap-2 w-full px-2 py-1.5 text-xs hover:bg-lr-surface-raised transition-colors text-left"
+                    >
+                      <Check className={`h-3 w-3 flex-shrink-0 ${value === u.id ? 'opacity-100 text-lr-accent' : 'opacity-0'}`} />
+                      <span className="flex-1 truncate text-lr-text">{u.full_name ?? u.email}</span>
+                    </button>
+                  ))
+              }
             </div>
           </div>
         )}
