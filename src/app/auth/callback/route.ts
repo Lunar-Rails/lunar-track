@@ -26,11 +26,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?error=auth_failed`)
   }
 
-  // Password reset: session is live; skip profile provisioning and go straight to reset page
-  if (next.startsWith('/auth/reset-password')) {
-    return NextResponse.redirect(`${origin}${next}`)
-  }
-
   const {
     data: { user },
     error: userError,
