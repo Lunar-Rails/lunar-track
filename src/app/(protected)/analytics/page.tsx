@@ -6,12 +6,11 @@ import PerformerCurveChart from '@/components/analytics/PerformerCurveChart'
 import ValueUsageChart from '@/components/analytics/ValueUsageChart'
 import MoodTrendOrgChart, { ENERGY_LABEL, PROD_LABEL } from '@/components/analytics/MoodTrendOrgChart'
 import type {
-
-export const metadata: Metadata = { title: 'Analytics · LunarTrack' }
   Profile, CompanyValue, QuarterlyScore, QuarterlyCheckin,
   ValueAssessment, ValueSelfAssessment, PerformancePeriod,
 } from '@/lib/types/database'
 
+export const metadata: Metadata = { title: 'Analytics · LunarTrack' }
 export const dynamic = 'force-dynamic'
 
 function pct(n: number, total: number) {
