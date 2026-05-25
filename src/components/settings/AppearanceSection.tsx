@@ -5,7 +5,9 @@ import { useTheme } from '@/components/theme/ThemeProvider'
 import { cn } from '@/lib/utils'
 
 export default function AppearanceSection() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, mounted } = useTheme()
+
+  const active = mounted ? theme : 'dark'
 
   return (
     <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5">
@@ -16,7 +18,7 @@ export default function AppearanceSection() {
           onClick={() => setTheme('dark')}
           className={cn(
             'flex flex-1 flex-col items-center gap-2.5 rounded-[var(--radius-lr)] border p-4 text-sm font-medium transition-colors',
-            theme === 'dark'
+            active === 'dark'
               ? 'border-lr-accent bg-lr-accent-dim text-lr-accent'
               : 'border-lr-border bg-lr-surface text-lr-muted hover:border-lr-accent/50 hover:text-lr-text'
           )}
@@ -29,7 +31,7 @@ export default function AppearanceSection() {
           onClick={() => setTheme('light')}
           className={cn(
             'flex flex-1 flex-col items-center gap-2.5 rounded-[var(--radius-lr)] border p-4 text-sm font-medium transition-colors',
-            theme === 'light'
+            active === 'light'
               ? 'border-lr-accent bg-lr-accent-dim text-lr-accent'
               : 'border-lr-border bg-lr-surface text-lr-muted hover:border-lr-accent/50 hover:text-lr-text'
           )}
