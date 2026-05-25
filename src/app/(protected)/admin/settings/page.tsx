@@ -33,7 +33,7 @@ export default async function OrganizationSettingsPage({ searchParams }: PagePro
   if (activeTab === 'users') {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data } = await (supabase as any)
-      .from('profiles').select('*').order('created_at', { ascending: true })
+      .from('profiles').select('*').eq('is_active', true).order('created_at', { ascending: true })
     profiles = (data ?? []) as Profile[]
     allUsers = profiles.map((p) => ({ id: p.id, full_name: p.full_name, email: p.email }))
   }

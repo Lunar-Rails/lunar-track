@@ -1,7 +1,6 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import type { CompanyValue, Profile } from '@/lib/types/database'
@@ -25,28 +24,15 @@ export async function removeUser(userId: string): Promise<ActionResult> {
   if (!caller) return { error: 'Unauthorized: HR Admin access required' }
 
   const { data: { user } } = await supabase.auth.getUser()
-  if (user?.id === userId) return { error: 'You cannot remove your own account.' }
+  if (user?.id === userId) return { error: 'You cannot deactivate your own account.' }
 
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceRoleKey) {
-    return { error: 'Server is missing SUPABASE_SERVICE_ROLE_KEY — contact your admin.' }
-  }
-
-  const adminClient = createSupabaseClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    serviceRoleKey,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  )
-
-  // Delete profile first (bypasses RLS), then auth user
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (adminClient as any).from('profiles').delete().eq('id', userId)
-
-  const { error } = await adminClient.auth.admin.deleteUser(userId)
-  if (error) return { error: 'Failed to remove user: ' + error.message }
+  const { error } = await (supabase as any).rpc('deactivate_user', { target_user_id: userId })
+  if (error) return { error: error.message }
 
   revalidatePath('/admin/settings')
   revalidatePath('/org')
+  revalidatePath('/team')
   return { success: true }
 }
 

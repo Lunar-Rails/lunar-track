@@ -207,7 +207,7 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
                     onClick={() => setPendingRemove({ id: u.id, name: u.full_name ?? u.email })}
                     className="text-xs text-lr-error hover:text-lr-error/70 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                   >
-                    {isRemoving ? 'Removing…' : 'Remove'}
+                    {isRemoving ? 'Deactivating…' : 'Deactivate'}
                   </button>
                 </div>
               </div>
@@ -218,9 +218,9 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
       <AlertDialog open={!!pendingRemove} onOpenChange={(o) => { if (!o) setPendingRemove(null) }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove {pendingRemove?.name}?</AlertDialogTitle>
+            <AlertDialogTitle>Deactivate {pendingRemove?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will revoke their access to CiaoBob. This cannot be undone.
+              They will lose access to CiaoBob and be removed from all manager assignments. Their data is preserved and can be reactivated by contacting support.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -229,7 +229,7 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
               onClick={confirmRemove}
               className="bg-lr-error hover:bg-lr-error/90 text-white"
             >
-              Remove
+              Deactivate
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
