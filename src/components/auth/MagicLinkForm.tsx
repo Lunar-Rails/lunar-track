@@ -7,6 +7,32 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
+function Spinner() {
+  return (
+    <svg
+      className="animate-spin h-4 w-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle
+        cx="12"
+        cy="12"
+        r="10"
+        stroke="currentColor"
+        strokeOpacity="0.25"
+        strokeWidth="4"
+      />
+      <path
+        d="M4 12a8 8 0 0 1 8-8"
+        stroke="currentColor"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+    </svg>
+  )
+}
+
 export default function MagicLinkForm() {
   const [email, setEmail] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -22,14 +48,14 @@ export default function MagicLinkForm() {
         return
       }
       const supabase = createClient()
-      const { error } = await supabase.auth.signInWithOtp({
+      const { error: authError } = await supabase.auth.signInWithOtp({
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
-      if (error) {
-        setError(error.message)
+      if (authError) {
+        setError(authError.message)
       } else {
         window.location.href = `/login?sent=${encodeURIComponent(email)}`
       }
@@ -39,34 +65,56 @@ export default function MagicLinkForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="email" className="text-sm font-medium text-lr-text">Email address</Label>
+        <Label htmlFor="email" className="text-sm font-medium text-lr-text">
+          Work email
+        </Label>
         <Input
           id="email"
           type="email"
+          name="email"
+          autoComplete="email"
+          inputMode="email"
+          autoFocus
+          required
           placeholder="you@company.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           disabled={isPending}
-          required
-          className="h-10 bg-lr-surface border-lr-border text-lr-text placeholder:text-lr-muted focus:ring-lr-accent"
+          aria-invalid={!!error}
+          aria-describedby={error ? 'email-error' : undefined}
+          className="h-10 bg-lr-surface border-lr-border text-lr-text placeholder:text-lr-muted focus-visible:ring-2 focus-visible:ring-lr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lr-bg"
         />
+        <p className="text-xs text-lr-muted">
+          We&apos;ll email you a one-click sign-in link. No password needed.
+        </p>
       </div>
 
       {error && (
-        <p className="text-xs text-lr-error">{error}</p>
+        <div
+          id="email-error"
+          role="alert"
+          aria-live="polite"
+          className="rounded-[var(--radius-lr)] border border-lr-error/30 bg-lr-error-dim px-3 py-2 text-xs text-lr-error"
+        >
+          {error}
+        </div>
       )}
 
       <Button
         type="submit"
-        disabled={isPending || !email}
-        className="w-full bg-lr-accent hover:bg-lr-accent/90 text-white h-10"
+        disabled={isPending || !email || false}
+        aria-busy={isPending}
+        className="w-full bg-lr-accent hover:bg-lr-accent-hover text-white h-10 inline-flex items-center justify-center gap-2"
       >
-        {isPending ? 'Sending…' : 'Send magic link'}
+        {isPending ? (
+          <>
+            <Spinner />
+            Sending…
+          </>
+        ) : (
+          'Send magic link'
+        )}
       </Button>
-
-      <p className="text-center text-xs text-lr-muted">
-        Enter your email — we&apos;ll send a one-click sign-in link.
-      </p>
     </form>
   )
 }

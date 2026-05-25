@@ -75,6 +75,18 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </div>
         )}
 
+        {/* Warning: signed in but profile not provisioned */}
+        {user && !error && !sent && (
+          <div
+            role="alert"
+            aria-live="polite"
+            className="mb-5 rounded-[var(--radius-lr)] border border-lr-warning/30 bg-lr-warning-dim px-4 py-3"
+          >
+            <p className="text-sm text-lr-warning">You are signed in, but your profile could not be provisioned yet.</p>
+            <p className="text-xs text-lr-muted mt-1">Try reloading once. If it persists, the server-side Supabase RPC cache may still be warming up.</p>
+          </div>
+        )}
+
         {sent ? (
           /* Magic link success state */
           <div className="text-center space-y-4">
@@ -90,6 +102,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 strokeWidth="1.75"
                 strokeLinecap="round"
                 strokeLinejoin="round"
+                aria-hidden="true"
               >
                 <rect x="2" y="4" width="20" height="16" rx="2" />
                 <path d="m2 7 10 7 10-7" />
