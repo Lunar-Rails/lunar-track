@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { Eye, EyeOff } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { serverSignIn, serverSignUp } from '@/lib/actions/auth-actions'
 import { isAllowedEmail, DOMAIN_ERROR_MESSAGE } from '@/lib/auth/allowed-domains'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -64,27 +65,19 @@ export default function EmailPasswordForm() {
     }
 
     startTransition(async () => {
-      const supabase = createClient()
-
       if (mode === 'signin') {
-        const { error: authError } = await supabase.auth.signInWithPassword({ email, password })
-        if (authError) {
-          setError(authError.message)
+        const result = await serverSignIn(email, password)
+        if ('error' in result) {
+          setError(result.error)
         } else {
           window.location.href = '/dashboard'
         }
         return
       }
 
-      const { error: authError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-      if (authError) {
-        setError(authError.message)
+      const result = await serverSignUp(email, password)
+      if ('error' in result) {
+        setError(result.error)
       } else {
         setSuccessMessage(
           'Account created! Check your email for a confirmation link before signing in.'

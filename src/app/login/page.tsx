@@ -29,10 +29,9 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       }
       redirect('/dashboard')
     }
-    // Profile provisioning failed but user has a valid session — send them on
-    if (!error || error !== 'domain') {
-      redirect('/dashboard')
-    }
+    // Profile provisioning failed — fall through and render the warning state.
+    // Do NOT redirect to /dashboard: protected routes redirect back here when
+    // profile is null, creating an infinite loop with no visible recovery path.
   }
 
   return (
