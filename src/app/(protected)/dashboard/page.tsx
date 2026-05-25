@@ -7,7 +7,7 @@ import PendingApprovals from '@/components/dashboard/PendingApprovals'
 import PulseCard, { type MonthlyMoodEntry } from '@/components/dashboard/PulseCard'
 import type { Profile, SubordinateRow, PerformancePeriod, Checkin, QuarterlyScore, CompanyValue, QuarterlyCheckin, ValueSelfAssessment, ValueAssessment, PulseOption } from '@/lib/types/database'
 
-export const metadata: Metadata = { title: 'Dashboard · LunarTrack' }
+export const metadata: Metadata = { title: 'Dashboard · CiaoBob' }
 
 export const dynamic = 'force-dynamic'
 

@@ -7,7 +7,7 @@ import AddEntryButton from '@/components/okrs/AddEntryButton'
 import DeleteGoalButton from '@/components/okrs/DeleteGoalButton'
 import type { Okr, PerformancePeriod } from '@/lib/types/database'
 
-export const metadata: Metadata = { title: 'Goals (OKRs) · LunarTrack' }
+export const metadata: Metadata = { title: 'Goals (OKRs) · CiaoBob' }
 
 export const dynamic = 'force-dynamic'
 

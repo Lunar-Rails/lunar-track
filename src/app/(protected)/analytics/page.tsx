@@ -10,7 +10,7 @@ import type {
   ValueAssessment, ValueSelfAssessment, PerformancePeriod,
 } from '@/lib/types/database'
 
-export const metadata: Metadata = { title: 'Analytics · LunarTrack' }
+export const metadata: Metadata = { title: 'Analytics · CiaoBob' }
 export const dynamic = 'force-dynamic'
 
 function pct(n: number, total: number) {

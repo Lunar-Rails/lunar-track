@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   Users,
   Network,
-  BookOpen,
   ClipboardList,
   CalendarCheck,
   BarChart2,
@@ -36,7 +35,6 @@ export default function Sidebar({ role }: SidebarProps) {
     { href: '/checkins', label: 'Monthly Check-ins', icon: ClipboardList },
     { href: '/quarterly-checkins', label: 'Quarterly Reviews', icon: CalendarCheck },
     { href: '/org', label: 'Org Chart', icon: Network },
-    { href: '/guide', label: 'Framework Guide', icon: BookOpen },
   ]
 
   const teamNav: NavItem[] = (role === 'MANAGER' || role === 'HR_ADMIN') ? [

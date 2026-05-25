@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Inbox, Menu } from 'lucide-react'
+import { Inbox, HelpCircle } from 'lucide-react'
 import MobileNav from '@/components/layout/MobileNav'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
@@ -41,15 +41,22 @@ export default function Header({ profile, inboxCount = 0 }: HeaderProps) {
         {/* Left: Hamburger (mobile) + Logo */}
         <div className="flex items-center gap-2">
           <MobileNav role={profile.role} />
-          <Image src="/icon-circle.svg" alt="LunarTrack" width={28} height={28} />
+          <Image src="/icon-circle.svg" alt="CiaoBob" width={28} height={28} />
           <span className="font-display font-bold text-lg text-lr-text tracking-tight">
-            LunarTrack
+            CiaoBob
           </span>
         </div>
 
-        {/* Right: Theme toggle + Inbox + User pill */}
+        {/* Right: Theme toggle + Help + Inbox + User pill */}
         <div className="flex items-center gap-2">
           <ThemeToggle />
+          <Link
+            href="/guide"
+            className="flex items-center justify-center h-8 w-8 rounded-[var(--radius-lr)] text-lr-muted hover:text-lr-text hover:bg-lr-surface transition-colors"
+            aria-label="Performance handbook"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </Link>
         {(profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') && (
           <Link
             href="/inbox"

@@ -5,7 +5,7 @@ import { createClient, getOrProvisionProfile } from '@/lib/supabase/server'
 import MagicLinkForm from '@/components/auth/MagicLinkForm'
 import ResendMagicLinkButton from '@/components/auth/ResendMagicLinkButton'
 
-export const metadata: Metadata = { title: 'Sign in · LunarTrack' }
+export const metadata: Metadata = { title: 'Sign in · CiaoBob' }
 export const dynamic = 'force-dynamic'
 
 interface LoginPageProps {
@@ -47,13 +47,13 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         {/* Header */}
         <div className="mb-7 text-center">
           <div className="flex justify-center mb-4">
-            <Image src="/logo-full.svg" alt="LunarTrack" width={160} height={40} priority />
+            <Image src="/logo-full.svg" alt="CiaoBob" width={160} height={40} priority />
           </div>
           <h1
             id="login-heading"
             className="font-display text-2xl font-semibold text-lr-text tracking-tight"
           >
-            Sign in to LunarTrack
+            Sign in to CiaoBob
           </h1>
           <p className="text-sm text-lr-muted mt-1.5">BCOMM Performance Management</p>
         </div>

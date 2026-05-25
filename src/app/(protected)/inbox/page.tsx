@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import type { Profile, SubordinateRow, PerformancePeriod } from '@/lib/types/database'
 
-export const metadata: Metadata = { title: 'Inbox · LunarTrack' }
+export const metadata: Metadata = { title: 'Inbox · CiaoBob' }
 
 export const dynamic = 'force-dynamic'
 

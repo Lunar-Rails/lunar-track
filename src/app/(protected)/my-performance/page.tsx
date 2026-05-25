@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import type { AnnualScore, PerformancePeriod, QuarterlyScore } from '@/lib/types/database'
 import { SCORE_LABELS } from '@/lib/constants/scores'
 
-export const metadata: Metadata = { title: 'My Performance · LunarTrack' }
+export const metadata: Metadata = { title: 'My Performance · CiaoBob' }
 
 export const dynamic = 'force-dynamic'
 

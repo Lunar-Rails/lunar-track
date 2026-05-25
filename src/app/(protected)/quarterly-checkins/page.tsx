@@ -8,7 +8,7 @@ import { format } from 'date-fns'
 import DeleteQuarterlyCheckinButton from '@/components/checkins/DeleteQuarterlyCheckinButton'
 import type { PerformancePeriod, QuarterlyCheckin } from '@/lib/types/database'
 
-export const metadata: Metadata = { title: 'Quarterly Reviews · LunarTrack' }
+export const metadata: Metadata = { title: 'Quarterly Reviews · CiaoBob' }
 
 export const dynamic = 'force-dynamic'
 

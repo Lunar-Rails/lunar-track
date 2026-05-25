@@ -6,7 +6,7 @@ import ProfileSettingsForm from '@/components/profile/ProfileSettingsForm'
 import AppearanceSection from '@/components/settings/AppearanceSection'
 import NotificationsSection from '@/components/settings/NotificationsSection'
 
-export const metadata: Metadata = { title: 'Settings · LunarTrack' }
+export const metadata: Metadata = { title: 'Settings · CiaoBob' }
 export const dynamic = 'force-dynamic'
 
 export default async function SettingsPage() {

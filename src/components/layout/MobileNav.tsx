@@ -8,7 +8,6 @@ import {
   LayoutDashboard,
   Users,
   Network,
-  BookOpen,
   ClipboardList,
   CalendarCheck,
   BarChart2,
@@ -41,7 +40,6 @@ export default function MobileNav({ role }: MobileNavProps) {
     { href: '/checkins', label: 'Monthly Check-ins', icon: ClipboardList },
     { href: '/quarterly-checkins', label: 'Quarterly Reviews', icon: CalendarCheck },
     { href: '/org', label: 'Org Chart', icon: Network },
-    { href: '/guide', label: 'Framework Guide', icon: BookOpen },
   ]
 
   const teamNav: NavItem[] = (role === 'MANAGER' || role === 'HR_ADMIN') ? [
@@ -66,8 +64,8 @@ export default function MobileNav({ role }: MobileNavProps) {
       <SheetContent side="left" className="w-64 bg-lr-bg border-lr-border p-0">
         <SheetTitle className="sr-only">Navigation</SheetTitle>
         <div className="flex items-center gap-2 h-14 px-4 border-b border-lr-border">
-          <Image src="/icon-circle.svg" alt="LunarTrack" width={24} height={24} />
-          <span className="font-display font-bold text-base text-lr-text tracking-tight">LunarTrack</span>
+          <Image src="/icon-circle.svg" alt="CiaoBob" width={24} height={24} />
+          <span className="font-display font-bold text-base text-lr-text tracking-tight">CiaoBob</span>
         </div>
         <nav className="p-4 space-y-1">
           {mainNav.map((item) => (
