@@ -3,7 +3,16 @@ import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '@/lib/types/database'
 
 // Paths an onboarded-but-not-yet-checked-in employee may still reach
-const GATE_EXEMPT_PREFIXES = ['/checkins', '/guide', '/login', '/auth', '/onboarding']
+const GATE_EXEMPT_PREFIXES = [
+  '/checkins',
+  '/guide',
+  '/login',
+  '/auth',
+  '/onboarding',
+  '/settings',
+  '/dashboard',
+  '/org',
+]
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
