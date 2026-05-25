@@ -53,7 +53,7 @@ export default async function OnboardingPage() {
         {/* Steps indicator */}
         <div className="flex items-center gap-2 mb-8">
           <div className="flex-1 h-1 rounded-full bg-lr-accent" />
-          <div className={`flex-1 h-1 rounded-full ${hasPendingRequest ? 'bg-lr-accent' : 'bg-lr-border'}`} />
+          <div className={`flex-1 h-1 rounded-full ${hasPendingRequest ? 'bg-lr-accent/40' : 'bg-lr-border'}`} />
         </div>
 
         {hasPendingRequest ? (
@@ -63,7 +63,7 @@ export default async function OnboardingPage() {
               <p className="text-kicker">Step 2 of 2</p>
               <h2 className="text-page-title mt-1">Awaiting approval</h2>
               <p className="text-body text-lr-muted mt-2">
-                Your manager has been notified. You'll get access as soon as they approve your request.
+                Your manager will see your request the next time they log in. You'll get access as soon as they approve.
               </p>
             </div>
             <div className="rounded-[var(--radius-lr-lg)] border border-lr-gold/20 bg-lr-gold-dim px-5 py-4 space-y-1">

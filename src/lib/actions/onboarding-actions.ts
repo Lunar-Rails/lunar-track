@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
+import { notifyEmployeeOnboardingApproved } from '@/lib/notifications'
 
 type ActionResult = { success: true } | { error: string }
 
@@ -56,6 +57,24 @@ export async function approveTeamRequest(employeeId: string): Promise<ActionResu
   })
 
   if (error) return { error: error.message }
+
+  try {
+    const [{ data: emp }, { data: mgr }] = await Promise.all([
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any).from('profiles').select('email, full_name').eq('id', employeeId).single(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase as any).from('profiles').select('full_name').eq('id', user.id).single(),
+    ])
+    if (emp) {
+      await notifyEmployeeOnboardingApproved({
+        employeeEmail: emp.email,
+        employeeName: emp.full_name,
+        managerName: mgr?.full_name ?? 'Your manager',
+      })
+    }
+  } catch {
+    // notification failure must not block approval
+  }
 
   revalidatePath('/dashboard')
   revalidatePath('/team')

@@ -44,7 +44,7 @@ export default function OnboardingForm({ managers }: { managers: Manager[] }) {
       <div className="rounded-[var(--radius-lr-lg)] border border-lr-cyan/20 bg-lr-cyan-dim px-6 py-8 text-center space-y-2">
         <p className="text-sm font-semibold text-lr-cyan">Request sent!</p>
         <p className="text-xs text-lr-muted">
-          Your manager will be notified. Once they approve your request you'll get access to the full dashboard.
+          Your manager will see your request the next time they log in. Once they approve, you'll get access to the full dashboard.
         </p>
       </div>
     )
@@ -80,7 +80,7 @@ export default function OnboardingForm({ managers }: { managers: Manager[] }) {
           </SelectContent>
         </Select>
         <p className="text-xs text-lr-muted">
-          Your manager will receive a notification and approve your access.
+          Your manager will see your request when they next log in and approve your access.
         </p>
       </div>
 
