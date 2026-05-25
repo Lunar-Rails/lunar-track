@@ -2,6 +2,7 @@ import Image from 'next/image'
 import { redirect } from 'next/navigation'
 import { createClient, getOrProvisionProfile } from '@/lib/supabase/server'
 import MagicLinkForm from '@/components/auth/MagicLinkForm'
+import ResendMagicLinkButton from '@/components/auth/ResendMagicLinkButton'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,17 +26,42 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-lr-bg px-4">
-      <div className="w-full max-w-md rounded-[var(--radius-lr-xl)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-8 shadow-[var(--shadow-lr-card)]">
-        <div className="mb-8 text-center">
+    <div className="relative min-h-screen flex items-center justify-center bg-lr-bg px-4">
+      {/* Ambient accent glow */}
+      <div
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+        aria-hidden="true"
+      >
+        <div className="absolute left-1/2 top-0 -translate-x-1/2 h-[480px] w-[720px] rounded-full bg-[radial-gradient(circle_at_top,var(--lr-accent-glow),transparent_60%)] opacity-70" />
+      </div>
+
+      {/* Login card */}
+      <div
+        role="main"
+        aria-labelledby="login-heading"
+        className="relative w-full max-w-md rounded-[var(--radius-lr-xl)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-8 sm:p-10 shadow-[var(--shadow-lr-card)]"
+      >
+        {/* Header */}
+        <div className="mb-7 text-center">
           <div className="flex justify-center mb-4">
             <Image src="/logo-full.svg" alt="CiaoBob" width={160} height={40} priority />
           </div>
-          <p className="text-sm text-lr-muted">BCOMM Performance Management</p>
+          <h1
+            id="login-heading"
+            className="font-display text-2xl font-semibold text-lr-text tracking-tight"
+          >
+            Sign in to LunarTrack
+          </h1>
+          <p className="text-sm text-lr-muted mt-1.5">BCOMM Performance Management</p>
         </div>
 
+        {/* Error alert */}
         {error && (
-          <div className="mb-6 rounded-[var(--radius-lr)] border border-lr-error/20 bg-lr-error-dim px-4 py-3">
+          <div
+            role="alert"
+            aria-live="polite"
+            className="mb-5 rounded-[var(--radius-lr)] border border-lr-error/30 bg-lr-error-dim px-4 py-3"
+          >
             <p className="text-sm text-lr-error">
               {error === 'domain'
                 ? 'Sign-in is restricted to authorized company domains.'
@@ -44,23 +70,63 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </div>
         )}
 
+        {/* Warning: signed in but profile not provisioned */}
         {user && !error && !sent && (
-          <div className="mb-6 rounded-[var(--radius-lr)] border border-lr-warning/20 bg-lr-warning-dim px-4 py-3">
+          <div
+            role="alert"
+            aria-live="polite"
+            className="mb-5 rounded-[var(--radius-lr)] border border-lr-warning/30 bg-lr-warning-dim px-4 py-3"
+          >
             <p className="text-sm text-lr-warning">You are signed in, but your profile could not be provisioned yet.</p>
             <p className="text-xs text-lr-muted mt-1">Try reloading once. If it persists, the server-side Supabase RPC cache may still be warming up.</p>
           </div>
         )}
 
         {sent ? (
+          /* Success state */
           <div className="text-center space-y-4">
-            <div className="rounded-[var(--radius-lr-lg)] border border-lr-accent/20 bg-lr-accent-dim px-4 py-6">
-              <p className="text-sm text-lr-accent font-medium">Check your email</p>
-              <p className="text-xs text-lr-muted mt-2">
-                We sent a magic link to <strong className="text-lr-text">{sent}</strong>.<br />
-                Click the link to sign in — it expires in 1 hour.
-              </p>
+            {/* Envelope icon */}
+            <div
+              className="h-12 w-12 rounded-full bg-lr-accent-dim border border-lr-accent/30 text-lr-accent flex items-center justify-center mx-auto"
+              aria-hidden="true"
+            >
+              <svg
+                className="h-6 w-6"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="2" y="4" width="20" height="16" rx="2" />
+                <path d="m2 7 10 7 10-7" />
+              </svg>
             </div>
-            <a href="/login" className="text-xs text-lr-muted hover:text-lr-text transition-colors">
+
+            <h2 className="font-display text-lg font-semibold text-lr-text mt-4">
+              Check your inbox
+            </h2>
+
+            <p className="text-sm text-lr-muted mt-2">
+              We sent a magic link to{' '}
+              <strong className="text-lr-text font-medium">{sent}</strong>. Click
+              the link to sign in — it expires in 1 hour.
+            </p>
+
+            <p className="text-xs text-lr-muted mt-3">
+              Tip: check your spam folder if it does not arrive within a minute.
+            </p>
+
+            <div className="pt-2">
+              <ResendMagicLinkButton email={sent} />
+            </div>
+
+            <a
+              href="/login"
+              className="inline-flex items-center text-xs text-lr-muted hover:text-lr-text transition-colors mt-4"
+            >
               Use a different email
             </a>
           </div>
