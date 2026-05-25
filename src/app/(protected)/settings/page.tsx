@@ -24,7 +24,14 @@ export default async function SettingsPage() {
   const profile = profileRaw as Pick<Profile, 'full_name' | 'email' | 'role' | 'avatar_url'> | null
   if (!profile) redirect('/dashboard')
 
-  const notifPrefs = { checkin_reminders: true, review_reminders: true }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: prefsRaw } = await (supabase as any)
+    .from('profiles')
+    .select('notification_prefs')
+    .eq('id', user.id)
+    .single()
+  const notifPrefs: { checkin_reminders: boolean; review_reminders: boolean } =
+    (prefsRaw as any)?.notification_prefs ?? { checkin_reminders: true, review_reminders: true }
 
   return (
     <div className="space-y-6">

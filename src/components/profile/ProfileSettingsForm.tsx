@@ -49,11 +49,12 @@ export default function ProfileSettingsForm({ profile }: Props) {
     if (!user) { setUploading(false); return }
 
     const ext = file.name.split('.').pop() ?? 'jpg'
-    const path = `${user.id}/avatar.${ext}`
+    // Versioned filename ensures CDN/browser caches are busted on every upload
+    const path = `${user.id}/avatar_${Date.now()}.${ext}`
 
     const { error: uploadError } = await supabase.storage
       .from('avatars')
-      .upload(path, file, { upsert: true })
+      .upload(path, file, { upsert: false })
 
     if (uploadError) {
       setError(uploadError.message)
@@ -62,13 +63,12 @@ export default function ProfileSettingsForm({ profile }: Props) {
     }
 
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
-    const urlWithBust = `${publicUrl}?t=${Date.now()}`
 
     const result = await updateAvatarUrl(publicUrl)
     if (result.error) {
       setError(result.error)
     } else {
-      setAvatarUrl(urlWithBust)
+      setAvatarUrl(publicUrl)
     }
     setUploading(false)
     // reset so same file can be re-selected

@@ -11,16 +11,23 @@ export default function NotificationsSection({ initialPrefs }: Props) {
   const [prefs, setPrefs] = useState(initialPrefs)
   const [isPending, startTransition] = useTransition()
   const [savedKey, setSavedKey] = useState(0)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   function handleToggle(key: keyof typeof prefs) {
     const next = { ...prefs, [key]: !prefs[key] }
     setPrefs(next)
+    setSaveError(null)
     const fd = new FormData()
     fd.append('checkin_reminders', String(next.checkin_reminders))
     fd.append('review_reminders', String(next.review_reminders))
     startTransition(async () => {
-      await updateNotificationPrefs(fd)
-      setSavedKey((k) => k + 1)
+      const result = await updateNotificationPrefs(fd)
+      if ('error' in result) {
+        setSaveError(result.error)
+        setPrefs(prefs) // revert optimistic toggle
+      } else {
+        setSavedKey((k) => k + 1)
+      }
     })
   }
 
@@ -30,6 +37,8 @@ export default function NotificationsSection({ initialPrefs }: Props) {
         <h2 className="text-sm font-semibold text-lr-text">Notifications</h2>
         {isPending ? (
           <span className="text-xs text-lr-muted">Saving…</span>
+        ) : saveError ? (
+          <span className="text-xs text-lr-error">{saveError}</span>
         ) : savedKey > 0 ? (
           <span key={savedKey} className="text-xs text-lr-success animate-in fade-in duration-300">Saved</span>
         ) : null}
