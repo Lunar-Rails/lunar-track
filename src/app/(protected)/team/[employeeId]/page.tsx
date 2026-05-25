@@ -229,6 +229,22 @@ export default async function TeamMemberPage({
         </div>
       </div>
 
+      {/* Annual Score */}
+      <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-lr-text">Annual Score</h2>
+            <p className="text-xs text-lr-muted mt-0.5">Finalize year-end performance rating</p>
+          </div>
+          <Link
+            href={`/annual-scores/${employeeId}?year=${new Date().getFullYear()}`}
+            className="text-xs text-lr-accent hover:text-lr-accent/80 transition-colors font-medium"
+          >
+            Open →
+          </Link>
+        </div>
+      </div>
+
       {periods.length === 0 && (
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass p-12 text-center">
           <p className="text-body text-lr-muted">No performance data yet.</p>

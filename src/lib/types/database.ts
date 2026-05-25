@@ -10,6 +10,7 @@ export interface Profile {
   role: UserRole
   manager_id: string | null
   is_onboarded: boolean
+  notification_prefs?: { checkin_reminders: boolean; review_reminders: boolean }
   pending_manager_id: string | null
   created_at: string
   updated_at: string

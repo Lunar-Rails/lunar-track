@@ -145,7 +145,6 @@ export default async function DashboardPage() {
   let pendingCheckins = 0
   let pendingOkrs = 0
   let teamCheckinDone = 0
-
   if (profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: subs } = await (supabase as any).rpc('get_subordinates', {
@@ -172,12 +171,13 @@ export default async function DashboardPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: checkinsRaw } = await (supabase as any)
         .from('checkins')
-        .select('employee_submitted_at, manager_submitted_at')
+        .select('employee_id, employee_submitted_at, manager_submitted_at')
         .in('employee_id', reportIds)
         .eq('month', currentMonth)
         .eq('year', currentYear)
 
-      const checkins = (checkinsRaw ?? []) as { employee_submitted_at: string | null; manager_submitted_at: string | null }[]
+      type CheckinRecord = { employee_id: string; employee_submitted_at: string | null; manager_submitted_at: string | null }
+      const checkins = (checkinsRaw ?? []) as CheckinRecord[]
       pendingCheckins = checkins.filter((c) => c.employee_submitted_at && !c.manager_submitted_at).length
       teamCheckinDone = checkins.filter((c) => !!c.manager_submitted_at).length
 

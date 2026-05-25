@@ -15,10 +15,26 @@ export async function GET(request: Request) {
 
   const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
   if (exchangeError) {
+    // If exchange fails but the user already has a valid pre-existing session, send them on
+    // rather than dropping them on the error page (e.g. stale magic link on an active session)
+    const {
+      data: { user: existingUser },
+    } = await supabase.auth.getUser()
+    if (existingUser) {
+      return NextResponse.redirect(`${origin}${next}`)
+    }
     return NextResponse.redirect(`${origin}/login?error=auth_failed`)
   }
 
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  // Password reset: session is live; skip profile provisioning and go straight to reset page
+  if (next.startsWith('/auth/reset-password')) {
+    return NextResponse.redirect(`${origin}${next}`)
+  }
+
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
   if (userError || !user?.email) {
     return NextResponse.redirect(`${origin}/login?error=no_user`)
   }
@@ -39,7 +55,6 @@ export async function GET(request: Request) {
 
   if (rpcError) {
     console.error('[auth/callback] upsert_profile_on_login error:', rpcError.message)
-    // Non-fatal: user is authenticated
   }
 
   return NextResponse.redirect(`${origin}${next}`)

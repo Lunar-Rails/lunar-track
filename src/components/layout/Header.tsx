@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import SignOutButton from '@/components/auth/SignOutButton'
+import SettingsMenuItem from '@/components/auth/SettingsMenuItem'
 import ThemeToggle from '@/components/theme/ThemeToggle'
 import type { Profile } from '@/lib/types/database'
 
@@ -82,6 +83,8 @@ export default function Header({ profile, inboxCount = 0 }: HeaderProps) {
             <DropdownMenuItem disabled className="opacity-60 cursor-default">
               <span className="text-xs text-lr-muted">{profile.role}</span>
             </DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-lr-border" />
+            <SettingsMenuItem />
             <DropdownMenuSeparator className="bg-lr-border" />
             <SignOutButton />
           </DropdownMenuContent>
