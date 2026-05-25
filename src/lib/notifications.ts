@@ -126,7 +126,7 @@ export async function notifyEmployeeCheckinReviewed(opts: {
 }
 
 /**
- * Manager changed OKR status → notify the employee.
+ * Manager changed goal status → notify the employee.
  */
 export async function notifyEmployeeOkrStatusChanged(opts: {
   employeeEmail: string
@@ -144,20 +144,20 @@ export async function notifyEmployeeOkrStatusChanged(opts: {
     REVISION_REQUESTED: '🔄 Revision requested',
   }
 
-  const subject = `OKR ${statusLabel[newStatus] ?? newStatus}: "${esc(okrTitle)}"`
+  const subject = `Goal ${statusLabel[newStatus] ?? newStatus}: "${esc(okrTitle)}"`
 
   await sendEmail(
     employeeEmail,
     subject,
     baseTemplate(`
       <p>${greeting}</p>
-      <p><strong>${esc(managerName ?? '')}</strong> has updated the status of your OKR:</p>
+      <p><strong>${esc(managerName ?? '')}</strong> has updated the status of your goal:</p>
       <blockquote style="border-left:3px solid #7c5cfc;margin:16px 0;padding:8px 16px;color:#e1e1e8;background:#12122a;border-radius:0 6px 6px 0;">
         ${esc(okrTitle)}
       </blockquote>
       <p><strong>New status:</strong> ${statusLabel[newStatus] ?? newStatus}</p>
       ${comment ? `<p><strong>Manager note:</strong> ${esc(comment)}</p>` : ''}
-      <a href="${APP_URL}/okrs" class="cta">View my OKRs →</a>
+      <a href="${APP_URL}/goals" class="cta">View my goals →</a>
     `),
   )
 }
@@ -222,7 +222,7 @@ export async function notifyEmployeeOnboardingApproved(opts: {
     baseTemplate(`
       <p>${greeting}</p>
       <p>You've been approved and assigned to <strong>${esc(managerName)}</strong>'s team on CiaoBob.</p>
-      <p>You can now access check-ins, OKRs, and your performance results.</p>
+      <p>You can now access check-ins, goals, and your performance results.</p>
       <a href="${APP_URL}/dashboard" class="cta">Go to dashboard →</a>
     `),
   )

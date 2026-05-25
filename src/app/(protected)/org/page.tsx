@@ -17,6 +17,7 @@ export default async function OrgPage() {
   const { data: profilesRaw } = await (supabase as any)
     .from('profiles')
     .select('*')
+    .eq('is_active', true)
     .order('full_name', { ascending: true })
 
   const profiles = (profilesRaw ?? []) as Profile[]
