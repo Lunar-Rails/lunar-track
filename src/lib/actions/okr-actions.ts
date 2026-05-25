@@ -267,8 +267,8 @@ export async function transitionOkrStatus(formData: FormData): Promise<ActionRes
       (parsed.data.toStatus === 'APPROVED' || parsed.data.toStatus === 'REVISION_REQUESTED')) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: emp } = await (supabase as any)
-      .from('profiles').select('email, full_name').eq('id', okr.employee_id).single()
-    if (emp) {
+      .from('profiles').select('email, full_name, notification_prefs').eq('id', okr.employee_id).single()
+    if (emp && emp.notification_prefs?.goal_status_updates !== false) {
       await notifyEmployeeOkrStatusChanged({
         employeeEmail: emp.email,
         employeeName: emp.full_name,

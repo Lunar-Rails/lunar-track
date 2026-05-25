@@ -17,20 +17,21 @@ export default async function SettingsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: profileRaw } = await (supabase as any)
     .from('profiles')
-    .select('full_name, email, role, avatar_url')
+    .select('full_name, email, role, avatar_url, notification_prefs')
     .eq('id', user.id)
     .single()
   const profile = profileRaw as Pick<Profile, 'full_name' | 'email' | 'role' | 'avatar_url'> | null
   if (!profile) redirect('/dashboard')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: prefsRaw } = await (supabase as any)
-    .from('profiles')
-    .select('notification_prefs')
-    .eq('id', user.id)
-    .single()
-  const notifPrefs: { checkin_reminders: boolean; review_reminders: boolean } =
-    (prefsRaw as any)?.notification_prefs ?? { checkin_reminders: true, review_reminders: true }
+  const raw = (profileRaw as any)?.notification_prefs ?? {}
+  const notifPrefs = {
+    checkin_reminders: raw.checkin_reminders ?? true,
+    review_reminders: raw.review_reminders ?? true,
+    goal_status_updates: raw.goal_status_updates ?? true,
+    checkin_reviewed: raw.checkin_reviewed ?? true,
+    team_checkin_submitted: raw.team_checkin_submitted ?? true,
+  }
 
   return (
     <div className="space-y-6">
@@ -39,7 +40,7 @@ export default async function SettingsPage() {
       </div>
       <ProfileSettingsForm profile={profile} />
       <AppearanceSection />
-<NotificationsSection initialPrefs={notifPrefs} />
+      <NotificationsSection initialPrefs={notifPrefs} role={profile.role} />
     </div>
   )
 }

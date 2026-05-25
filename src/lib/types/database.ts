@@ -11,7 +11,13 @@ export interface Profile {
   manager_id: string | null
   is_onboarded: boolean
   is_active: boolean
-  notification_prefs?: { checkin_reminders: boolean; review_reminders: boolean }
+  notification_prefs?: {
+    checkin_reminders: boolean
+    review_reminders: boolean
+    goal_status_updates: boolean
+    checkin_reviewed: boolean
+    team_checkin_submitted: boolean
+  }
   pending_manager_id: string | null
   created_at: string
   updated_at: string
