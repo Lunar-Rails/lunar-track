@@ -1,18 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { submitOnboarding } from '@/lib/actions/onboarding-actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Plus, X } from 'lucide-react'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Check, ChevronDown, Plus, X } from 'lucide-react'
 
 interface Manager {
   id: string
@@ -22,6 +15,8 @@ interface Manager {
 
 interface OnboardingFormProps {
   managers: Manager[]
+  defaultFullName?: string | null
+  defaultManagerId?: string | null
 }
 
 type Step = 1 | 2
@@ -31,14 +26,126 @@ const GOAL_SUGGESTIONS = [
   'Explore CiaoBob',
 ]
 
-export default function OnboardingForm({ managers }: OnboardingFormProps) {
+function ManagerCombobox({
+  managers,
+  value,
+  onChange,
+}: {
+  managers: Manager[]
+  value: string
+  onChange: (id: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const containerRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const selected = value
+    ? (() => {
+        const m = managers.find((m) => m.id === value)
+        return m ? { id: m.id, label: m.full_name ?? m.email } : null
+      })()
+    : null
+
+  const filtered = managers.filter((m) => {
+    const q = query.toLowerCase()
+    return (
+      (m.full_name ?? '').toLowerCase().includes(q) ||
+      m.email.toLowerCase().includes(q)
+    )
+  })
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false)
+        setQuery('')
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  function handleSelect(id: string) {
+    onChange(id)
+    setOpen(false)
+    setQuery('')
+  }
+
+  function handleClear() {
+    onChange('')
+    setQuery('')
+    setOpen(true)
+    setTimeout(() => inputRef.current?.focus(), 0)
+  }
+
+  return (
+    <div ref={containerRef} className="relative">
+      <div
+        className="flex items-center h-10 rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface px-3 gap-2 cursor-text"
+        onClick={() => {
+          setOpen(true)
+          setTimeout(() => inputRef.current?.focus(), 0)
+        }}
+      >
+        {selected ? (
+          <>
+            <span className="flex-1 text-sm text-lr-text truncate">{selected.label}</span>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); handleClear() }}
+              className="text-lr-muted hover:text-lr-text flex-shrink-0"
+              aria-label="Clear selection"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </>
+        ) : (
+          <>
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => { setQuery(e.target.value); setOpen(true) }}
+              onFocus={() => setOpen(true)}
+              placeholder="Search your manager…"
+              className="flex-1 bg-transparent text-sm text-lr-text placeholder:text-lr-muted outline-none min-w-0"
+            />
+            <ChevronDown className="h-4 w-4 text-lr-muted flex-shrink-0 pointer-events-none" />
+          </>
+        )}
+      </div>
+
+      {open && (
+        <div className="absolute z-50 mt-1 w-full rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface shadow-lg max-h-56 overflow-y-auto">
+          {filtered.length === 0 && (
+            <p className="px-3 py-2 text-sm text-lr-muted">No results for "{query}"</p>
+          )}
+          {filtered.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => handleSelect(m.id)}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-lr-surface-raised transition-colors text-left"
+            >
+              <Check className={`h-3.5 w-3.5 flex-shrink-0 ${value === m.id ? 'opacity-100 text-lr-accent' : 'opacity-0'}`} />
+              <span className="flex-1 truncate text-lr-text">{m.full_name ?? m.email}</span>
+              <span className="text-xs text-lr-muted truncate max-w-[140px]">{m.email}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function OnboardingForm({ managers, defaultFullName, defaultManagerId }: OnboardingFormProps) {
   const [step, setStep] = useState<Step>(1)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
 
   // Step 1 state
-  const [fullName, setFullName] = useState('')
-  const [managerId, setManagerId] = useState('')
+  const [fullName, setFullName] = useState(defaultFullName ?? '')
+  const [managerId, setManagerId] = useState(defaultManagerId ?? '')
   const [inviteMode, setInviteMode] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
 
@@ -128,19 +235,8 @@ export default function OnboardingForm({ managers }: OnboardingFormProps) {
 
         {!inviteMode ? (
           <div className="space-y-2">
-            <Label htmlFor="managerId" className="text-caption">Your manager</Label>
-            <Select value={managerId} onValueChange={setManagerId}>
-              <SelectTrigger id="managerId" className="h-10 bg-lr-surface border-lr-border text-lr-text">
-                <SelectValue placeholder="Select your manager…" />
-              </SelectTrigger>
-              <SelectContent className="bg-lr-surface border-lr-border">
-                {managers.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.full_name ?? m.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label className="text-caption">Your manager</Label>
+            <ManagerCombobox managers={managers} value={managerId} onChange={setManagerId} />
             <button
               type="button"
               onClick={() => { setInviteMode(true); setManagerId('') }}

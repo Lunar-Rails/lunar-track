@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Select,
   SelectContent,
@@ -44,6 +45,7 @@ function getDomain(email: string): string {
 const COLS = '2fr 2fr 150px minmax(0,1.5fr) 100px 80px'
 
 export default function UsersTable({ users, allUsers }: UsersTableProps) {
+  const router = useRouter()
   const [globalFilter, setGlobalFilter] = useState('')
   const [roleFilter, setRoleFilter] = useState<UserRole | 'ALL'>('ALL')
   const [domainFilter, setDomainFilter] = useState<string>('ALL')
@@ -84,7 +86,11 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
     startTransition(async () => {
       const result = await removeUser(userId)
       setRemovingId(null)
-      if ('error' in result) setRemoveError(result.error)
+      if ('error' in result) {
+        setRemoveError(result.error)
+      } else {
+        router.refresh()
+      }
     })
   }
 

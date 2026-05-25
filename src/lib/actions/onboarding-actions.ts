@@ -102,7 +102,11 @@ export async function submitOnboarding(params: {
   return { success: true }
 }
 
-export async function submitOnboardingDirect(formData: FormData): Promise<ActionResult> {
+export async function submitOnboardingDirect(params: {
+  fullName: string
+  managerId?: string
+  goals: Array<{ title: string }>
+}): Promise<ActionResult> {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()
   if (authError || !user) return { error: 'Not authenticated' }
@@ -115,14 +119,11 @@ export async function submitOnboardingDirect(formData: FormData): Promise<Action
 
   const schema = z.object({
     fullName: z.string().min(2, 'Name must be at least 2 characters').max(100),
-    managerId: z.string().uuid().optional().or(z.literal('')),
+    managerId: z.string().uuid().optional(),
+    goals: z.array(z.object({ title: z.string().min(1).max(200) })).min(1, 'Add at least one goal'),
   })
 
-  const rawManagerId = formData.get('managerId')
-  const parsed = schema.safeParse({
-    fullName: formData.get('fullName'),
-    managerId: (!rawManagerId || rawManagerId === 'none') ? undefined : rawManagerId,
-  })
+  const parsed = schema.safeParse(params)
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -137,6 +138,33 @@ export async function submitOnboardingDirect(formData: FormData): Promise<Action
     .eq('id', user.id)
 
   if (error) return { error: 'Failed to save: ' + error.message }
+
+  // Create goals for the current open period (best-effort, non-blocking)
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: periodRaw } = await (supabase as any)
+      .from('performance_periods')
+      .select('id')
+      .eq('status', 'open')
+      .single()
+
+    if (periodRaw) {
+      const periodId = (periodRaw as { id: string }).id
+      await Promise.all(
+        parsed.data.goals.map((g) =>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (supabase as any).from('okrs').insert({
+            employee_id: user.id,
+            period_id: periodId,
+            title: g.title,
+            status: 'APPROVED',
+          })
+        )
+      )
+    }
+  } catch {
+    // non-blocking
+  }
 
   // Auto-link any employees who invited this manager by email before they were in the system
   try {

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import InviteTeamMember from '@/components/team/InviteTeamMember'
 import type { Profile, SubordinateRow } from '@/lib/types/database'
 
 export const metadata: Metadata = { title: 'My Team · CiaoBob' }
@@ -335,6 +336,8 @@ export default async function TeamPage() {
           })}
         </div>
       )}
+
+      <InviteTeamMember />
 
       {/* Quarterly Scoring Hub */}
       <div className="space-y-4 mt-8">

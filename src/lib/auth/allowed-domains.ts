@@ -5,6 +5,7 @@ const ALLOWED_DOMAINS = [
   '40acres.pro',
   'chainlabs.ai',
   'podproza.cz',
+  'osirisconcepts.com',
 ] as const
 
 type AllowedDomain = (typeof ALLOWED_DOMAINS)[number]
