@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 import type { Checkin, PerformancePeriod } from '@/lib/types/database'
 
-export const metadata: Metadata = { title: 'Monthly Check-ins · LunarTrack' }
+export const metadata: Metadata = { title: 'Monthly Check-ins · CiaoBob' }
 
 export const dynamic = 'force-dynamic'
 

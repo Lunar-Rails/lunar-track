@@ -221,7 +221,7 @@ export default function UsersTable({ users, allUsers }: UsersTableProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Remove {pendingRemove?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will revoke their access to LunarTrack. This cannot be undone.
+              This will revoke their access to CiaoBob. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -41,9 +41,9 @@ export default function Header({ profile, inboxCount = 0 }: HeaderProps) {
         {/* Left: Hamburger (mobile) + Logo */}
         <div className="flex items-center gap-2">
           <MobileNav role={profile.role} />
-          <Image src="/icon-circle.svg" alt="LunarTrack" width={28} height={28} />
+          <Image src="/icon-circle.svg" alt="CiaoBob" width={28} height={28} />
           <span className="font-display font-bold text-lg text-lr-text tracking-tight">
-            LunarTrack
+            CiaoBob
           </span>
         </div>
 
