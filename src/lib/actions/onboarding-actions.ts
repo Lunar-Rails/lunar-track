@@ -40,6 +40,46 @@ export async function submitOnboarding(formData: FormData): Promise<ActionResult
   return { success: true }
 }
 
+export async function submitOnboardingDirect(formData: FormData): Promise<ActionResult> {
+  const supabase = await createClient()
+  const { data: { user }, error: authError } = await supabase.auth.getUser()
+  if (authError || !user) return { error: 'Not authenticated' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: callerRaw } = await (supabase as any).from('profiles').select('role').eq('id', user.id).single()
+  if (!callerRaw || (callerRaw.role !== 'MANAGER' && callerRaw.role !== 'HR_ADMIN')) {
+    return { error: 'Unauthorized' }
+  }
+
+  const schema = z.object({
+    fullName: z.string().min(2, 'Name must be at least 2 characters').max(100),
+    managerId: z.string().uuid().optional().or(z.literal('')),
+  })
+
+  const rawManagerId = formData.get('managerId')
+  const parsed = schema.safeParse({
+    fullName: formData.get('fullName'),
+    managerId: (!rawManagerId || rawManagerId === 'none') ? undefined : rawManagerId,
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any)
+    .from('profiles')
+    .update({
+      full_name: parsed.data.fullName,
+      manager_id: parsed.data.managerId || null,
+      is_onboarded: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', user.id)
+
+  if (error) return { error: 'Failed to save: ' + error.message }
+
+  revalidatePath('/dashboard')
+  redirect('/dashboard')
+}
+
 export async function approveTeamRequest(employeeId: string): Promise<ActionResult> {
   const supabase = await createClient()
   const { data: { user }, error: authError } = await supabase.auth.getUser()

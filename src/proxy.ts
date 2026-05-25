@@ -61,7 +61,7 @@ export async function proxy(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    if (profileRow?.role === 'EMPLOYEE' && profileRow.is_onboarded) {
+    if ((profileRow?.role === 'EMPLOYEE' || profileRow?.role === 'MANAGER') && profileRow.is_onboarded) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { count } = await (supabase as any)
         .from('checkins')

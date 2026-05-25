@@ -22,8 +22,8 @@ export default async function ProtectedLayout({
     redirect('/login')
   }
 
-  // New employees must complete onboarding before accessing any protected page
-  if (profile.role === 'EMPLOYEE' && !profile.is_onboarded) {
+  // All users must complete onboarding before accessing any protected page
+  if (!profile.is_onboarded) {
     redirect('/onboarding')
   }
 
