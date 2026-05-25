@@ -83,13 +83,14 @@ export default async function OnboardingPage() {
 
         <div className="flex items-center gap-2 mb-8">
           <div className="flex-1 h-1 rounded-full bg-lr-accent" />
+          <div className="flex-1 h-1 rounded-full bg-lr-accent" />
           <div className={`flex-1 h-1 rounded-full ${hasPendingRequest ? 'bg-lr-accent/40' : 'bg-lr-border'}`} />
         </div>
 
         {hasPendingRequest ? (
           <div className="space-y-6">
             <div>
-              <p className="text-kicker">Step 2 of 2</p>
+              <p className="text-kicker">Step 3 of 3</p>
               <h2 className="text-page-title mt-1">Awaiting approval</h2>
               <p className="text-body text-lr-muted mt-2">
                 Your manager will see your request the next time they log in. You'll get access as soon as they approve.
@@ -111,10 +112,10 @@ export default async function OnboardingPage() {
         ) : (
           <div className="space-y-6">
             <div>
-              <p className="text-kicker">Step 1 of 2</p>
+              <p className="text-kicker">Steps 1–2 of 3</p>
               <h2 className="text-page-title mt-1">Tell us about yourself</h2>
               <p className="text-body text-lr-muted mt-2">
-                Enter your name and select your manager. They'll approve your account.
+                Enter your name, select your manager, and set your first goals.
               </p>
             </div>
             {managers.length === 0 ? (

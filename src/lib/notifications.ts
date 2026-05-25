@@ -163,6 +163,27 @@ export async function notifyEmployeeOkrStatusChanged(opts: {
 }
 
 /**
+ * Employee invited a manager who isn't in the system yet → notify the manager.
+ */
+export async function notifyManagerInvite(opts: {
+  managerEmail: string
+  employeeName: string
+}): Promise<void> {
+  const { managerEmail, employeeName } = opts
+
+  await sendEmail(
+    managerEmail,
+    `${esc(employeeName)} has listed you as their manager on CiaoBob`,
+    baseTemplate(`
+      <p>Hi,</p>
+      <p><strong>${esc(employeeName)}</strong> has listed you as their manager on CiaoBob and is waiting for your approval.</p>
+      <p>Sign in to CiaoBob to complete your own profile setup and approve their request.</p>
+      <a href="${APP_URL}/login" class="cta">Sign in to CiaoBob →</a>
+    `),
+  )
+}
+
+/**
  * HR approved a team join request → notify the new employee.
  */
 export async function notifyEmployeeOnboardingApproved(opts: {
