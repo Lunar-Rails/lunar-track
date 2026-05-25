@@ -92,12 +92,11 @@ export default function Header({ profile, inboxCount = 0 }: HeaderProps) {
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-lr-border" />
             <SettingsMenuItem />
-            <DropdownMenuItem
-              onSelect={() => { window.location.href = '/guide' }}
-              className="cursor-pointer flex items-center gap-2 text-sm"
-            >
-              <BookOpen className="h-4 w-4" />
-              Guide
+            <DropdownMenuItem asChild>
+              <Link href="/guide" className="cursor-pointer flex items-center gap-2 text-sm">
+                <BookOpen className="h-4 w-4" />
+                Guide
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-lr-border" />
             <SignOutButton />
