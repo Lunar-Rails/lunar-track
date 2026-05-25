@@ -169,8 +169,7 @@ export async function updateAvatarUrl(url: string): Promise<ActionResult> {
 }
 
 export async function updateNotificationPrefs(formData: FormData): Promise<ActionResult> {
-  const checkinReminders = formData.get('checkin_reminders') === 'true'
-  const reviewReminders = formData.get('review_reminders') === 'true'
+  const get = (key: string) => formData.get(key) === 'true'
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -180,7 +179,13 @@ export async function updateNotificationPrefs(formData: FormData): Promise<Actio
   const { error } = await (supabase as any)
     .from('profiles')
     .update({
-      notification_prefs: { checkin_reminders: checkinReminders, review_reminders: reviewReminders },
+      notification_prefs: {
+        checkin_reminders: get('checkin_reminders'),
+        review_reminders: get('review_reminders'),
+        goal_status_updates: get('goal_status_updates'),
+        checkin_reviewed: get('checkin_reviewed'),
+        team_checkin_submitted: get('team_checkin_submitted'),
+      },
       updated_at: new Date().toISOString(),
     })
     .eq('id', user.id)

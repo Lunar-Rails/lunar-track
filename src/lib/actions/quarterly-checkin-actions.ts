@@ -164,8 +164,8 @@ export async function upsertQuarterlyCheckinEmployee(formData: FormData): Promis
     const period = periodRaw as Pick<PerformancePeriod, 'year' | 'quarter'> | null
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: mgr } = await (supabase as any)
-      .from('profiles').select('email, full_name').eq('id', caller.manager_id).single()
-    if (mgr) {
+      .from('profiles').select('email, full_name, notification_prefs').eq('id', caller.manager_id).single()
+    if (mgr && mgr.notification_prefs?.team_checkin_submitted !== false) {
       const { data: { user } } = await supabase.auth.getUser()
       await notifyManagerCheckinSubmitted({
         managerEmail: mgr.email,
