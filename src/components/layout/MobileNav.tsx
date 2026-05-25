@@ -39,12 +39,12 @@ export default function MobileNav({ role }: MobileNavProps) {
   const myWorkNav: NavItem[] = [
     { href: '/checkins', label: 'Monthly Check-ins', icon: ClipboardList },
     { href: '/quarterly-checkins', label: 'Quarterly Reviews', icon: CalendarCheck },
-    { href: '/org', label: 'Org Chart', icon: Network },
   ]
 
-  const teamNav: NavItem[] = (role === 'MANAGER' || role === 'HR_ADMIN') ? [
-    { href: '/team', label: 'My Team', icon: Users },
-  ] : []
+  const teamNav: NavItem[] = [
+    ...((role === 'MANAGER' || role === 'HR_ADMIN') ? [{ href: '/team', label: 'My Team', icon: Users }] : []),
+    { href: '/org', label: 'Org Chart', icon: Network },
+  ]
 
   const adminNav: NavItem[] = role === 'HR_ADMIN' ? [
     { href: '/analytics', label: 'Analytics', icon: BarChart2 },
