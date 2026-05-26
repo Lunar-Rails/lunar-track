@@ -68,9 +68,10 @@ export default function QuarterlyCheckinEmployeeForm({
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [step, setStep] = useState<Step>(() => searchParams.get('step') === 'plan' ? 'plan' : 'review')
 
+  // Remove ?step param from URL once consumed (from old bookmarks/refreshes)
   useEffect(() => {
     if (searchParams.get('step')) {
-      router.replace(pathname, { scroll: false })
+      window.history.replaceState(null, '', pathname)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -106,8 +107,11 @@ export default function QuarterlyCheckinEmployeeForm({
         setError(result.error)
       } else {
         setSavedAt(new Date())
-        if (result.id) router.replace(`/quarterly-checkins/${result.id}?step=plan`)
-        else setStep('plan')
+        // Update URL silently if we got a new ID, then switch tab client-side (no page reload)
+        if (result.id && !pathname.includes(result.id)) {
+          window.history.replaceState(null, '', `/quarterly-checkins/${result.id}`)
+        }
+        setStep('plan')
       }
     })
   }
@@ -120,7 +124,10 @@ export default function QuarterlyCheckinEmployeeForm({
         setError(result.error)
       } else {
         setSavedAt(new Date())
-        if (result.id) router.replace(`/quarterly-checkins/${result.id}`)
+        // Update URL silently if we got a new ID
+        if (result.id && !pathname.includes(result.id)) {
+          window.history.replaceState(null, '', `/quarterly-checkins/${result.id}`)
+        }
       }
     })
   }

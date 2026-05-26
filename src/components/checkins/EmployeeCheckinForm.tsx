@@ -61,10 +61,10 @@ export default function EmployeeCheckinForm({
   const [reviewMits, setReviewMits] = useState<ReviewMit[]>(() => initReviewMits(checkin))
   const [nextMits, setNextMits] = useState<PlanMit[]>(() => initPlanMits(checkin))
 
-  // Remove ?step param from URL once consumed so back/refresh don't re-apply it
+  // Remove ?step param from URL once consumed (from old bookmarks/refreshes)
   useEffect(() => {
     if (searchParams.get('step')) {
-      router.replace(pathname, { scroll: false })
+      window.history.replaceState(null, '', pathname)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [doneWell, setDoneWell] = useState(checkin?.done_well ?? '')
@@ -95,8 +95,11 @@ export default function EmployeeCheckinForm({
         setError(result.error)
       } else {
         setSavedAt(new Date())
-        if (result.id) router.replace(`/checkins/${result.id}?step=plan`)
-        else setStep('plan')
+        // Update URL silently if we got a new ID, then switch tab client-side (no page reload)
+        if (result.id && !pathname.includes(result.id)) {
+          window.history.replaceState(null, '', `/checkins/${result.id}`)
+        }
+        setStep('plan')
       }
     })
   }
@@ -109,7 +112,10 @@ export default function EmployeeCheckinForm({
         setError(result.error)
       } else {
         setSavedAt(new Date())
-        if (result.id) router.replace(`/checkins/${result.id}`)
+        // Update URL silently if we got a new ID
+        if (result.id && !pathname.includes(result.id)) {
+          window.history.replaceState(null, '', `/checkins/${result.id}`)
+        }
       }
     })
   }
