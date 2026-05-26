@@ -49,8 +49,8 @@ export default async function handler(request: Request): Promise<Response> {
     return new Response(err, { status: 500 })
   }
 
-  if (!process.env.RESEND_API_KEY) {
-    const err = '[email-reminders] Missing RESEND_API_KEY — cannot send emails'
+  if (!process.env.MAILTRAP_API_TOKEN) {
+    const err = '[email-reminders] Missing MAILTRAP_API_TOKEN — cannot send emails'
     console.error(err)
     return new Response(err, { status: 500 })
   }

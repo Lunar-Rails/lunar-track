@@ -1,14 +1,15 @@
 /**
- * CiaoBob email notifications via Resend.
+ * CiaoBob email notifications via Mailtrap.
  *
- * Usage: Set RESEND_API_KEY in .env.local to enable.
+ * Usage: Set MAILTRAP_API_TOKEN in .env.local to enable.
  * Without the key the helper silently no-ops — safe in dev / CI.
  *
- * From address: set RESEND_FROM in .env.local (default: CiaoBob <noreply@lunartrack.internal>)
+ * From address: set MAILTRAP_FROM in .env.local (default: noreply@lunarrails.io)
  */
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY
-const FROM_ADDRESS = process.env.RESEND_FROM ?? 'CiaoBob <noreply@lunartrack.internal>'
+const MAILTRAP_API_TOKEN = process.env.MAILTRAP_API_TOKEN
+const FROM_ADDRESS = process.env.MAILTRAP_FROM ?? 'noreply@lunarrails.io'
+const FROM_NAME = 'CiaoBob'
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
 function esc(s: string): string {
@@ -16,7 +17,7 @@ function esc(s: string): string {
 }
 
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
-  if (!RESEND_API_KEY) {
+  if (!MAILTRAP_API_TOKEN) {
     // No-op in dev without API key — log intent so devs can see it
     if (process.env.NODE_ENV !== 'production') {
       console.log(`[notifications] Would send "${subject}" to ${to}`)
@@ -25,17 +26,22 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
   }
 
   try {
-    const res = await fetch('https://api.resend.com/emails', {
+    const res = await fetch('https://send.api.mailtrap.io/api/send', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${RESEND_API_KEY}`,
+        Authorization: `Bearer ${MAILTRAP_API_TOKEN}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from: FROM_ADDRESS, to, subject, html }),
+      body: JSON.stringify({
+        from: { email: FROM_ADDRESS, name: FROM_NAME },
+        to: [{ email: to }],
+        subject,
+        html,
+      }),
     })
     if (!res.ok) {
       const body = await res.text()
-      console.error(`[notifications] Resend error ${res.status}: ${body}`)
+      console.error(`[notifications] Mailtrap error ${res.status}: ${body}`)
     }
   } catch (err) {
     console.error('[notifications] Failed to send email:', err)
