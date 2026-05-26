@@ -1,7 +1,15 @@
 import { redirect, notFound } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import QuarterlyScoringForm from '@/components/performance/QuarterlyScoringForm'
 import type { Checkin, CompanyValue, Initiative, KeyResult, Okr, PerformancePeriod, Profile, QuarterlyCheckin, QuarterlyScore, SubordinateRow } from '@/lib/types/database'
+
+function getInitials(name: string | null, email: string) {
+  if (name) return name.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
+  return email.slice(0, 2).toUpperCase()
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -35,10 +43,10 @@ export default async function QuarterlyScoringPage({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: empRaw } = await (supabase as any)
     .from('profiles')
-    .select('full_name, email')
+    .select('full_name, email, avatar_url, created_at')
     .eq('id', employeeId)
     .single()
-  const employee = empRaw as Pick<Profile, 'full_name' | 'email'> | null
+  const employee = empRaw as Pick<Profile, 'full_name' | 'email' | 'avatar_url'> | null
   if (!employee) notFound()
 
   // Fetch period
@@ -109,13 +117,68 @@ export default async function QuarterlyScoringPage({
   const employeeQuarterlyCheckin = empCheckinRaw as QuarterlyCheckin | null
 
   const employeeName = employee.full_name ?? employee.email
+  const existingScores = existing ? {
+    pm: existing.professional_mastery,
+    okrs: existing.okrs_stretch_goals,
+    bv: existing.behaviours_values,
+  } : null
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-kicker">{period.name}</p>
-        <h1 className="text-page-title mt-1">Quarterly Score</h1>
-        <p className="text-body text-lr-muted mt-1">{employeeName}</p>
+      {/* Breadcrumb */}
+      <Link href={`/team/${employeeId}`} className="inline-flex items-center gap-1.5 text-sm text-lr-muted hover:text-lr-text transition-colors">
+        ← {employeeName}
+      </Link>
+
+      {/* Dashboard header */}
+      <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] overflow-hidden">
+        {/* Top accent bar */}
+        <div className="h-1 bg-gradient-to-r from-lr-accent/60 via-lr-accent to-lr-accent/60" />
+
+        <div className="px-6 py-5 flex flex-col sm:flex-row sm:items-center gap-5">
+          {/* Employee info */}
+          <div className="flex items-center gap-4 flex-1 min-w-0">
+            <Avatar className="h-12 w-12 shrink-0">
+              <AvatarImage src={employee.avatar_url ?? undefined} />
+              <AvatarFallback className="bg-lr-accent text-white font-semibold">
+                {getInitials(employee.full_name, employee.email)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg font-semibold text-lr-text truncate">{employeeName}</h1>
+                <Badge variant="outline" className="text-[10px] bg-lr-accent-dim text-lr-accent border-lr-accent/20 shrink-0">
+                  {period.name}
+                </Badge>
+              </div>
+              <p className="text-sm text-lr-muted mt-0.5">Quarterly Scoring — Q{period.quarter} {period.year}</p>
+            </div>
+          </div>
+
+          {/* Score summary — shows saved scores if they exist */}
+          {existingScores && (
+            <div className="flex items-center gap-px shrink-0">
+              {[
+                { label: 'PM', value: existingScores.pm },
+                { label: 'Goals', value: existingScores.okrs },
+                { label: 'B&V', value: existingScores.bv },
+              ].map((s, i) => (
+                <div key={s.label} className={[
+                  'flex flex-col items-center px-4 py-2',
+                  i < 2 ? 'border-r border-lr-border/50' : '',
+                ].join(' ')}>
+                  <span className="text-2xl font-bold text-lr-accent tabular-nums">{s.value ?? '—'}</span>
+                  <span className="text-[10px] text-lr-muted uppercase tracking-wide mt-0.5">{s.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {!existingScores && (
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-xs text-lr-muted/60 italic">No scores saved yet</span>
+            </div>
+          )}
+        </div>
       </div>
 
       <QuarterlyScoringForm

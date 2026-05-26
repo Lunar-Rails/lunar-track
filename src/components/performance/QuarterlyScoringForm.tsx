@@ -251,6 +251,9 @@ export default function QuarterlyScoringForm({
         </div>
       </div>
 
+      <div>
+        <p className="text-xs font-semibold text-lr-muted uppercase tracking-wider mb-3">Score each dimension</p>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
         {/* Professional Mastery */}
@@ -398,16 +401,20 @@ export default function QuarterlyScoringForm({
         </div>
       )}
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-4 pt-2 border-t border-lr-border">
         <Button
           type="button"
           onClick={onSave}
           disabled={isPending}
-          className="bg-lr-accent hover:bg-lr-accent/90 text-white"
+          className="bg-lr-accent hover:bg-lr-accent/90 text-white gap-2 px-6"
         >
-          {isPending ? 'Saving…' : existing ? 'Update Score' : 'Save Score'}
+          {isPending ? 'Saving…' : existing ? 'Update scores' : 'Save scores'}
         </Button>
-        {saved && <span className="text-xs text-lr-cyan">Saved successfully — for {employeeName}</span>}
+        {saved && (
+          <div className="flex items-center gap-2 rounded-[var(--radius-lr)] border border-lr-cyan/20 bg-lr-cyan-dim px-4 py-2">
+            <span className="text-xs font-medium text-lr-cyan">Scores saved for {employeeName}</span>
+          </div>
+        )}
       </div>
     </div>
   )
