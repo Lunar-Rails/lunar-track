@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import InviteTeamMember from '@/components/team/InviteTeamMember'
+import SendKudosSheet from '@/components/kudos/SendKudosSheet'
 import type { Profile, SubordinateRow } from '@/lib/types/database'
 
 export const metadata: Metadata = { title: 'My Team · CiaoBob' }
@@ -296,6 +297,16 @@ export default async function TeamPage({
     companyValues = (companyValuesRaw ?? []) as CompanyValue[]
   }
 
+  // All profiles for SendKudosSheet recipient search (exclude self)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: allProfilesRaw } = await (supabase as any)
+    .from('profiles')
+    .select('id, full_name, email, avatar_url')
+    .neq('id', user.id)
+    .eq('is_active', true)
+    .order('full_name', { ascending: true })
+  const allProfiles = (allProfilesRaw ?? []) as { id: string; full_name: string | null; email: string; avatar_url: string | null }[]
+
   function avgScore(s: QScore): number | null {
     const vals = [s.professional_mastery, s.okrs_stretch_goals, s.behaviours_values].filter((v): v is number => v !== null)
     if (vals.length === 0) return null
@@ -383,7 +394,14 @@ export default async function TeamPage({
             )}
           </p>
         </div>
-        <InviteTeamMember />
+        <div className="flex items-center gap-2 shrink-0">
+          <SendKudosSheet profiles={allProfiles} companyValues={companyValues}>
+            <button className="flex items-center gap-1.5 text-sm font-medium text-lr-accent border border-lr-accent/30 bg-lr-accent-dim hover:bg-lr-accent/20 rounded-[var(--radius-lr)] px-4 py-2 transition-colors">
+              ✦ Give kudos
+            </button>
+          </SendKudosSheet>
+          <InviteTeamMember />
+        </div>
       </div>
 
       {/* Tab nav */}
