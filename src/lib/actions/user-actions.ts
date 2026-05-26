@@ -131,6 +131,8 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
   if (!fullName) return { error: 'Display name cannot be empty.' }
   if (fullName.length > 100) return { error: 'Display name is too long.' }
 
+  const jobTitle = (formData.get('job_title') as string | null)?.trim() ?? null
+
   const supabase = await createClient()
   const {
     data: { user },
@@ -140,7 +142,7 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
     .from('profiles')
-    .update({ full_name: fullName, updated_at: new Date().toISOString() })
+    .update({ full_name: fullName, job_title: jobTitle || null, updated_at: new Date().toISOString() })
     .eq('id', user.id)
 
   if (error) return { error: error.message }

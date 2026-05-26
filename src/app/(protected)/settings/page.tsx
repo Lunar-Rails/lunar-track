@@ -21,7 +21,7 @@ export default async function SettingsPage() {
     .eq('id', user.id)
     .single()
   if (profileError) console.error('[settings] profile fetch failed:', profileError.message)
-  const profile = profileRaw as Pick<Profile, 'full_name' | 'email' | 'role' | 'avatar_url'> | null
+  const profile = profileRaw as Pick<Profile, 'full_name' | 'email' | 'role' | 'avatar_url' | 'job_title'> | null
   if (!profile) redirect('/dashboard')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import type { Profile } from '@/lib/types/database'
 
 interface Props {
-  profile: Pick<Profile, 'full_name' | 'email' | 'role' | 'avatar_url'>
+  profile: Pick<Profile, 'full_name' | 'email' | 'role' | 'avatar_url' | 'job_title'>
 }
 
 function getInitials(name: string | null, email: string): string {
@@ -122,7 +122,10 @@ export default function ProfileSettingsForm({ profile }: Props) {
         </div>
         <div className="min-w-0">
           <p className="text-base font-semibold text-lr-text truncate">{profile.full_name ?? profile.email}</p>
-          <p className="text-sm text-lr-muted truncate">{profile.email}</p>
+          {profile.job_title && (
+            <p className="text-sm text-lr-text/80 truncate mt-0.5">{profile.job_title}</p>
+          )}
+          <p className="text-sm text-lr-muted truncate mt-0.5">{profile.email}</p>
           <span className="mt-1.5 inline-flex items-center rounded-full bg-lr-accent-dim px-2.5 py-0.5 text-xs font-medium text-lr-accent">
             {roleLabel}
           </span>
@@ -144,6 +147,21 @@ export default function ProfileSettingsForm({ profile }: Props) {
               required
               maxLength={100}
               disabled={isPending}
+              className="h-10 bg-lr-surface border-lr-border text-lr-text placeholder:text-lr-muted focus-visible:ring-2 focus-visible:ring-lr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lr-bg"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="job_title" className="text-sm font-medium text-lr-text">
+              Job title
+            </Label>
+            <Input
+              id="job_title"
+              name="job_title"
+              defaultValue={profile.job_title ?? ''}
+              maxLength={100}
+              disabled={isPending}
+              placeholder="e.g. Senior Engineer"
               className="h-10 bg-lr-surface border-lr-border text-lr-text placeholder:text-lr-muted focus-visible:ring-2 focus-visible:ring-lr-accent focus-visible:ring-offset-2 focus-visible:ring-offset-lr-bg"
             />
           </div>

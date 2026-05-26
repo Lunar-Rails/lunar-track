@@ -19,6 +19,7 @@ export interface Profile {
     team_checkin_submitted: boolean
   }
   pending_manager_id: string | null
+  job_title: string | null
   created_at: string
   updated_at: string
 }

@@ -258,6 +258,9 @@ export default async function DashboardPage() {
           <h1 className="text-page-title mt-1">
             {profile.full_name?.split(' ')[0] ?? profile.email}
           </h1>
+          {profile.job_title && (
+            <p className="text-sm text-lr-muted mt-1">{profile.job_title}</p>
+          )}
           <div className="flex items-center gap-2 mt-2">
             <Badge variant="outline" className={ROLE_BADGE[profile.role] ?? ''}>
               {profile.role.replace('_', ' ')}

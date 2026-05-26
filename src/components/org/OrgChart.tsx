@@ -153,7 +153,7 @@ function PersonCard({ profile, profileMap, currentUserId, highlight }: {
 
       <div className="flex flex-wrap items-center gap-1.5">
         <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium leading-none ${ROLE_BADGE[profile.role]}`}>
-          {ROLE_LABEL[profile.role]}
+          {profile.job_title ?? ROLE_LABEL[profile.role]}
         </span>
         <span className="inline-flex items-center rounded-full border border-lr-border bg-lr-surface px-2 py-0.5 text-[10px] text-lr-muted leading-none">
           {company}
@@ -213,7 +213,7 @@ function TreeCard({ profile, profileMap, currentUserId }: { profile: Profile; pr
         <p className="text-[11px] font-semibold text-lr-text leading-tight line-clamp-2">{name}</p>
         <p className="text-[9px] text-lr-muted mt-0.5 truncate">{profile.email}</p>
         <span className={`inline-block mt-1 rounded-full px-1.5 py-0.5 text-[9px] font-medium ${ROLE_BADGE[profile.role]}`}>
-          {ROLE_LABEL[profile.role]}
+          {profile.job_title ?? ROLE_LABEL[profile.role]}
         </span>
       </div>
     </div>
@@ -317,7 +317,7 @@ export default function OrgChart({ profiles, currentUserId }: OrgChartProps) {
     return profiles.filter(p => {
       if (innerCircle && !innerCircleIds.has(p.id)) return false
       if (companyFilter && domainOf(p.email) !== companyFilter) return false
-      if (q && !(p.full_name ?? '').toLowerCase().includes(q) && !p.email.toLowerCase().includes(q)) return false
+      if (q && !(p.full_name ?? '').toLowerCase().includes(q) && !p.email.toLowerCase().includes(q) && !(p.job_title ?? '').toLowerCase().includes(q)) return false
       return true
     })
   }, [profiles, search, companyFilter, innerCircle, innerCircleIds])
