@@ -143,8 +143,8 @@ export default function SendKudosSheet({
                   <input
                     type="text"
                     value={search}
-                    onChange={(e) => { setSearch(e.target.value); setShowDropdown(true) }}
-                    onFocus={() => setShowDropdown(true)}
+                    onChange={(e) => { setSearch(e.target.value); setShowDropdown(e.target.value.length > 0) }}
+                    onFocus={() => setShowDropdown(search.length > 0)}
                     onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
                     placeholder="Search by name or email…"
                     className="w-full rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface/60 px-3 py-2.5 text-sm text-lr-text placeholder:text-lr-muted/40 focus:outline-none focus:border-lr-accent/60 transition-colors"
