@@ -206,6 +206,56 @@ export async function notifyTeamMemberInvited(opts: {
 }
 
 /**
+ * Reminder: employee hasn't submitted their monthly check-in yet.
+ */
+export async function notifyEmployeeMonthlyReminder(opts: {
+  employeeEmail: string
+  employeeName: string | null
+  monthName: string
+  year: number
+  deadlineStr: string
+}): Promise<void> {
+  const { employeeEmail, employeeName, monthName, year, deadlineStr } = opts
+  const greeting = employeeName ? `Hi ${esc(employeeName.split(' ')[0])},` : 'Hi,'
+
+  await sendEmail(
+    employeeEmail,
+    `Reminder: your ${monthName} check-in is due ${deadlineStr}`,
+    baseTemplate(`
+      <p>${greeting}</p>
+      <p>Just a reminder that your <strong>${monthName} ${year} monthly check-in</strong> hasn't been submitted yet.</p>
+      <p>It's due by <strong>${deadlineStr}</strong> — it only takes a few minutes to share your MITs and reflections.</p>
+      <a href="${APP_URL}/checkins" class="cta">Complete check-in →</a>
+    `),
+  )
+}
+
+/**
+ * Reminder: employee hasn't submitted their quarterly review yet.
+ */
+export async function notifyEmployeeQuarterlyReminder(opts: {
+  employeeEmail: string
+  employeeName: string | null
+  quarter: number
+  year: number
+  deadlineStr: string
+}): Promise<void> {
+  const { employeeEmail, employeeName, quarter, year, deadlineStr } = opts
+  const greeting = employeeName ? `Hi ${esc(employeeName.split(' ')[0])},` : 'Hi,'
+
+  await sendEmail(
+    employeeEmail,
+    `Reminder: your Q${quarter} ${year} review is due ${deadlineStr}`,
+    baseTemplate(`
+      <p>${greeting}</p>
+      <p>Your <strong>Q${quarter} ${year} quarterly review</strong> hasn't been submitted yet.</p>
+      <p>It's due by <strong>${deadlineStr}</strong> — take a few minutes to reflect on your goals, values, and plans for next quarter.</p>
+      <a href="${APP_URL}/quarterly-checkins" class="cta">Complete quarterly review →</a>
+    `),
+  )
+}
+
+/**
  * HR approved a team join request → notify the new employee.
  */
 export async function notifyEmployeeOnboardingApproved(opts: {
