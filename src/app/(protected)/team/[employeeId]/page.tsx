@@ -3,6 +3,9 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import AddHistoricalReviewSheet from '@/components/team/AddHistoricalReviewSheet'
+import DeleteHistoricalReviewButton from '@/components/team/DeleteHistoricalReviewButton'
+import type { HistoricalReview } from '@/lib/actions/historical-review-actions'
 import { format } from 'date-fns'
 import type {
   Checkin,
@@ -114,10 +117,13 @@ function MoodPips({ checkinByPeriodMonth, periodId, months }: { checkinByPeriodM
 
 export default async function TeamMemberPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ employeeId: string }>
+  searchParams: Promise<{ tab?: string }>
 }) {
-  const { employeeId } = await params
+  const [{ employeeId }, { tab }] = await Promise.all([params, searchParams])
+  const activeTab = tab === 'history' ? 'history' : 'overview'
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -139,7 +145,7 @@ export default async function TeamMemberPage({
   const employee = employeeRaw as Profile | null
   if (!employee) notFound()
 
-  const [periodsResult, checkinsResult, qCheckinsResult, scoresResult, okrsResult] = await Promise.all([
+  const [periodsResult, checkinsResult, qCheckinsResult, scoresResult, okrsResult, historicalResult] = await Promise.all([
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('performance_periods').select('*')
       .order('year', { ascending: false }).order('quarter', { ascending: false }),
@@ -151,6 +157,9 @@ export default async function TeamMemberPage({
     (supabase as any).from('quarterly_scores').select('*').eq('employee_id', employeeId),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('okrs').select('*, key_results(*, initiatives(*))').eq('employee_id', employeeId),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('historical_reviews').select('*')
+      .eq('employee_id', employeeId).order('created_at', { ascending: false }),
   ])
 
   const allPeriods = (periodsResult.data ?? []) as PerformancePeriod[]
@@ -158,6 +167,7 @@ export default async function TeamMemberPage({
   const allQCheckins = (qCheckinsResult.data ?? []) as QuarterlyCheckin[]
   const allScores = (scoresResult.data ?? []) as QuarterlyScore[]
   const allOkrs = (okrsResult.data ?? []) as OkrWithProgress[]
+  const historicalReviews = (historicalResult.data ?? []) as HistoricalReview[]
 
   allOkrs.forEach((o) => {
     o.key_results = [...(o.key_results ?? [])].sort((a, b) => a.sort_order - b.sort_order)
@@ -206,6 +216,10 @@ export default async function TeamMemberPage({
     return !isFuture
   })
 
+  const SOURCE_LABELS: Record<string, string> = {
+    notion: 'Notion', hibob: 'HiBob', fathom: 'Fathom', manual: 'Manual notes', other: 'Other',
+  }
+
   return (
     <div className="space-y-6">
       <Link href="/team" className="inline-block text-sm text-lr-muted hover:text-lr-text transition-colors">
@@ -245,14 +259,107 @@ export default async function TeamMemberPage({
         </div>
       </div>
 
-      {periods.length === 0 && (
+      {/* Tab nav */}
+      <div className="flex items-center gap-1 border-b border-lr-border">
+        {[
+          { key: 'overview', label: 'Overview' },
+          { key: 'history', label: `History${historicalReviews.length > 0 ? ` (${historicalReviews.length})` : ''}` },
+        ].map((t) => (
+          <Link
+            key={t.key}
+            href={t.key === 'overview' ? `/team/${employeeId}` : `/team/${employeeId}?tab=${t.key}`}
+            className={[
+              'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+              activeTab === t.key
+                ? 'border-lr-accent text-lr-accent'
+                : 'border-transparent text-lr-muted hover:text-lr-text',
+            ].join(' ')}
+          >
+            {t.label}
+          </Link>
+        ))}
+      </div>
+
+      {/* ── HISTORY TAB ── */}
+      {activeTab === 'history' && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-semibold text-lr-text">Historical Reviews</p>
+              <p className="text-xs text-lr-muted mt-0.5">Performance records imported from before this platform</p>
+            </div>
+            <AddHistoricalReviewSheet
+              employeeId={employeeId}
+              employeeName={employee.full_name ?? employee.email}
+            />
+          </div>
+
+          {historicalReviews.length === 0 ? (
+            <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-12 text-center">
+              <p className="text-body text-lr-muted">No historical reviews yet.</p>
+              <p className="text-sm text-lr-muted mt-2">
+                Import past performance reviews from Notion, HiBob, Fathom, or any other source.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {historicalReviews.map((hr) => (
+                <div
+                  key={hr.id}
+                  className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-lr-text">{hr.period_label}</p>
+                        <Badge variant="outline" className="text-[10px] bg-lr-surface text-lr-muted border-lr-border">
+                          Imported
+                        </Badge>
+                        {hr.source && (
+                          <Badge variant="outline" className="text-[10px] bg-lr-surface text-lr-muted border-lr-border">
+                            {SOURCE_LABELS[hr.source] ?? hr.source}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-lr-muted/50 mt-0.5">
+                        Added {format(new Date(hr.created_at), 'MMM d, yyyy')}
+                      </p>
+                    </div>
+                    <DeleteHistoricalReviewButton id={hr.id} employeeId={employeeId} />
+                  </div>
+
+                  {(hr.professional_mastery != null || hr.okrs_stretch_goals != null || hr.behaviours_values != null) && (
+                    <div className="flex items-center gap-4">
+                      {hr.professional_mastery != null && (
+                        <span className="text-xs text-lr-muted">PM <span className="font-bold text-lr-accent">{hr.professional_mastery}</span></span>
+                      )}
+                      {hr.okrs_stretch_goals != null && (
+                        <span className="text-xs text-lr-muted">Goals <span className="font-bold text-lr-accent">{hr.okrs_stretch_goals}</span></span>
+                      )}
+                      {hr.behaviours_values != null && (
+                        <span className="text-xs text-lr-muted">B&amp;V <span className="font-bold text-lr-accent">{hr.behaviours_values}</span></span>
+                      )}
+                    </div>
+                  )}
+
+                  {hr.summary && (
+                    <p className="text-sm text-lr-muted leading-relaxed">{hr.summary}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── OVERVIEW TAB ── */}
+      {activeTab === 'overview' && periods.length === 0 && (
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass p-12 text-center">
           <p className="text-body text-lr-muted">No performance data yet.</p>
         </div>
       )}
 
-      {/* Quarter cards — newest first */}
-      {visiblePeriods.map((period) => {
+      {activeTab === 'overview' && visiblePeriods.map((period) => {
         const isOpen = period.status === 'open'
         const months = quarterMonths(period.quarter)
         const qCheckin = qCheckinByPeriod.get(period.id)
@@ -489,3 +596,4 @@ export default async function TeamMemberPage({
     </div>
   )
 }
+
