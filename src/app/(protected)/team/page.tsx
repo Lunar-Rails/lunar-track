@@ -199,7 +199,7 @@ export default async function TeamPage({
 
   function scoringStatus(score: QScore | undefined): 'scored' | 'partial' | 'none' {
     if (!score) return 'none'
-    if (score.professional_mastery && score.okrs_stretch_goals && score.behaviours_values) return 'scored'
+    if (score.professional_mastery !== null && score.okrs_stretch_goals !== null && score.behaviours_values !== null) return 'scored'
     return 'partial'
   }
 

@@ -46,40 +46,31 @@ export async function inviteTeamMember(formData: FormData): Promise<ActionResult
     { auth: { autoRefreshToken: false, persistSession: false } }
   )
 
-  // Check if user already exists
-  const { data: existingUsers } = await adminClient.auth.admin.listUsers()
-  const existingAuthUser = existingUsers?.users?.find((u) => u.email === email)
-
-  let newUserId: string
-
-  if (existingAuthUser) {
-    newUserId = existingAuthUser.id
-    // Check if they already have a profile
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: existingProfile } = await (supabase as any)
-      .from('profiles')
-      .select('id, manager_id, full_name')
-      .eq('id', existingAuthUser.id)
-      .maybeSingle()
-    if (existingProfile) {
-      return { error: `${email} is already in the system.` }
-    }
-  } else {
-    // Create auth user (Google OAuth will link on first login)
-    const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      app_metadata: { provider: 'google', providers: ['google'] },
-    })
-    if (createError || !newUser.user) {
-      return { error: 'Failed to create user: ' + (createError?.message ?? 'unknown error') }
-    }
-    newUserId = newUser.user.id
+  // Check if a profile already exists for this email (scoped to this app, no unbounded auth scan)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existingProfile } = await (adminClient as any)
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .maybeSingle()
+  if (existingProfile) {
+    return { error: `${email} is already in the system.` }
   }
 
-  // Create profile with manager pre-assigned
+  // Create auth user (Google OAuth will link on first login)
+  const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
+    email,
+    email_confirm: true,
+    app_metadata: { provider: 'google', providers: ['google'] },
+  })
+  if (createError || !newUser.user) {
+    return { error: 'Failed to create user: ' + (createError?.message ?? 'unknown error') }
+  }
+  const newUserId = newUser.user.id
+
+  // Use adminClient for privileged inserts so RLS doesn't block cross-user writes
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: profileError } = await (supabase as any)
+  const { error: profileError } = await (adminClient as any)
     .from('profiles')
     .insert({
       id: newUserId,
@@ -94,7 +85,7 @@ export async function inviteTeamMember(formData: FormData): Promise<ActionResult
 
   // Also insert org_closure self-row so hierarchy queries work
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await (supabase as any)
+  await (adminClient as any)
     .from('org_closure')
     .insert({ ancestor_id: newUserId, descendant_id: newUserId, depth: 0 })
     .onConflict('ancestor_id,descendant_id')

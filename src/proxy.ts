@@ -12,6 +12,7 @@ const GATE_EXEMPT_PREFIXES = [
   '/settings',
   '/dashboard',
   '/org',
+  '/team',
 ]
 
 export async function proxy(request: NextRequest) {

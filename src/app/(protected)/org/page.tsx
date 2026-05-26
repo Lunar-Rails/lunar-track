@@ -16,7 +16,7 @@ export default async function OrgPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: profilesRaw } = await (supabase as any)
     .from('profiles')
-    .select('*')
+    .select('id, full_name, email, avatar_url, role, manager_id, job_title')
     .eq('is_active', true)
     .order('full_name', { ascending: true })
 

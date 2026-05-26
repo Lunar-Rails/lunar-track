@@ -3,10 +3,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import type { Profile, QuarterlyCheckin, PerformancePeriod, QuarterlyGoal, QuarterlyGoalReview, ValueAssessment, PlanMit, ReviewMit } from '@/lib/types/database'
+import type { Profile, PerformancePeriod, QuarterlyGoal, QuarterlyGoalReview, ValueAssessment, PlanMit, ReviewMit } from '@/lib/types/database'
 import {
   notifyManagerCheckinSubmitted,
-  notifyEmployeeCheckinReviewed,
 } from '@/lib/notifications'
 
 type ActionResult = { success: true; id?: string } | { error: string }
@@ -194,6 +193,8 @@ async function carryMitsToFirstMonthOfNextQuarter(
 
   const nextQuarter = currentPeriod.quarter === 4 ? 1 : currentPeriod.quarter + 1
   const nextYear = currentPeriod.quarter === 4 ? currentPeriod.year + 1 : currentPeriod.year
+  // First calendar month of each quarter: Q1→1, Q2→4, Q3→7, Q4→10
+  const firstMonthOfNextQuarter = (nextQuarter - 1) * 3 + 1
 
   const { data: nextPeriod } = await supabase
     .from('performance_periods')
@@ -216,7 +217,7 @@ async function carryMitsToFirstMonthOfNextQuarter(
     .select('id, employee_submitted_at')
     .eq('employee_id', employeeId)
     .eq('period_id', nextPeriod.id)
-    .eq('month', 1)
+    .eq('month', firstMonthOfNextQuarter)
     .maybeSingle()
 
   if (firstMonthCheckin) {
@@ -229,7 +230,7 @@ async function carryMitsToFirstMonthOfNextQuarter(
     await supabase.from('checkins').insert({
       employee_id: employeeId,
       period_id: nextPeriod.id,
-      month: 1,
+      month: firstMonthOfNextQuarter,
       year: nextYear,
       mits: carriedMits,
     })

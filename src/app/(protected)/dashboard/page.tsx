@@ -504,7 +504,7 @@ export default async function DashboardPage() {
             ))}
             {kudosReceivedCount > 3 && (
               <p className="text-xs text-lr-muted text-center pt-1">
-                +{kudosReceivedCount - 3} more — view on your profile
+                +{kudosReceivedCount - 3} more received this period
               </p>
             )}
           </div>

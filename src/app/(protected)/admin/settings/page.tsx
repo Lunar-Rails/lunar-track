@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import UsersTable from '@/components/admin/UsersTable'
 import CompanyValuesAdmin from '@/components/admin/CompanyValuesAdmin'
@@ -23,6 +24,13 @@ export default async function OrganizationSettingsPage({ searchParams }: PagePro
   const activeTab = TABS.some((t) => t.id === tab) ? tab : 'users'
 
   const supabase = await createClient()
+
+  // Guard: HR_ADMIN only
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) { redirect('/login') }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: callerProfile } = await (supabase as any).from('profiles').select('role').eq('id', user.id).single()
+  if (!callerProfile || callerProfile.role !== 'HR_ADMIN') { redirect('/dashboard') }
 
   // Fetch data for the active tab only
   let profiles: Profile[] = []
