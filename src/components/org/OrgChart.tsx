@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Search, Users, GitBranch, X } from 'lucide-react'
+import { Search, Users, GitBranch, X, ZoomIn, ZoomOut } from 'lucide-react'
 import type { Profile, UserRole } from '@/lib/types/database'
 
 // ─── Domain → Company label ──────────────────────────────────────────────────
@@ -293,6 +293,10 @@ export default function OrgChart({ profiles, currentUserId }: OrgChartProps) {
   const [search, setSearch] = useState('')
   const [companyFilter, setCompanyFilter] = useState<string | null>(null)
   const [innerCircle, setInnerCircle] = useState(true)
+  const [zoom, setZoom] = useState(1)
+  const ZOOM_STEP = 0.15
+  const ZOOM_MIN = 0.4
+  const ZOOM_MAX = 1.5
 
   const expandedByDefaultIds = useMemo(
     () => getExpandedByDefaultIds(profiles, currentUserId),
@@ -446,17 +450,53 @@ export default function OrgChart({ profiles, currentUserId }: OrgChartProps) {
           ))}
         </div>
       ) : (
-        <div className="overflow-auto rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-6">
-          {treeRoots.length === 0 ? (
-            <p className="text-center text-lr-muted text-sm py-8">No hierarchy to display with current filters.</p>
-          ) : (
-            <div className="flex gap-12 justify-start min-w-max">
-              {treeRoots.map(root => (
-                <OrgNode key={root.profile.id} node={root} profileMap={profileMap} currentUserId={currentUserId} expandedByDefaultIds={expandedByDefaultIds} />
-              ))}
+        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px]">
+          {/* Zoom controls */}
+          <div className="flex items-center justify-between px-4 py-2 border-b border-lr-border/50">
+            <p className="text-xs text-lr-muted">Click +/− on nodes to expand. Scroll to pan.</p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setZoom(z => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)))}
+                disabled={zoom <= ZOOM_MIN}
+                className="w-7 h-7 flex items-center justify-center rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface text-lr-muted hover:text-lr-text hover:border-lr-accent/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Zoom out"
+              >
+                <ZoomOut className="h-3.5 w-3.5" />
+              </button>
+              <button
+                onClick={() => setZoom(1)}
+                className="h-7 px-2 rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface text-[11px] text-lr-muted hover:text-lr-text hover:border-lr-accent/40 transition-colors tabular-nums min-w-[44px] text-center"
+                title="Reset zoom"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                onClick={() => setZoom(z => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)))}
+                disabled={zoom >= ZOOM_MAX}
+                className="w-7 h-7 flex items-center justify-center rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface text-lr-muted hover:text-lr-text hover:border-lr-accent/40 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                title="Zoom in"
+              >
+                <ZoomIn className="h-3.5 w-3.5" />
+              </button>
             </div>
-          )}
-          <p className="text-xs text-lr-muted mt-4">Click the +/− buttons on each node to expand or collapse their reports.</p>
+          </div>
+
+          {/* Tree canvas */}
+          <div className="overflow-auto p-6">
+            {treeRoots.length === 0 ? (
+              <p className="text-center text-lr-muted text-sm py-8">No hierarchy to display with current filters.</p>
+            ) : (
+              <div
+                style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', display: 'inline-block' }}
+              >
+                <div className="flex gap-12 justify-start min-w-max">
+                  {treeRoots.map(root => (
+                    <OrgNode key={root.profile.id} node={root} profileMap={profileMap} currentUserId={currentUserId} expandedByDefaultIds={expandedByDefaultIds} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
