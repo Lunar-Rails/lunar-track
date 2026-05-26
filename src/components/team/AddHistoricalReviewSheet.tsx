@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Upload, Sparkles, Save, X, Loader2 } from 'lucide-react'
+import { Upload, Sparkles, Save, ArrowLeft, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { extractReviewWithLLM, saveHistoricalReview, type ExtractedReview } from '@/lib/actions/historical-review-actions'
@@ -16,7 +16,7 @@ const SOURCES = [
 
 function ScoreInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <label className="text-xs font-medium text-lr-muted">{label}</label>
       <input
         type="number"
@@ -26,7 +26,7 @@ function ScoreInput({ label, value, onChange }: { label: string; value: string; 
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder="—"
-        className="w-full rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface px-3 py-2 text-sm text-lr-text placeholder:text-lr-muted/50 focus:outline-none focus:border-lr-accent/50"
+        className="w-full rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface/60 px-3 py-2.5 text-sm text-lr-text placeholder:text-lr-muted/40 focus:outline-none focus:border-lr-accent/60 transition-colors"
       />
     </div>
   )
@@ -85,10 +85,6 @@ export default function AddHistoricalReviewSheet({ employeeId, employeeName }: {
     setStep('review')
   }
 
-  function handleSkipExtraction() {
-    setStep('review')
-  }
-
   async function handleSave() {
     if (!periodLabel.trim()) { setSaveError('Period label is required'); return }
     setSaving(true)
@@ -121,92 +117,132 @@ export default function AddHistoricalReviewSheet({ employeeId, employeeName }: {
         </Button>
       </SheetTrigger>
 
-      <SheetContent className="w-full sm:max-w-lg bg-lr-bg border-lr-border flex flex-col gap-0 p-0">
-        <SheetHeader className="px-6 pt-6 pb-4 border-b border-lr-border">
-          <SheetTitle className="text-lr-text text-base font-semibold">
-            Import historical review
-          </SheetTitle>
-          <p className="text-xs text-lr-muted mt-0.5">{employeeName}</p>
+      {/* Wide sheet — enough room for two-column layout on review step */}
+      <SheetContent className="w-full sm:max-w-4xl bg-lr-bg border-lr-border flex flex-col gap-0 p-0">
+        <SheetHeader className="px-8 pt-6 pb-4 border-b border-lr-border shrink-0">
+          <div className="flex items-center gap-3">
+            {step === 'review' && (
+              <button
+                type="button"
+                onClick={() => setStep('paste')}
+                className="flex items-center gap-1.5 text-sm text-lr-muted hover:text-lr-text transition-colors mr-1"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back
+              </button>
+            )}
+            <div>
+              <SheetTitle className="text-lr-text text-base font-semibold">
+                {step === 'paste' ? 'Import historical review' : 'Review & save'}
+              </SheetTitle>
+              <p className="text-xs text-lr-muted mt-0.5">{employeeName}</p>
+            </div>
+          </div>
+
+          {/* Step indicator */}
+          <div className="flex items-center gap-2 mt-3">
+            {(['paste', 'review'] as const).map((s, i) => (
+              <div key={s} className="flex items-center gap-2">
+                {i > 0 && <div className="w-8 h-px bg-lr-border" />}
+                <div className={[
+                  'flex items-center gap-1.5 text-xs font-medium',
+                  step === s ? 'text-lr-accent' : step === 'review' && s === 'paste' ? 'text-lr-muted/50' : 'text-lr-muted',
+                ].join(' ')}>
+                  <span className={[
+                    'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0',
+                    step === s ? 'bg-lr-accent text-white' : step === 'review' && s === 'paste' ? 'bg-lr-surface text-lr-muted/40' : 'bg-lr-surface text-lr-muted',
+                  ].join(' ')}>
+                    {step === 'review' && s === 'paste' ? '✓' : i + 1}
+                  </span>
+                  {s === 'paste' ? 'Paste notes' : 'Review & edit'}
+                </div>
+              </div>
+            ))}
+          </div>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-          {step === 'paste' ? (
-            <>
-              <div className="space-y-2">
-                <label className="text-xs font-semibold text-lr-muted uppercase tracking-wide">
-                  Paste review notes
-                </label>
-                <p className="text-xs text-lr-muted">
-                  Paste raw notes from Notion, HiBob, Fathom, or any other source. AI will extract the key data.
-                </p>
-                <textarea
-                  value={rawText}
-                  onChange={(e) => setRawText(e.target.value)}
-                  rows={14}
-                  placeholder="Paste meeting notes, performance summary, or any review content here…"
-                  className="w-full rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface px-4 py-3 text-sm text-lr-text placeholder:text-lr-muted/50 focus:outline-none focus:border-lr-accent/50 resize-none leading-relaxed"
-                />
-              </div>
+        {/* ── STEP 1: PASTE ── */}
+        {step === 'paste' && (
+          <div className="flex-1 flex flex-col px-8 py-6 gap-5 overflow-y-auto">
+            <div className="space-y-2">
+              <p className="text-sm text-lr-muted">
+                Paste raw notes from Notion, HiBob, Fathom, or any other source. AI will extract the period, scores, and a summary — you can edit everything before saving.
+              </p>
+            </div>
 
-              <div className="flex gap-2">
-                <Button
-                  onClick={handleExtract}
-                  disabled={!rawText.trim() || extracting}
-                  className="flex-1 bg-lr-accent hover:bg-lr-accent/90 text-white gap-2"
-                >
-                  {extracting ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" />Extracting…</>
-                  ) : (
-                    <><Sparkles className="h-4 w-4" />Extract with AI</>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={handleSkipExtraction}
-                  className="border-lr-border text-lr-muted hover:bg-lr-surface"
-                >
-                  Fill manually
-                </Button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold text-lr-muted uppercase tracking-wide">Review extracted data</p>
-                <button
-                  type="button"
-                  onClick={() => setStep('paste')}
-                  className="text-xs text-lr-muted hover:text-lr-text transition-colors flex items-center gap-1"
-                >
-                  <X className="h-3 w-3" />
-                  Back to paste
-                </button>
-              </div>
+            <textarea
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              placeholder="Paste meeting notes, performance summary, or any review content here…"
+              className="flex-1 min-h-[320px] w-full rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-surface/60 px-5 py-4 text-sm text-lr-text placeholder:text-lr-muted/40 focus:outline-none focus:border-lr-accent/50 resize-none leading-relaxed transition-colors"
+            />
 
-              {extractError && (
-                <div className="rounded-[var(--radius-lr)] border border-lr-error/20 bg-lr-error/10 px-4 py-3">
-                  <p className="text-xs text-lr-error">{extractError} — fill in the fields below manually.</p>
+            <div className="flex gap-3">
+              <Button
+                onClick={handleExtract}
+                disabled={!rawText.trim() || extracting}
+                className="flex-1 bg-lr-accent hover:bg-lr-accent/90 text-white gap-2 h-11"
+              >
+                {extracting ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" />Extracting with AI…</>
+                ) : (
+                  <><Sparkles className="h-4 w-4" />Extract with AI</>
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setStep('review')}
+                className="border-lr-border text-lr-muted hover:bg-lr-surface h-11 px-5"
+              >
+                Fill manually
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ── STEP 2: REVIEW (two-column) ── */}
+        {step === 'review' && (
+          <div className="flex-1 flex min-h-0">
+            {/* Left: raw notes (read-only reference) */}
+            {rawText && (
+              <div className="w-2/5 shrink-0 border-r border-lr-border flex flex-col">
+                <div className="px-5 py-3 border-b border-lr-border shrink-0">
+                  <p className="text-xs font-semibold text-lr-muted uppercase tracking-wide">Original notes</p>
                 </div>
-              )}
+                <div className="flex-1 overflow-y-auto px-5 py-4">
+                  <p className="text-xs text-lr-muted leading-relaxed whitespace-pre-wrap">{rawText}</p>
+                </div>
+              </div>
+            )}
 
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-medium text-lr-muted">Period label <span className="text-lr-error">*</span></label>
+            {/* Right: editable form */}
+            <div className={['flex-1 flex flex-col overflow-y-auto', rawText ? '' : 'w-full'].join(' ')}>
+              <div className="px-6 py-6 space-y-5">
+                {extractError && (
+                  <div className="rounded-[var(--radius-lr)] border border-lr-error/20 bg-lr-error/10 px-4 py-3">
+                    <p className="text-xs text-lr-error">{extractError} — fill in the fields below manually.</p>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-lr-muted">
+                    Period label <span className="text-lr-error">*</span>
+                  </label>
                   <input
                     type="text"
                     value={periodLabel}
                     onChange={(e) => setPeriodLabel(e.target.value)}
                     placeholder="e.g. Q2 2024 or H1 2023"
-                    className="w-full rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface px-3 py-2 text-sm text-lr-text placeholder:text-lr-muted/50 focus:outline-none focus:border-lr-accent/50"
+                    className="w-full rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface/60 px-3 py-2.5 text-sm text-lr-text placeholder:text-lr-muted/40 focus:outline-none focus:border-lr-accent/60 transition-colors"
                   />
                 </div>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <label className="text-xs font-medium text-lr-muted">Source</label>
                   <select
                     value={source}
                     onChange={(e) => setSource(e.target.value)}
-                    className="w-full rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface px-3 py-2 text-sm text-lr-text focus:outline-none focus:border-lr-accent/50"
+                    className="w-full rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface/60 px-3 py-2.5 text-sm text-lr-text focus:outline-none focus:border-lr-accent/60 transition-colors"
                   >
                     <option value="">Select source…</option>
                     {SOURCES.map((s) => (
@@ -215,45 +251,50 @@ export default function AddHistoricalReviewSheet({ employeeId, employeeName }: {
                   </select>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                  <ScoreInput label="Prof. Mastery" value={pm} onChange={setPm} />
-                  <ScoreInput label="Goals & OKRs" value={okrs} onChange={setOkrs} />
-                  <ScoreInput label="Behaviours" value={bv} onChange={setBv} />
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-lr-muted">Scores (1–5)</label>
+                    <span className="text-[10px] text-lr-muted/50">Leave blank if not assessable</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <ScoreInput label="Prof. Mastery" value={pm} onChange={setPm} />
+                    <ScoreInput label="Goals & OKRs" value={okrs} onChange={setOkrs} />
+                    <ScoreInput label="Behaviours" value={bv} onChange={setBv} />
+                  </div>
                 </div>
-                <p className="text-[10px] text-lr-muted/60">Scores 1–5. Leave blank if not assessable from the notes.</p>
 
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <label className="text-xs font-medium text-lr-muted">Summary</label>
                   <textarea
                     value={summary}
                     onChange={(e) => setSummary(e.target.value)}
-                    rows={5}
+                    rows={6}
                     placeholder="Brief summary of the review…"
-                    className="w-full rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface px-3 py-3 text-sm text-lr-text placeholder:text-lr-muted/50 focus:outline-none focus:border-lr-accent/50 resize-none leading-relaxed"
+                    className="w-full rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface/60 px-3 py-3 text-sm text-lr-text placeholder:text-lr-muted/40 focus:outline-none focus:border-lr-accent/60 resize-none leading-relaxed transition-colors"
                   />
                 </div>
-              </div>
 
-              {saveError && (
-                <div className="rounded-[var(--radius-lr)] border border-lr-error/20 bg-lr-error/10 px-4 py-3">
-                  <p className="text-xs text-lr-error">{saveError}</p>
-                </div>
-              )}
-
-              <Button
-                onClick={handleSave}
-                disabled={saving || !periodLabel.trim()}
-                className="w-full bg-lr-accent hover:bg-lr-accent/90 text-white gap-2"
-              >
-                {saving ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" />Saving…</>
-                ) : (
-                  <><Save className="h-4 w-4" />Save historical review</>
+                {saveError && (
+                  <div className="rounded-[var(--radius-lr)] border border-lr-error/20 bg-lr-error/10 px-4 py-3">
+                    <p className="text-xs text-lr-error">{saveError}</p>
+                  </div>
                 )}
-              </Button>
-            </>
-          )}
-        </div>
+
+                <Button
+                  onClick={handleSave}
+                  disabled={saving || !periodLabel.trim()}
+                  className="w-full bg-lr-accent hover:bg-lr-accent/90 text-white gap-2 h-11"
+                >
+                  {saving ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" />Saving…</>
+                  ) : (
+                    <><Save className="h-4 w-4" />Save historical review</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   )
