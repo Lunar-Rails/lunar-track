@@ -120,16 +120,6 @@ export default function AddHistoricalReviewSheet({ employeeId, employeeName }: {
       {/* Wide sheet — enough room for two-column layout on review step */}
       <SheetContent className="w-full sm:max-w-4xl bg-lr-bg border-lr-border flex flex-col gap-0 p-0">
         <SheetHeader className="px-8 pt-6 pb-4 border-b border-lr-border shrink-0">
-          {step === 'review' && (
-            <button
-              type="button"
-              onClick={() => setStep('paste')}
-              className="flex items-center gap-1.5 text-sm text-lr-muted hover:text-lr-text transition-colors w-fit mb-3"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to paste
-            </button>
-          )}
           <div>
             <SheetTitle className="text-lr-text text-base font-semibold">
               {step === 'paste' ? 'Import historical review' : 'Review & save'}
@@ -137,25 +127,37 @@ export default function AddHistoricalReviewSheet({ employeeId, employeeName }: {
             <p className="text-xs text-lr-muted mt-0.5">{employeeName}</p>
           </div>
 
-          {/* Step indicator */}
-          <div className="flex items-center gap-2 mt-3">
-            {(['paste', 'review'] as const).map((s, i) => (
-              <div key={s} className="flex items-center gap-2">
-                {i > 0 && <div className="w-8 h-px bg-lr-border" />}
-                <div className={[
-                  'flex items-center gap-1.5 text-xs font-medium',
-                  step === s ? 'text-lr-accent' : step === 'review' && s === 'paste' ? 'text-lr-muted/50' : 'text-lr-muted',
-                ].join(' ')}>
-                  <span className={[
-                    'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0',
-                    step === s ? 'bg-lr-accent text-white' : step === 'review' && s === 'paste' ? 'bg-lr-surface text-lr-muted/40' : 'bg-lr-surface text-lr-muted',
+          {/* Step indicator + back button */}
+          <div className="flex items-center justify-between mt-3">
+            <div className="flex items-center gap-2">
+              {(['paste', 'review'] as const).map((s, i) => (
+                <div key={s} className="flex items-center gap-2">
+                  {i > 0 && <div className="w-8 h-px bg-lr-border" />}
+                  <div className={[
+                    'flex items-center gap-1.5 text-xs font-medium',
+                    step === s ? 'text-lr-accent' : step === 'review' && s === 'paste' ? 'text-lr-muted/50' : 'text-lr-muted',
                   ].join(' ')}>
-                    {step === 'review' && s === 'paste' ? '✓' : i + 1}
-                  </span>
-                  {s === 'paste' ? 'Paste notes' : 'Review & edit'}
+                    <span className={[
+                      'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0',
+                      step === s ? 'bg-lr-accent text-white' : step === 'review' && s === 'paste' ? 'bg-lr-surface text-lr-muted/40' : 'bg-lr-surface text-lr-muted',
+                    ].join(' ')}>
+                      {step === 'review' && s === 'paste' ? '✓' : i + 1}
+                    </span>
+                    {s === 'paste' ? 'Paste notes' : 'Review & edit'}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            {step === 'review' && (
+              <button
+                type="button"
+                onClick={() => setStep('paste')}
+                className="flex items-center gap-1.5 text-xs text-lr-muted hover:text-lr-text transition-colors border border-lr-border rounded-[var(--radius-lr)] px-3 py-1.5 hover:bg-lr-surface"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to paste
+              </button>
+            )}
           </div>
         </SheetHeader>
 
