@@ -73,9 +73,7 @@ export default function Sidebar({ role }: SidebarProps) {
             {teamNav.map((item) => (
               <NavLink key={item.href} item={item} pathname={pathname} />
             ))}
-            {(role === 'MANAGER' || role === 'HR_ADMIN') && (
-              <GiveKudosNavButton />
-            )}
+            <GiveKudosNavButton />
           </nav>
         </>
       )}
