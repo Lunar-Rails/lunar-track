@@ -40,10 +40,10 @@ export default function InviteTeamMember() {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 text-sm text-lr-muted hover:text-lr-accent transition-colors"
+        className="flex items-center gap-2 text-sm font-medium text-lr-accent border border-lr-accent/30 bg-lr-accent-dim hover:bg-lr-accent/20 rounded-[var(--radius-lr)] px-4 py-2 transition-colors shrink-0"
       >
         <UserPlus className="h-4 w-4" />
-        Invite new team member
+        Invite member
       </button>
     )
   }

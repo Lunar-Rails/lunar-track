@@ -378,6 +378,7 @@ export default async function TeamPage({
             )}
           </p>
         </div>
+        <InviteTeamMember />
       </div>
 
       {/* Tab nav */}
@@ -453,7 +454,6 @@ export default async function TeamPage({
             </div>
           )}
 
-          <InviteTeamMember />
         </>
       )}
 
