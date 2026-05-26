@@ -1,5 +1,5 @@
-// Domain whitelist for login. Update in sync with the SQL guard in
-// supabase/migrations/00018_domain_whitelist.sql whenever domains change.
+// Domain whitelist for login. To add a new company domain, add it here and push to main.
+// This is the single source of truth — enforced in src/app/auth/callback/route.ts.
 const ALLOWED_DOMAINS = [
   'lunarrails.io',
   'clovrlabs.com',
