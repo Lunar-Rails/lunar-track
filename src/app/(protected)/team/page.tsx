@@ -124,7 +124,29 @@ function ScoreSparkline({ data }: { data: (number | null)[] }) {
   )
 }
 
-export default async function TeamPage() {
+function ScoreBar({ label, value }: { label: string; value: number | null }) {
+  const pct = value != null ? ((value - 1) / 4) * 100 : 0
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-[10px]">
+        <span className="text-lr-muted">{label}</span>
+        <span className="font-bold text-lr-accent">{value ?? '—'}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-lr-surface overflow-hidden">
+        <div className="h-full rounded-full bg-lr-accent/70 transition-all" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
+}
+
+export default async function TeamPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>
+}) {
+  const { tab } = await searchParams
+  const activeTab = tab === 'scoring' ? 'scoring' : tab === 'values' ? 'values' : 'directory'
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -157,7 +179,7 @@ export default async function TeamPage() {
     label: MONTH_ABBR[quarterStartMonth + i - 1],
   }))
 
-  const checkinMap: Record<string, Record<number, { employee_submitted_at: string | null; manager_submitted_at: string | null }>> = {}
+  const checkinMap: Record<string, Record<number, { employee_submitted_at: string | null; manager_submitted_at: string | null; mood_energy?: string | null; mood_productivity?: string | null }>> = {}
   const quarterlyStatuses: Record<string, { employee_submitted_at: string | null; manager_submitted_at: string | null }> = {}
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -191,7 +213,18 @@ export default async function TeamPage() {
     .eq('year', year)
     .order('quarter', { ascending: true })
   const yearPeriods = (allPeriodsRaw ?? []) as { id: string; quarter: number }[]
-  const periodQuarterMap = new Map(yearPeriods.map((p) => [p.id, p.quarter]))
+
+  // Values & Energy data
+  type CompanyValue = { id: string; name: string; description?: string | null; sort_order: number }
+  type ValueAssessmentEntry = { value_name?: string; value_id?: string; [key: string]: unknown }
+  type QCheckinValuesRow = {
+    employee_id: string
+    value_assessments: ValueAssessmentEntry[] | null
+    value_self_assessments: ValueAssessmentEntry[] | null
+  }
+
+  let companyValues: CompanyValue[] = []
+  let qCheckinValuesRows: QCheckinValuesRow[] = []
 
   if (directReports.length > 0) {
     const reportIds = directReports.map((r) => r.id)
@@ -199,12 +232,12 @@ export default async function TeamPage() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: checkinsRaw } = await (supabase as any)
       .from('checkins')
-      .select('employee_id, month, employee_submitted_at, manager_submitted_at')
+      .select('employee_id, month, employee_submitted_at, manager_submitted_at, mood_energy, mood_productivity')
       .in('employee_id', reportIds)
       .in('month', quarterMonths.map((m) => m.month))
       .eq('year', year)
 
-    for (const c of (checkinsRaw ?? []) as { employee_id: string; month: number; employee_submitted_at: string | null; manager_submitted_at: string | null }[]) {
+    for (const c of (checkinsRaw ?? []) as { employee_id: string; month: number; employee_submitted_at: string | null; manager_submitted_at: string | null; mood_energy: string | null; mood_productivity: string | null }[]) {
       if (!checkinMap[c.employee_id]) checkinMap[c.employee_id] = {}
       checkinMap[c.employee_id][c.month] = c
     }
@@ -220,6 +253,16 @@ export default async function TeamPage() {
       for (const q of (qcheckinsRaw ?? []) as { employee_id: string; employee_submitted_at: string | null; manager_submitted_at: string | null }[]) {
         quarterlyStatuses[q.employee_id] = q
       }
+
+      // Fetch values data for Values tab
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: qCheckinValuesRaw } = await (supabase as any)
+        .from('quarterly_checkins')
+        .select('employee_id, value_assessments, value_self_assessments')
+        .in('employee_id', reportIds)
+        .eq('period_id', openPeriodId)
+
+      qCheckinValuesRows = (qCheckinValuesRaw ?? []) as QCheckinValuesRow[]
     }
 
     // Fetch ALL scores for direct reports in current year (for sparkline)
@@ -238,6 +281,14 @@ export default async function TeamPage() {
         if (s.period_id === openPeriodId) scoresMap[s.employee_id] = s
       }
     }
+
+    // Fetch company values
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: companyValuesRaw } = await (supabase as any)
+      .from('company_values')
+      .select('*')
+      .order('sort_order')
+    companyValues = (companyValuesRaw ?? []) as CompanyValue[]
   }
 
   function avgScore(s: QScore): number | null {
@@ -269,6 +320,50 @@ export default async function TeamPage() {
     return 'pending'
   }
 
+  // Team scoring averages
+  const scoredReports = directReports.filter((r) => scoresMap[r.id])
+  function teamAvg(field: keyof QScore): number | null {
+    const vals = scoredReports
+      .map((r) => scoresMap[r.id]?.[field])
+      .filter((v): v is number => typeof v === 'number')
+    if (vals.length === 0) return null
+    return Math.round((vals.reduce((a, b) => a + b, 0) / vals.length) * 10) / 10
+  }
+
+  // Values citation counts
+  type ValueCount = { id: string; name: string; count: number }
+  const valueCounts: ValueCount[] = companyValues.map((cv) => {
+    let count = 0
+    for (const row of qCheckinValuesRows) {
+      const inManager = (row.value_assessments ?? []).some(
+        (e) => e.value_name === cv.name || e.value_id === cv.id
+      )
+      const inSelf = (row.value_self_assessments ?? []).some(
+        (e) => e.value_name === cv.name || e.value_id === cv.id
+      )
+      if (inManager || inSelf) count++
+    }
+    return { id: cv.id, name: cv.name, count }
+  }).sort((a, b) => b.count - a.count)
+
+  // Mood counts for current quarter
+  const ENERGY_EMOJI: Record<string, string> = { terrible: '😩', meh: '😐', okay: '🙂', great: '🔥' }
+  const PRODUCTIVITY_EMOJI: Record<string, string> = { waste: '🐌', fine: '👍', ludicrous: '🚀' }
+  const energyCounts: Record<string, number> = {}
+  const productivityCounts: Record<string, number> = {}
+  for (const empCheckins of Object.values(checkinMap)) {
+    for (const c of Object.values(empCheckins)) {
+      if (c.mood_energy) energyCounts[c.mood_energy] = (energyCounts[c.mood_energy] ?? 0) + 1
+      if (c.mood_productivity) productivityCounts[c.mood_productivity] = (productivityCounts[c.mood_productivity] ?? 0) + 1
+    }
+  }
+
+  const tabs = [
+    { key: 'directory', label: 'Directory' },
+    { key: 'scoring', label: 'Scoring' },
+    { key: 'values', label: 'Values & Energy' },
+  ]
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
@@ -285,146 +380,310 @@ export default async function TeamPage() {
         </div>
       </div>
 
-      {directReports.length === 0 ? (
-        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-12 text-center">
-          <p className="text-body text-lr-muted">No direct reports assigned yet.</p>
-        </div>
-      ) : (
-        <div className="grid gap-3">
-          {directReports.map((report) => {
-            const reportCheckins = checkinMap[report.id] ?? {}
-            const qStatus = quarterlyPipStatus(quarterlyStatuses[report.id])
+      {/* Tab nav */}
+      <div className="flex items-center gap-1 border-b border-lr-border">
+        {tabs.map((t) => (
+          <Link
+            key={t.key}
+            href={t.key === 'directory' ? '/team' : `/team?tab=${t.key}`}
+            className={[
+              'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
+              activeTab === t.key
+                ? 'border-lr-accent text-lr-accent'
+                : 'border-transparent text-lr-muted hover:text-lr-text',
+            ].join(' ')}
+          >
+            {t.label}
+          </Link>
+        ))}
+      </div>
 
-            return (
-              <Link key={report.id} href={`/team/${report.id}`}>
-                <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] px-4 py-3 hover:bg-lr-surface transition-colors cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9 shrink-0">
-                      <AvatarImage src={report.avatar_url ?? undefined} />
-                      <AvatarFallback className="bg-lr-accent text-white text-sm">
-                        {getInitials(report.full_name, report.email)}
-                      </AvatarFallback>
-                    </Avatar>
+      {/* ── DIRECTORY TAB ── */}
+      {activeTab === 'directory' && (
+        <>
+          {directReports.length === 0 ? (
+            <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-12 text-center">
+              <p className="text-body text-lr-muted">No direct reports assigned yet.</p>
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              {directReports.map((report) => {
+                const reportCheckins = checkinMap[report.id] ?? {}
+                const qStatus = quarterlyPipStatus(quarterlyStatuses[report.id])
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-lr-text truncate">
-                          {report.full_name ?? report.email}
-                        </p>
-                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${ROLE_BADGE[report.role] ?? ''}`}>
-                          {report.role}
-                        </Badge>
+                return (
+                  <Link key={report.id} href={`/team/${report.id}`}>
+                    <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] px-4 py-3 hover:bg-lr-surface transition-colors cursor-pointer">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9 shrink-0">
+                          <AvatarImage src={report.avatar_url ?? undefined} />
+                          <AvatarFallback className="bg-lr-accent text-white text-sm">
+                            {getInitials(report.full_name, report.email)}
+                          </AvatarFallback>
+                        </Avatar>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-lr-text truncate">
+                              {report.full_name ?? report.email}
+                            </p>
+                            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${ROLE_BADGE[report.role] ?? ''}`}>
+                              {report.role}
+                            </Badge>
+                          </div>
+                          <p className="text-xs text-lr-muted truncate">{report.email}</p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {quarterMonths.map(({ month: m, label }) => (
+                            <Pip
+                              key={m}
+                              label={label}
+                              status={monthPipStatus(reportCheckins[m], m)}
+                            />
+                          ))}
+                          <span className="w-px h-3 bg-lr-border mx-0.5" />
+                          <Pip label={`Q${currentQuarter}`} status={qStatus} />
+                        </div>
                       </div>
-                      <p className="text-xs text-lr-muted truncate">{report.email}</p>
                     </div>
+                  </Link>
+                )
+              })}
+            </div>
+          )}
 
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {quarterMonths.map(({ month: m, label }) => (
-                        <Pip
-                          key={m}
-                          label={label}
-                          status={monthPipStatus(reportCheckins[m], m)}
-                        />
-                      ))}
-                      <span className="w-px h-3 bg-lr-border mx-0.5" />
-                      <Pip label={`Q${currentQuarter}`} status={qStatus} />
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            )
-          })}
-        </div>
+          <InviteTeamMember />
+        </>
       )}
 
-      <InviteTeamMember />
-
-      {/* Quarterly Scoring Hub */}
-      <div className="space-y-4 mt-8">
-        {!openPeriod ? (
-          <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-6 text-center">
-            <p className="text-sm text-lr-muted">No open period — quarterly scoring is not available.</p>
-          </div>
-        ) : (
-          <>
-            <div>
-              <h2 className="text-card-title">Quarterly Scoring — {openPeriod.name}</h2>
-              <p className="text-caption text-lr-muted mt-0.5">Sparkline shows average score (1–5) across all {year} quarters</p>
+      {/* ── SCORING TAB ── */}
+      {activeTab === 'scoring' && (
+        <div className="space-y-4">
+          {!openPeriod ? (
+            <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-6 text-center">
+              <p className="text-sm text-lr-muted">No open period — quarterly scoring is not available.</p>
             </div>
-            {directReports.length === 0 ? (
-              <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-6 text-center">
-                <p className="text-sm text-lr-muted">No direct reports assigned yet.</p>
+          ) : (
+            <>
+              <div>
+                <h2 className="text-card-title">Quarterly Scoring — {openPeriod.name}</h2>
+                <p className="text-caption text-lr-muted mt-0.5">Sparkline shows average score (1–5) across all {year} quarters</p>
               </div>
-            ) : (
-              <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-lr-border">
-                      <th className="text-left px-4 py-3 text-lr-muted font-medium">Employee</th>
-                      <th className="text-left px-4 py-3 text-lr-muted font-medium">Status</th>
-                      <th className="text-left px-4 py-3 text-lr-muted font-medium">PM / Goals / B&amp;V</th>
-                      <th className="text-left px-4 py-3 text-lr-muted font-medium">Progress {year}</th>
-                      <th className="px-4 py-3" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {directReports.map((report) => {
-                      const score = scoresMap[report.id]
-                      const status = scoringStatus(score)
-                      const statusBadge =
-                        status === 'scored'
-                          ? { cls: 'bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20', text: 'Scored' }
-                          : status === 'partial'
-                          ? { cls: 'bg-lr-gold-dim text-lr-gold border-lr-gold/20', text: 'Partial' }
-                          : { cls: 'bg-lr-surface text-lr-muted border-lr-border', text: 'Not scored' }
-                      return (
-                        <tr key={report.id} className="border-b border-lr-border last:border-0 hover:bg-lr-surface/50 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <Avatar className="h-8 w-8 shrink-0">
-                                <AvatarImage src={report.avatar_url ?? undefined} />
-                                <AvatarFallback className="bg-lr-accent text-white text-xs">
-                                  {getInitials(report.full_name, report.email)}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className="font-medium text-lr-text">{report.full_name ?? report.email}</span>
+
+              {/* Team summary chips */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <p className="text-xs font-semibold text-lr-muted uppercase tracking-wider mr-1">Team avg</p>
+                {[
+                  { label: 'PM', value: teamAvg('professional_mastery') },
+                  { label: 'Goals', value: teamAvg('okrs_stretch_goals') },
+                  { label: 'B&V', value: teamAvg('behaviours_values') },
+                ].map(({ label, value }) => (
+                  <div key={label} className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] px-4 py-2.5 flex flex-col items-center min-w-[72px]">
+                    <span className="text-xs text-lr-muted mb-0.5">{label}</span>
+                    <span className="text-xl font-bold text-lr-accent leading-none">{value ?? '—'}</span>
+                  </div>
+                ))}
+                {scoredReports.length === 0 && (
+                  <p className="text-xs text-lr-muted italic">No employees scored yet</p>
+                )}
+              </div>
+
+              {/* Employee score cards */}
+              {directReports.length === 0 ? (
+                <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-6 text-center">
+                  <p className="text-sm text-lr-muted">No direct reports assigned yet.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {directReports.map((report) => {
+                    const score = scoresMap[report.id]
+                    const status = scoringStatus(score)
+                    const statusBadge =
+                      status === 'scored'
+                        ? { cls: 'bg-lr-cyan-dim text-lr-cyan border-lr-cyan/20', text: 'Scored' }
+                        : status === 'partial'
+                        ? { cls: 'bg-lr-gold-dim text-lr-gold border-lr-gold/20', text: 'Partial' }
+                        : { cls: 'bg-lr-surface text-lr-muted border-lr-border', text: 'Not scored' }
+                    return (
+                      <div
+                        key={report.id}
+                        className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] px-5 py-4"
+                      >
+                        <div className="flex items-start gap-4">
+                          {/* Avatar + name + badge */}
+                          <Avatar className="h-10 w-10 shrink-0 mt-0.5">
+                            <AvatarImage src={report.avatar_url ?? undefined} />
+                            <AvatarFallback className="bg-lr-accent text-white text-sm">
+                              {getInitials(report.full_name, report.email)}
+                            </AvatarFallback>
+                          </Avatar>
+
+                          <div className="flex-1 min-w-0 space-y-3">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-semibold text-lr-text truncate">
+                                {report.full_name ?? report.email}
+                              </p>
+                              <Badge variant="outline" className={`text-[10px] px-1.5 py-0 shrink-0 ${statusBadge.cls}`}>
+                                {statusBadge.text}
+                              </Badge>
                             </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge variant="outline" className={`text-xs ${statusBadge.cls}`}>
-                              {statusBadge.text}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            {score ? (
-                              <span className="text-sm font-bold text-lr-accent">
-                                {score.professional_mastery ?? '—'} / {score.okrs_stretch_goals ?? '—'} / {score.behaviours_values ?? '—'}
-                              </span>
-                            ) : (
-                              <span className="text-lr-muted">—</span>
-                            )}
-                          </td>
-                          <td className="px-4 py-3 pb-6">
+
+                            {/* Score bars */}
+                            <div className="grid grid-cols-3 gap-4">
+                              <ScoreBar label="PM" value={score?.professional_mastery ?? null} />
+                              <ScoreBar label="Goals" value={score?.okrs_stretch_goals ?? null} />
+                              <ScoreBar label="B&V" value={score?.behaviours_values ?? null} />
+                            </div>
+                          </div>
+
+                          {/* Sparkline */}
+                          <div className="shrink-0 pb-4">
                             <ScoreSparkline data={sparklineData(report.id)} />
-                          </td>
-                          <td className="px-4 py-3 text-right">
+                          </div>
+
+                          {/* Score link */}
+                          <div className="shrink-0 self-center">
                             <Link
                               href={`/scoring/${report.id}/${openPeriod.id}`}
                               className="text-xs font-medium text-lr-accent hover:text-lr-accent/80 transition-colors"
                             >
                               {status === 'none' ? 'Score →' : 'Edit →'}
                             </Link>
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ── VALUES & ENERGY TAB ── */}
+      {activeTab === 'values' && (
+        <div className="space-y-8">
+          {/* Company Values section */}
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-semibold text-lr-muted uppercase tracking-wider">Company Values</p>
+              <p className="text-caption text-lr-muted mt-0.5">
+                {openPeriod
+                  ? `Citation counts from quarterly check-ins — ${openPeriod.name}`
+                  : 'No open period — showing value list only'}
+              </p>
+            </div>
+
+            {companyValues.length === 0 ? (
+              <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-8 text-center">
+                <p className="text-sm text-lr-muted">No company values configured yet.</p>
+              </div>
+            ) : (
+              <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] divide-y divide-lr-border/50">
+                {valueCounts.map((vc) => {
+                  const pct = directReports.length > 0 ? (vc.count / directReports.length) * 100 : 0
+                  const isUnderused = vc.count === 0
+                  return (
+                    <div key={vc.id} className="px-5 py-3 space-y-1.5">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className={`text-sm font-medium ${isUnderused ? 'text-lr-muted/50' : 'text-lr-text'}`}>
+                          {vc.name}
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isUnderused && (
+                            <Badge variant="outline" className="text-[10px] bg-lr-surface text-lr-muted/50 border-lr-border/40">
+                              Underused
+                            </Badge>
+                          )}
+                          <span className={`text-xs font-bold ${isUnderused ? 'text-lr-muted/40' : 'text-lr-accent'}`}>
+                            {vc.count}/{directReports.length}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-lr-surface overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all ${isUnderused ? 'bg-lr-muted/20' : 'bg-lr-accent/70'}`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             )}
-          </>
-        )}
-      </div>
+          </div>
+
+          {/* Team Energy section */}
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs font-semibold text-lr-muted uppercase tracking-wider">Team Energy</p>
+              <p className="text-caption text-lr-muted mt-0.5">
+                Mood responses from monthly check-ins — Q{currentQuarter} {year}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Energy */}
+              <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-4 space-y-3">
+                <p className="text-xs font-semibold text-lr-muted uppercase tracking-wider">Energy</p>
+                {Object.keys(ENERGY_EMOJI).length === 0 || Object.values(energyCounts).every((v) => v === 0) ? (
+                  <p className="text-sm text-lr-muted italic">No responses yet</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(ENERGY_EMOJI).map(([key, emoji]) => {
+                      const count = energyCounts[key] ?? 0
+                      return (
+                        <div
+                          key={key}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                            count > 0
+                              ? 'border-lr-accent/20 bg-lr-accent-dim text-lr-accent'
+                              : 'border-lr-border bg-lr-surface text-lr-muted/40'
+                          }`}
+                        >
+                          <span>{emoji}</span>
+                          <span className="capitalize">{key}</span>
+                          <span className="font-bold">{count}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Productivity */}
+              <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-4 space-y-3">
+                <p className="text-xs font-semibold text-lr-muted uppercase tracking-wider">Productivity</p>
+                {Object.values(productivityCounts).every((v) => v === 0) ? (
+                  <p className="text-sm text-lr-muted italic">No responses yet</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(PRODUCTIVITY_EMOJI).map(([key, emoji]) => {
+                      const count = productivityCounts[key] ?? 0
+                      return (
+                        <div
+                          key={key}
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                            count > 0
+                              ? 'border-lr-accent/20 bg-lr-accent-dim text-lr-accent'
+                              : 'border-lr-border bg-lr-surface text-lr-muted/40'
+                          }`}
+                        >
+                          <span>{emoji}</span>
+                          <span className="capitalize">{key}</span>
+                          <span className="font-bold">{count}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
