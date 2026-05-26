@@ -142,7 +142,7 @@ export async function updateProfile(formData: FormData): Promise<ActionResult> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any)
     .from('profiles')
-    .update({ full_name: fullName, job_title: jobTitle || null, updated_at: new Date().toISOString() })
+    .update({ full_name: fullName, job_title: jobTitle ?? null, updated_at: new Date().toISOString() })
     .eq('id', user.id)
 
   if (error) return { error: error.message }

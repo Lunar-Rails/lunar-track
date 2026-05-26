@@ -85,7 +85,6 @@ export default function SendKudosSheet({
         setError(result.error)
       } else {
         handleOpenChange(false)
-        resetForm()
       }
     })
   }
