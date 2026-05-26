@@ -8,7 +8,7 @@ import PulseCard, { type MonthlyMoodEntry } from '@/components/dashboard/PulseCa
 import SendKudosSheet from '@/components/kudos/SendKudosSheet'
 import KudosCard from '@/components/kudos/KudosCard'
 import type { Kudo } from '@/lib/actions/kudos-actions'
-import type { Profile, SubordinateRow, PerformancePeriod, Checkin, QuarterlyScore, CompanyValue, QuarterlyCheckin, ValueSelfAssessment, ValueAssessment, PulseOption } from '@/lib/types/database'
+import type { Profile, SubordinateRow, PerformancePeriod, Checkin, CompanyValue, QuarterlyCheckin, ValueSelfAssessment, ValueAssessment, PulseOption } from '@/lib/types/database'
 
 export const metadata: Metadata = { title: 'Dashboard · CiaoBob' }
 
@@ -75,14 +75,12 @@ export default async function DashboardPage() {
   let thisMonthCheckin: Checkin | null = null
   let myOkrCounts = { total: 0, approved: 0, pending: 0 }
   let myOkrs: { id: string; title: string; status: string }[] = []
-  let latestScore: QuarterlyScore | null = null
-  let hasNewScore = false
   let moodHistory: MonthlyMoodEntry[] = []
   // Map from okr id → achievement status from quarterly check-in
   let goalAchievementMap = new Map<string, 'achieved' | 'not_achieved'>()
 
   if (openPeriod) {
-    const [checkinRes, okrsRes, scoreRes, moodRes, qCheckinRes] = await Promise.all([
+    const [checkinRes, okrsRes, moodRes, qCheckinRes] = await Promise.all([
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any)
         .from('checkins')
@@ -100,15 +98,6 @@ export default async function DashboardPage() {
         .eq('period_id', openPeriod.id)
         .is('deleted_at', null)
         .order('created_at', { ascending: true }),
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (supabase as any)
-        .from('quarterly_scores')
-        .select('*')
-        .eq('employee_id', user.id)
-        .eq('visible_to_employee', true)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (supabase as any)
         .from('checkins')
@@ -131,8 +120,6 @@ export default async function DashboardPage() {
       approved: myOkrs.filter((o) => o.status === 'APPROVED').length,
       pending: myOkrs.filter((o) => o.status === 'PENDING_REVIEW').length,
     }
-    latestScore = scoreRes.data as QuarterlyScore | null
-    hasNewScore = !!latestScore
     moodHistory = (moodRes.data ?? []) as MonthlyMoodEntry[]
 
     // Build achievement map from quarterly check-in goals JSONB
@@ -147,7 +134,6 @@ export default async function DashboardPage() {
   let pendingRequests: { id: string; email: string; full_name: string | null; created_at: string }[] = []
   let pendingCheckins = 0
   let pendingOkrs = 0
-  let teamCheckinDone = 0
   if (profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: subs } = await (supabase as any).rpc('get_subordinates', {
@@ -182,7 +168,6 @@ export default async function DashboardPage() {
       type CheckinRecord = { employee_id: string; employee_submitted_at: string | null; manager_submitted_at: string | null }
       const checkins = (checkinsRaw ?? []) as CheckinRecord[]
       pendingCheckins = checkins.filter((c) => c.employee_submitted_at && !c.manager_submitted_at).length
-      teamCheckinDone = checkins.filter((c) => !!c.manager_submitted_at).length
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: okrCountRaw } = await (supabase as any).rpc('get_pending_okr_count', { manager_uuid: profile.id })

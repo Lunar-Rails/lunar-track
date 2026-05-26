@@ -197,7 +197,7 @@ function buildTree(profiles: Profile[]): TreeNode[] {
   return roots
 }
 
-function TreeCard({ profile, profileMap, currentUserId }: { profile: Profile; profileMap: Map<string, Profile>; currentUserId: string }) {
+function TreeCard({ profile, currentUserId }: { profile: Profile; currentUserId: string }) {
   const isMe = profile.id === currentUserId
   const name = profile.full_name ?? profile.email
   return (
@@ -233,7 +233,7 @@ function OrgNode({ node, profileMap, currentUserId, expandedByDefaultIds }: {
   return (
     <div className="flex flex-col items-center">
       <div className="relative">
-        <TreeCard profile={node.profile} profileMap={profileMap} currentUserId={currentUserId} />
+        <TreeCard profile={node.profile} currentUserId={currentUserId} />
         {hasChildren && (
           <button
             onClick={() => setCollapsed(c => !c)}
