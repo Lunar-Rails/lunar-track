@@ -461,30 +461,6 @@ export default async function DashboardPage() {
         />
       )}
 
-      {/* Profile card — collapsed at bottom */}
-      <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 shadow-[var(--shadow-lr-card)]">
-        <h2 className="text-card-title mb-3">Profile</h2>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-          <div className="flex gap-2">
-            <span className="text-caption w-16 shrink-0">Name</span>
-            <span className="text-lr-text">{profile.full_name ?? '—'}</span>
-          </div>
-          <div className="flex gap-2">
-            <span className="text-caption w-16 shrink-0">Email</span>
-            <span className="text-lr-text truncate">{profile.email}</span>
-          </div>
-          <div className="flex gap-2">
-            <span className="text-caption w-16 shrink-0">Role</span>
-            <Badge variant="outline" className={`text-xs ${ROLE_BADGE[profile.role] ?? ''}`}>
-              {profile.role.replace('_', ' ')}
-            </Badge>
-          </div>
-          <div className="flex gap-2">
-            <span className="text-caption w-16 shrink-0">Manager</span>
-            <span className="text-lr-text">{managerName ?? 'Not assigned'}</span>
-          </div>
-        </div>
-      </div>
     </div>
   )
 }
