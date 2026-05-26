@@ -1,6 +1,6 @@
 'use server'
 
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
@@ -29,10 +29,10 @@ export interface ExtractedReview {
 }
 
 export async function extractReviewWithLLM(rawText: string): Promise<{ data: ExtractedReview | null; error: string | null }> {
-  const key = process.env.ANTHROPIC_API_KEY
-  if (!key) return { data: null, error: 'ANTHROPIC_API_KEY not configured' }
+  const key = process.env.OPENAI_API_KEY
+  if (!key) return { data: null, error: 'OPENAI_API_KEY not configured' }
 
-  const client = new Anthropic({ apiKey: key })
+  const client = new OpenAI({ apiKey: key })
 
   const prompt = `You are a performance management assistant. A manager has pasted raw notes from a past employee performance review. Extract structured data from these notes and return ONLY a valid JSON object (no markdown, no explanation).
 
@@ -54,13 +54,13 @@ Return this exact JSON shape (use null for fields you cannot determine):
 For scores: only extract a numeric score if the notes clearly state one on a 1–5 scale or can be confidently mapped to 1–5. Otherwise use null.`
 
   try {
-    const msg = await client.messages.create({
-      model: 'claude-opus-4-7',
+    const completion = await client.chat.completions.create({
+      model: 'gpt-4o-mini',
       max_tokens: 512,
       messages: [{ role: 'user', content: prompt }],
     })
 
-    const text = msg.content[0].type === 'text' ? msg.content[0].text.trim() : ''
+    const text = completion.choices[0]?.message?.content?.trim() ?? ''
     const extracted = JSON.parse(text) as ExtractedReview
     return { data: extracted, error: null }
   } catch (err) {

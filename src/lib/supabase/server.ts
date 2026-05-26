@@ -84,6 +84,20 @@ export async function getOrProvisionProfile(
     }).onConflict('ancestor_id,descendant_id').ignoreDuplicates()
   }
 
+  // If there's a pending invite for this email, wire the manager_id now
+  if (user.email) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: managerId } = await (supabase as any)
+      .rpc('claim_pending_invite', { p_email: user.email })
+    if (managerId) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase as any)
+        .from('profiles')
+        .update({ manager_id: managerId })
+        .eq('id', user.id)
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: provisionedRaw } = await (supabase as any)
     .from('profiles')
