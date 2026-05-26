@@ -5,13 +5,15 @@ import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
-import type { Checkin, PerformancePeriod } from '@/lib/types/database'
+import type { Checkin, PerformancePeriod, Profile } from '@/lib/types/database'
+import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
 
 export const metadata: Metadata = { title: 'Monthly Check-ins · CiaoBob' }
 
 export const dynamic = 'force-dynamic'
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+const MONTH_NAMES_LONG = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 type CheckinWithPeriod = Checkin & { period: Pick<PerformancePeriod, 'id' | 'name' | 'status'> }
 
@@ -25,6 +27,20 @@ export default async function CheckinsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+
+  // Fetch profile to get manager_id
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: profileRaw } = await (supabase as any)
+    .from('profiles').select('manager_id').eq('id', user.id).single()
+  const profile = profileRaw as Pick<Profile, 'manager_id'> | null
+
+  let managerEmail: string | null = null
+  if (profile?.manager_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: mgrRaw } = await (supabase as any)
+      .from('profiles').select('email').eq('id', profile.manager_id).single()
+    managerEmail = (mgrRaw as Pick<Profile, 'email'> | null)?.email ?? null
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: openPeriodRaw } = await (supabase as any)
@@ -55,11 +71,22 @@ export default async function CheckinsPage() {
         </div>
         {openPeriod && (
           <div className="flex flex-col items-end gap-2">
-            <Link href={`/checkins/new?periodId=${openPeriod.id}`}>
-              <Button className="bg-lr-accent hover:bg-lr-accent/90 text-white text-sm">
-                New Check-in
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              {managerEmail && (
+                <ScheduleCallButton
+                  title={`Monthly Check-in – ${MONTH_NAMES_LONG[new Date().getMonth()]} ${new Date().getFullYear()}`}
+                  managerEmail={managerEmail}
+                  description="Monthly check-in meeting — CiaoBob"
+                  recurrenceLabel="Monthly"
+                  recurrenceRule="RRULE:FREQ=MONTHLY"
+                />
+              )}
+              <Link href={`/checkins/new?periodId=${openPeriod.id}`}>
+                <Button className="bg-lr-accent hover:bg-lr-accent/90 text-white text-sm">
+                  New Check-in
+                </Button>
+              </Link>
+            </div>
             <div className="text-right">
               <p className="text-xs font-medium text-lr-accent">{openPeriod.name}</p>
               <p className="text-xs text-lr-muted">

@@ -6,7 +6,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { format } from 'date-fns'
 import DeleteQuarterlyCheckinButton from '@/components/checkins/DeleteQuarterlyCheckinButton'
-import type { PerformancePeriod, QuarterlyCheckin } from '@/lib/types/database'
+import type { PerformancePeriod, QuarterlyCheckin, Profile } from '@/lib/types/database'
+import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
 
 export const metadata: Metadata = { title: 'Quarterly Reviews · CiaoBob' }
 
@@ -21,16 +22,30 @@ export default async function QuarterlyCheckinsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  // Fetch profile to get manager_id
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: profileRaw } = await (supabase as any)
+    .from('profiles').select('manager_id').eq('id', user.id).single()
+  const profile = profileRaw as Pick<Profile, 'manager_id'> | null
+
+  let managerEmail: string | null = null
+  if (profile?.manager_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: mgrRaw } = await (supabase as any)
+      .from('profiles').select('email').eq('id', profile.manager_id).single()
+    managerEmail = (mgrRaw as Pick<Profile, 'email'> | null)?.email ?? null
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: openPeriodRaw } = await (supabase as any)
     .from('performance_periods')
-    .select('id, name, start_date, end_date')
+    .select('id, name, start_date, end_date, quarter, year')
     .eq('status', 'open')
     .order('year', { ascending: false })
     .order('quarter', { ascending: false })
     .limit(1)
     .maybeSingle()
-  const openPeriod = openPeriodRaw as Pick<PerformancePeriod, 'id' | 'name' | 'start_date' | 'end_date'> | null
+  const openPeriod = openPeriodRaw as Pick<PerformancePeriod, 'id' | 'name' | 'start_date' | 'end_date' | 'quarter' | 'year'> | null
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: quarterlyRaw } = await (supabase as any)
@@ -53,11 +68,22 @@ export default async function QuarterlyCheckinsPage() {
         </div>
         {openPeriod && !openPeriodHasQuarterly && (
           <div className="flex flex-col items-end gap-2">
-            <Link href={`/quarterly-checkins/new?periodId=${openPeriod.id}`}>
-              <Button className="bg-lr-accent hover:bg-lr-accent/90 text-white text-sm">
-                New Quarterly Review
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              {managerEmail && (
+                <ScheduleCallButton
+                  title={`Q${openPeriod.quarter} Quarterly Review – ${openPeriod.year}`}
+                  managerEmail={managerEmail}
+                  description="Quarterly review meeting — CiaoBob"
+                  recurrenceLabel="Quarterly"
+                  recurrenceRule="RRULE:FREQ=MONTHLY;INTERVAL=3"
+                />
+              )}
+              <Link href={`/quarterly-checkins/new?periodId=${openPeriod.id}`}>
+                <Button className="bg-lr-accent hover:bg-lr-accent/90 text-white text-sm">
+                  New Quarterly Review
+                </Button>
+              </Link>
+            </div>
             <div className="text-right">
               <p className="text-xs font-medium text-lr-accent">{openPeriod.name}</p>
               <p className="text-xs text-lr-muted">

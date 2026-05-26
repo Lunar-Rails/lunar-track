@@ -53,13 +53,12 @@ export default function ScheduleCallButton({
       <Button
         type="button"
         variant="outline"
-        size="sm"
         onClick={() => setOpen((v) => !v)}
-        className="gap-1.5 border-lr-border text-lr-text hover:bg-lr-surface text-xs shrink-0"
+        className="gap-2 border-lr-border text-lr-text hover:bg-lr-surface text-sm shrink-0"
       >
-        <CalendarPlus className="h-3.5 w-3.5" />
-        Schedule call
-        <ChevronDown className={['h-3 w-3 transition-transform', open ? 'rotate-180' : ''].join(' ')} />
+        <CalendarPlus className="h-4 w-4" />
+        Book check-in
+        <ChevronDown className={['h-3.5 w-3.5 transition-transform', open ? 'rotate-180' : ''].join(' ')} />
       </Button>
 
       {open && (
