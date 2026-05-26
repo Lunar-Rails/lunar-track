@@ -43,7 +43,7 @@ export default function InviteTeamMember() {
         className="flex items-center gap-2 text-sm font-medium text-lr-accent border border-lr-accent/30 bg-lr-accent-dim hover:bg-lr-accent/20 rounded-[var(--radius-lr)] px-4 py-2 transition-colors shrink-0"
       >
         <UserPlus className="h-4 w-4" />
-        Invite member
+        Add team member
       </button>
     )
   }
