@@ -229,12 +229,14 @@ export default async function TeamPage({
   if (directReports.length > 0) {
     const reportIds = directReports.map((r) => r.id)
 
+    // Fetch all YTD months (used for pips in current quarter + mood/energy YTD counts)
+    const ytdMonths = Array.from({ length: month }, (_, i) => i + 1)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: checkinsRaw } = await (supabase as any)
       .from('checkins')
       .select('employee_id, month, employee_submitted_at, manager_submitted_at, mood_energy, mood_productivity')
       .in('employee_id', reportIds)
-      .in('month', quarterMonths.map((m) => m.month))
+      .in('month', ytdMonths)
       .eq('year', year)
 
     for (const c of (checkinsRaw ?? []) as { employee_id: string; month: number; employee_submitted_at: string | null; manager_submitted_at: string | null; mood_energy: string | null; mood_productivity: string | null }[]) {
@@ -254,19 +256,22 @@ export default async function TeamPage({
         quarterlyStatuses[q.employee_id] = q
       }
 
-      // Fetch values data for Values tab
+    }
+
+    // Fetch values data for Values tab — all YTD periods, not just open period
+    const yearPeriodIds = yearPeriods.map((p) => p.id)
+    if (yearPeriodIds.length > 0) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: qCheckinValuesRaw } = await (supabase as any)
         .from('quarterly_checkins')
         .select('employee_id, value_assessments, value_self_assessments')
         .in('employee_id', reportIds)
-        .eq('period_id', openPeriodId)
+        .in('period_id', yearPeriodIds)
 
       qCheckinValuesRows = (qCheckinValuesRaw ?? []) as QCheckinValuesRow[]
     }
 
     // Fetch ALL scores for direct reports in current year (for sparkline)
-    const yearPeriodIds = yearPeriods.map((p) => p.id)
     if (yearPeriodIds.length > 0) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: allScoresRaw } = await (supabase as any)
@@ -570,9 +575,7 @@ export default async function TeamPage({
             <div>
               <p className="text-xs font-semibold text-lr-muted uppercase tracking-wider">Company Values</p>
               <p className="text-caption text-lr-muted mt-0.5">
-                {openPeriod
-                  ? `Citation counts from quarterly check-ins — ${openPeriod.name}`
-                  : 'No open period — showing value list only'}
+                Citation counts from quarterly check-ins — {year} year to date
               </p>
             </div>
 
@@ -620,7 +623,7 @@ export default async function TeamPage({
             <div>
               <p className="text-xs font-semibold text-lr-muted uppercase tracking-wider">Team Energy</p>
               <p className="text-caption text-lr-muted mt-0.5">
-                Mood responses from monthly check-ins — Q{currentQuarter} {year}
+                Mood responses from monthly check-ins — {year} year to date
               </p>
             </div>
 
