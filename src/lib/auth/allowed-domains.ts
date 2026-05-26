@@ -2,6 +2,7 @@
 // supabase/migrations/00018_domain_whitelist.sql whenever domains change.
 const ALLOWED_DOMAINS = [
   'lunarrails.io',
+  'clovrlabs.com',
   '40acres.pro',
   'chainlabs.ai',
   'podproza.cz',
