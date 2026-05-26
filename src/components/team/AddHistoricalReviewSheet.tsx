@@ -120,23 +120,21 @@ export default function AddHistoricalReviewSheet({ employeeId, employeeName }: {
       {/* Wide sheet — enough room for two-column layout on review step */}
       <SheetContent className="w-full sm:max-w-4xl bg-lr-bg border-lr-border flex flex-col gap-0 p-0">
         <SheetHeader className="px-8 pt-6 pb-4 border-b border-lr-border shrink-0">
-          <div className="flex items-center gap-3">
-            {step === 'review' && (
-              <button
-                type="button"
-                onClick={() => setStep('paste')}
-                className="flex items-center gap-1.5 text-sm text-lr-muted hover:text-lr-text transition-colors mr-1"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back
-              </button>
-            )}
-            <div>
-              <SheetTitle className="text-lr-text text-base font-semibold">
-                {step === 'paste' ? 'Import historical review' : 'Review & save'}
-              </SheetTitle>
-              <p className="text-xs text-lr-muted mt-0.5">{employeeName}</p>
-            </div>
+          {step === 'review' && (
+            <button
+              type="button"
+              onClick={() => setStep('paste')}
+              className="flex items-center gap-1.5 text-sm text-lr-muted hover:text-lr-text transition-colors w-fit mb-3"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to paste
+            </button>
+          )}
+          <div>
+            <SheetTitle className="text-lr-text text-base font-semibold">
+              {step === 'paste' ? 'Import historical review' : 'Review & save'}
+            </SheetTitle>
+            <p className="text-xs text-lr-muted mt-0.5">{employeeName}</p>
           </div>
 
           {/* Step indicator */}
