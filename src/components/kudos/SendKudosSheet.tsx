@@ -18,6 +18,8 @@ interface SendKudosSheetProps {
   profiles: ProfileEntry[]
   companyValues: CompanyValueEntry[]
   children: React.ReactNode
+  open?: boolean
+  onOpenChange?: (v: boolean) => void
 }
 
 export default function SendKudosSheet({
@@ -25,8 +27,11 @@ export default function SendKudosSheet({
   profiles,
   companyValues,
   children,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
 }: SendKudosSheetProps) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const open = controlledOpen !== undefined ? controlledOpen : internalOpen
   const [search, setSearch] = useState('')
   const [showDropdown, setShowDropdown] = useState(false)
   const [selectedRecipient, setSelectedRecipient] = useState<ProfileEntry | null>(
@@ -57,7 +62,8 @@ export default function SendKudosSheet({
   }
 
   function handleOpenChange(v: boolean) {
-    setOpen(v)
+    if (controlledOnOpenChange) controlledOnOpenChange(v)
+    else setInternalOpen(v)
     if (!v) resetForm()
   }
 
@@ -78,7 +84,7 @@ export default function SendKudosSheet({
       if (result.error) {
         setError(result.error)
       } else {
-        setOpen(false)
+        handleOpenChange(false)
         resetForm()
       }
     })

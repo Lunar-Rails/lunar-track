@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import type { UserRole } from '@/lib/types/database'
 import { cn } from '@/lib/utils'
+import GiveKudosNavButton from '@/components/kudos/GiveKudosNavButton'
 
 interface NavItem {
   href: string
@@ -72,6 +73,9 @@ export default function Sidebar({ role }: SidebarProps) {
             {teamNav.map((item) => (
               <NavLink key={item.href} item={item} pathname={pathname} />
             ))}
+            {(role === 'MANAGER' || role === 'HR_ADMIN') && (
+              <GiveKudosNavButton />
+            )}
           </nav>
         </>
       )}

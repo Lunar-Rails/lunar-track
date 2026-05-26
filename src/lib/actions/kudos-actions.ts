@@ -42,6 +42,29 @@ export async function sendKudos(params: {
   return { error: null }
 }
 
+export async function getKudosFormData(): Promise<{
+  profiles: { id: string; full_name: string | null; email: string; avatar_url: string | null }[]
+  companyValues: { id: string; name: string }[]
+}> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const [profilesRes, valuesRes] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from('profiles')
+      .select('id, full_name, email, avatar_url')
+      .neq('id', user?.id ?? '')
+      .eq('is_active', true)
+      .order('full_name', { ascending: true }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('company_values').select('id, name').order('sort_order'),
+  ])
+  return {
+    profiles: profilesRes.data ?? [],
+    companyValues: valuesRes.data ?? [],
+  }
+}
+
 export async function deleteKudo(id: string): Promise<{ error: string | null }> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
