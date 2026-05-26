@@ -186,7 +186,7 @@ export default function AddHistoricalReviewSheet({ employeeId, employeeName }: {
                 {extracting ? (
                   <><Loader2 className="h-4 w-4 animate-spin" />Extracting with AI…</>
                 ) : (
-                  <><Sparkles className="h-4 w-4" />Extract with AI</>
+                  <><Sparkles className="h-4 w-4" />Extract with AI <span className="text-xs opacity-60 font-normal">(beta)</span></>
                 )}
               </Button>
               <Button

@@ -5,6 +5,9 @@ import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import PendingApprovals from '@/components/dashboard/PendingApprovals'
 import PulseCard, { type MonthlyMoodEntry } from '@/components/dashboard/PulseCard'
+import SendKudosSheet from '@/components/kudos/SendKudosSheet'
+import KudosCard from '@/components/kudos/KudosCard'
+import type { Kudo } from '@/lib/actions/kudos-actions'
 import type { Profile, SubordinateRow, PerformancePeriod, Checkin, QuarterlyScore, CompanyValue, QuarterlyCheckin, ValueSelfAssessment, ValueAssessment, PulseOption } from '@/lib/types/database'
 
 export const metadata: Metadata = { title: 'Dashboard · CiaoBob' }
@@ -199,6 +202,37 @@ export default async function DashboardPage() {
   const { data: pulseOptionsRaw } = await (supabase as any)
     .from('pulse_options').select('*').order('type').order('sort_order')
   const pulseOptions = (pulseOptionsRaw ?? []) as PulseOption[]
+
+  // Kudos — sent/received counts + recent received
+  const [kudosReceivedRes, kudosSentRes, kudosReceivedCountRes, allProfilesRes] = await Promise.all([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from('kudos')
+      .select('*, sender:sender_id(full_name, email, avatar_url)')
+      .eq('recipient_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(3),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from('kudos')
+      .select('id', { count: 'exact', head: true })
+      .eq('sender_id', user.id),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from('kudos')
+      .select('id', { count: 'exact', head: true })
+      .eq('recipient_id', user.id),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any)
+      .from('profiles')
+      .select('id, full_name, email, avatar_url')
+      .neq('id', user.id)
+      .order('full_name', { ascending: true }),
+  ])
+  const recentKudosReceived = (kudosReceivedRes.data ?? []) as Kudo[]
+  const kudosSentCount = kudosSentRes.count ?? 0
+  const kudosReceivedCount = kudosReceivedCountRes.count ?? 0
+  const allProfiles = (allProfilesRes.data ?? []) as { id: string; full_name: string | null; email: string; avatar_url: string | null }[]
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: myQCheckinsRaw } = await (supabase as any)
@@ -449,6 +483,44 @@ export default async function DashboardPage() {
           </div>
         </div>
       )}
+
+      {/* Kudos */}
+      <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 shadow-[var(--shadow-lr-card)]">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <p className="text-kicker">Kudos</p>
+            <div className="flex items-center gap-4 mt-1.5">
+              <span className="text-sm text-lr-muted">
+                <span className="text-lr-text font-semibold">{kudosSentCount}</span> sent
+              </span>
+              <span className="text-lr-border/50 text-xs">·</span>
+              <span className="text-sm text-lr-muted">
+                <span className="text-lr-text font-semibold">{kudosReceivedCount}</span> received
+              </span>
+            </div>
+          </div>
+          <SendKudosSheet profiles={allProfiles} companyValues={companyValues}>
+            <button className="flex items-center gap-1.5 text-xs font-medium text-lr-accent border border-lr-accent/30 bg-lr-accent-dim hover:bg-lr-accent/20 rounded-[var(--radius-lr)] px-3 py-2 transition-colors shrink-0">
+              ✦ Give kudos
+            </button>
+          </SendKudosSheet>
+        </div>
+
+        {recentKudosReceived.length === 0 ? (
+          <p className="text-sm text-lr-muted/60 italic">No kudos received yet — be the first to give some!</p>
+        ) : (
+          <div className="space-y-3">
+            {recentKudosReceived.map((k) => (
+              <KudosCard key={k.id} kudo={k} showSender />
+            ))}
+            {kudosReceivedCount > 3 && (
+              <p className="text-xs text-lr-muted text-center pt-1">
+                +{kudosReceivedCount - 3} more — view on your profile
+              </p>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* My Pulse — mood tracking summary */}
       {openPeriod && (
