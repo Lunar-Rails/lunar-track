@@ -292,7 +292,7 @@ export default function OrgChart({ profiles, currentUserId }: OrgChartProps) {
   const [view, setView] = useState<ViewMode>('tree')
   const [search, setSearch] = useState('')
   const [companyFilter, setCompanyFilter] = useState<string | null>(null)
-  const [innerCircle, setInnerCircle] = useState(true)
+  const [innerCircle, setInnerCircle] = useState(false)
   const [zoom, setZoom] = useState(1)
   const ZOOM_STEP = 0.15
   const ZOOM_MIN = 0.4
