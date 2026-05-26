@@ -30,7 +30,7 @@ export default async function AnalyticsPage() {
 
   // ── Fetch all data in parallel ────────────────────────────────────────────
   const [
-    profilesRes, periodsRes, scoresRes, qCheckinsRes, checkinsRes, valuesRes,
+    profilesRes, periodsRes, scoresRes, qCheckinsRes, checkinsRes, valuesRes, okrsRes,
   ] = await Promise.all([
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('profiles').select('id, full_name, email, role, manager_id').order('full_name'),
@@ -44,7 +44,13 @@ export default async function AnalyticsPage() {
     (supabase as any).from('checkins').select('employee_id, period_id, month, year, mood_energy, mood_productivity, employee_submitted_at').order('year', { ascending: false }).order('month', { ascending: false }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('company_values').select('*').order('sort_order'),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase as any).from('okrs').select('employee_id, period_id').is('deleted_at', null),
   ])
+
+  for (const [name, res] of [['profiles', profilesRes], ['periods', periodsRes], ['scores', scoresRes], ['qcheckins', qCheckinsRes], ['checkins', checkinsRes], ['values', valuesRes], ['okrs', okrsRes]] as [string, { error: unknown }][]) {
+    if (res.error) console.error(`[analytics] ${name} fetch failed:`, res.error)
+  }
 
   const allProfiles = (profilesRes.data ?? []) as Pick<Profile, 'id' | 'full_name' | 'email' | 'role' | 'manager_id'>[]
   const periods = (periodsRes.data ?? []) as PerformancePeriod[]
@@ -52,6 +58,7 @@ export default async function AnalyticsPage() {
   const allQCheckins = (qCheckinsRes.data ?? []) as Pick<QuarterlyCheckin, 'employee_id' | 'period_id' | 'value_assessments' | 'value_self_assessments' | 'goals' | 'employee_submitted_at'>[]
   const allCheckins = (checkinsRes.data ?? []) as { employee_id: string; period_id: string; month: number; year: number; mood_energy: string | null; mood_productivity: string | null; employee_submitted_at: string | null }[]
   const companyValues = (valuesRes.data ?? []) as CompanyValue[]
+  const allOkrs = (okrsRes.data ?? []) as { employee_id: string; period_id: string }[]
 
   const openPeriod = periods.find((p) => p.status === 'open') ?? null
   const employees = allProfiles.filter((p) => p.role === 'EMPLOYEE')
@@ -166,10 +173,9 @@ export default async function AnalyticsPage() {
   }
   const totalGoals = goalsAchieved + goalsNotAchieved + goalsInProgress
 
-  // ── Goal setting rate (employees with OKRs in open period) ───────────────
-  // We use scored employees as a proxy — employees with any qcheckin goals set
+  // ── Goal setting rate (employees with at least one active OKR in open period) ─
   const employeesWithGoals = openPeriod
-    ? new Set(allQCheckins.filter((c) => c.period_id === openPeriod.id && (c.goals as unknown[])?.length).map((c) => c.employee_id)).size
+    ? new Set(allOkrs.filter((o) => o.period_id === openPeriod.id).map((o) => o.employee_id)).size
     : 0
 
   return (

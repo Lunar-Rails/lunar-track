@@ -3,10 +3,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import type { Profile, Checkin, ReviewMit, PlanMit } from '@/lib/types/database'
+import type { Profile, ReviewMit, PlanMit } from '@/lib/types/database'
 import {
   notifyManagerCheckinSubmitted,
-  notifyEmployeeCheckinReviewed,
 } from '@/lib/notifications'
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -81,6 +80,17 @@ export async function upsertCheckinEmployee(formData: FormData): Promise<ActionR
   const isSubmit = parsed.data.submit === 'true'
   if (isSubmit && !reviewMits.some((m) => m.title.trim())) {
     return { error: 'At least one MIT is required before submitting' }
+  }
+
+  // Validate period is still open before allowing any write
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: period } = await (supabase as any)
+    .from('performance_periods')
+    .select('status')
+    .eq('id', parsed.data.periodId)
+    .single()
+  if (!period || period.status !== 'open') {
+    return { error: 'This performance period is no longer open.' }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -182,6 +192,18 @@ async function carryMitsToNextMonth(
   const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
   const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear
 
+  // At year-end the next month belongs to a new period — look it up
+  let nextPeriodId = periodId
+  if (currentMonth === 12) {
+    const { data: nextPeriod } = await supabase
+      .from('performance_periods')
+      .select('id')
+      .eq('year', nextYear)
+      .eq('status', 'open')
+      .maybeSingle()
+    if (nextPeriod) nextPeriodId = nextPeriod.id
+  }
+
   const carriedMits: ReviewMit[] = nextMits.map((m) => ({
     title: m.title,
     description: m.description,
@@ -194,7 +216,7 @@ async function carryMitsToNextMonth(
     .from('checkins')
     .select('id, employee_submitted_at')
     .eq('employee_id', employeeId)
-    .eq('period_id', periodId)
+    .eq('period_id', nextPeriodId)
     .eq('month', nextMonth)
     .eq('year', nextYear)
     .maybeSingle()
@@ -206,7 +228,7 @@ async function carryMitsToNextMonth(
   } else {
     await supabase.from('checkins').insert({
       employee_id: employeeId,
-      period_id: periodId,
+      period_id: nextPeriodId,
       month: nextMonth,
       year: nextYear,
       mits: carriedMits,

@@ -39,12 +39,13 @@ export default async function DashboardPage() {
   if (!user) redirect('/login')
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: profileRaw } = await (supabase as any)
+  const { data: profileRaw, error: profileErr } = await (supabase as any)
     .from('profiles')
     .select('*')
-    .eq('id', user!.id)
+    .eq('id', user.id)
     .single()
 
+  if (profileErr) console.error('[dashboard] profile fetch failed:', profileErr.message)
   const profile = profileRaw as Profile | null
   if (!profile) redirect('/login')
 

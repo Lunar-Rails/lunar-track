@@ -54,12 +54,13 @@ export default async function CheckinsPage() {
   const openPeriod = openPeriodRaw as Pick<PerformancePeriod, 'id' | 'name' | 'start_date' | 'end_date'> | null
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: checkinsRaw } = await (supabase as any)
+  const { data: checkinsRaw, error: checkinsErr } = await (supabase as any)
     .from('checkins')
     .select('*, period:performance_periods!period_id(id,name,status)')
     .eq('employee_id', user.id)
     .order('year', { ascending: false })
     .order('month', { ascending: false })
+  if (checkinsErr) console.error('[checkins] fetch failed:', checkinsErr.message)
   const checkins = (checkinsRaw ?? []) as CheckinWithPeriod[]
 
   return (
