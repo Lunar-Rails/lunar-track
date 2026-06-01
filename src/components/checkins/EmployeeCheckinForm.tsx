@@ -57,6 +57,7 @@ export default function EmployeeCheckinForm({
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
+  const [submitted, setSubmitted] = useState(false)
   const [step, setStep] = useState<Step>(() => searchParams.get('step') === 'plan' ? 'plan' : 'review')
   const [reviewMits, setReviewMits] = useState<ReviewMit[]>(() => initReviewMits(checkin))
   const [nextMits, setNextMits] = useState<PlanMit[]>(() => initPlanMits(checkin))
@@ -127,6 +128,8 @@ export default function EmployeeCheckinForm({
       if ('error' in result) {
         setError(result.error)
       } else {
+        // Show success immediately — don't make the user wait for the page refresh
+        setSubmitted(true)
         router.refresh()
       }
     })
@@ -139,9 +142,10 @@ export default function EmployeeCheckinForm({
 
   return (
     <div className="space-y-6">
-      {readOnly && (
-        <div className="max-w-3xl rounded-[var(--radius-lr)] border border-lr-accent/20 bg-lr-accent-dim px-4 py-3 text-sm text-lr-accent">
-          You submitted this check-in. Editing is locked.
+      {(readOnly || submitted) && (
+        <div className="max-w-3xl rounded-[var(--radius-lr)] border border-lr-accent/20 bg-lr-accent-dim px-4 py-3 text-sm text-lr-accent flex items-center gap-2">
+          <svg className="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="2 8 6 12 14 4"/></svg>
+          {submitted && !readOnly ? 'Check-in submitted successfully!' : 'You submitted this check-in. Editing is locked.'}
         </div>
       )}
 

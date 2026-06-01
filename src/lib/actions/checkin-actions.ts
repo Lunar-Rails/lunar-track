@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { after } from 'next/server'
 import { z } from 'zod'
 import type { Profile, ReviewMit, PlanMit } from '@/lib/types/database'
 import {
@@ -144,35 +145,46 @@ export async function upsertCheckinEmployee(formData: FormData): Promise<ActionR
     checkinId = (newCheckin as { id: string }).id
   }
 
-  if (isSubmit && nextMits.some((m) => m.title.trim())) {
-    await carryMitsToNextMonth(supabase, {
-      employeeId: caller.id,
-      periodId: parsed.data.periodId,
-      currentMonth: parsed.data.month,
-      currentYear: parsed.data.year,
-      nextMits,
-    })
-  }
-
   revalidatePath('/checkins')
   revalidatePath(`/checkins/${checkinId}`)
   revalidatePath('/dashboard')
 
-  if (isSubmit && caller.manager_id) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: mgr } = await (supabase as any)
-      .from('profiles').select('email, full_name, notification_prefs').eq('id', caller.manager_id).single()
-    if (mgr && mgr.notification_prefs?.team_checkin_submitted !== false) {
-      const { data: { user } } = await supabase.auth.getUser()
-      await notifyManagerCheckinSubmitted({
-        managerEmail: mgr.email,
-        managerName: mgr.full_name,
-        employeeName: caller.full_name ?? (user?.email ?? 'Employee'),
-        month: MONTH_NAMES[parsed.data.month - 1],
-        year: parsed.data.year,
-        checkinId,
-      }).catch((err) => console.error('[checkin-actions] notification failed:', err))
-    }
+  // Schedule background work after the response is sent — keeps submission fast
+  if (isSubmit) {
+    const employeeId = caller.id
+    const managerId = caller.manager_id
+    const employeeName = caller.full_name ?? caller.email
+    const { month, year, periodId } = parsed.data
+
+    after(async () => {
+      // Carry next MITs to the following month's check-in (pre-fill)
+      if (nextMits.some((m) => m.title.trim())) {
+        await carryMitsToNextMonth(supabase, {
+          employeeId,
+          periodId,
+          currentMonth: month,
+          currentYear: year,
+          nextMits,
+        }).catch((err) => console.error('[checkin-actions] carryMits failed:', err))
+      }
+
+      // Notify manager
+      if (managerId) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: mgr } = await (supabase as any)
+          .from('profiles').select('email, full_name, notification_prefs').eq('id', managerId).single()
+        if (mgr && mgr.notification_prefs?.team_checkin_submitted !== false) {
+          await notifyManagerCheckinSubmitted({
+            managerEmail: mgr.email,
+            managerName: mgr.full_name,
+            employeeName,
+            month: MONTH_NAMES[month - 1],
+            year,
+            checkinId,
+          }).catch((err) => console.error('[checkin-actions] notification failed:', err))
+        }
+      }
+    })
   }
 
   return { success: true, id: checkinId }
