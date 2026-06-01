@@ -54,7 +54,7 @@ export async function getKudosFormData(): Promise<{
       .from('profiles')
       .select('id, full_name, email, avatar_url')
       .neq('id', user?.id ?? '')
-      .eq('is_active', true)
+      .not('is_active', 'eq', false)
       .order('full_name', { ascending: true }),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (supabase as any).from('company_values').select('id, name').order('sort_order'),

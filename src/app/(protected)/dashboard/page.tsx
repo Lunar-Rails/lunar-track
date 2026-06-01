@@ -213,7 +213,7 @@ export default async function DashboardPage() {
       .from('profiles')
       .select('id, full_name, email, avatar_url')
       .neq('id', user.id)
-      .eq('is_active', true)
+      .not('is_active', 'eq', false)
       .order('full_name', { ascending: true }),
   ])
   const recentKudosReceived = (kudosReceivedRes.data ?? []) as Kudo[]
