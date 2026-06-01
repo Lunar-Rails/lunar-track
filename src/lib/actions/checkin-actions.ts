@@ -6,6 +6,7 @@ import { z } from 'zod'
 import type { Profile, ReviewMit, PlanMit } from '@/lib/types/database'
 import {
   notifyManagerCheckinSubmitted,
+  notifyManagerCheckinReopened,
 } from '@/lib/notifications'
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -171,6 +172,63 @@ export async function upsertCheckinEmployee(formData: FormData): Promise<ActionR
         year: parsed.data.year,
         checkinId,
       }).catch((err) => console.error('[checkin-actions] notification failed:', err))
+    }
+  }
+
+  return { success: true, id: checkinId }
+}
+
+export async function reopenCheckin(checkinId: string): Promise<ActionResult> {
+  const supabase = await createClient()
+  const caller = await getCallerProfile(supabase)
+  if (!caller) return { error: 'Not authenticated' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: checkin } = await (supabase as any)
+    .from('checkins')
+    .select('id, employee_id, period_id, month, year, employee_submitted_at')
+    .eq('id', checkinId)
+    .maybeSingle()
+
+  if (!checkin) return { error: 'Check-in not found' }
+  if (checkin.employee_id !== caller.id) return { error: 'Not authorised' }
+  if (!checkin.employee_submitted_at) return { error: 'Check-in is not submitted yet' }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: period } = await (supabase as any)
+    .from('performance_periods')
+    .select('status')
+    .eq('id', checkin.period_id)
+    .single()
+  if (!period || period.status !== 'open') {
+    return { error: 'This performance period is closed — check-in cannot be reopened.' }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: updateError } = await (supabase as any)
+    .from('checkins')
+    .update({ employee_submitted_at: null, updated_at: new Date().toISOString() })
+    .eq('id', checkinId)
+  if (updateError) return { error: 'Failed to reopen check-in: ' + updateError.message }
+
+  revalidatePath('/checkins')
+  revalidatePath(`/checkins/${checkinId}`)
+  revalidatePath('/dashboard')
+
+  // Notify manager (best-effort)
+  if (caller.manager_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: mgr } = await (supabase as any)
+      .from('profiles').select('email, full_name').eq('id', caller.manager_id).single()
+    if (mgr) {
+      await notifyManagerCheckinReopened({
+        managerEmail: mgr.email,
+        managerName: mgr.full_name,
+        employeeName: caller.full_name ?? caller.email,
+        month: MONTH_NAMES[checkin.month - 1],
+        year: checkin.year,
+        checkinId,
+      }).catch((err) => console.error('[checkin-actions] reopen notification failed:', err))
     }
   }
 

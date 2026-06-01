@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Badge } from '@/components/ui/badge'
 import EmployeeCheckinForm from '@/components/checkins/EmployeeCheckinForm'
 import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
+import ReopenCheckinButton from '@/components/checkins/ReopenCheckinButton'
 import type { Checkin, PerformancePeriod, Profile } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -96,7 +97,11 @@ export default async function CheckinDetailPage({
             )}
           </div>
         </div>
-        {isOwner && (
+        <div className="flex flex-col items-end gap-2 shrink-0">
+          {isOwner && employeeSubmitted && checkin.period.status === 'open' && (
+            <ReopenCheckinButton checkinId={checkin.id} />
+          )}
+          {isOwner && (
           <ScheduleCallButton
             title={`${profile?.full_name ?? 'Monthly'} — Monthly Check-in — ${MONTH_NAMES[checkin.month - 1]} ${checkin.year}`}
             description={`Monthly performance check-in for ${checkin.period.name}. Review commitments from last month and plan next month's priorities.${process.env.NEXT_PUBLIC_SITE_URL ? `\n\nOpen check-in: ${process.env.NEXT_PUBLIC_SITE_URL}/checkins/${checkin.id}` : ''}`}
@@ -104,7 +109,8 @@ export default async function CheckinDetailPage({
             recurrenceLabel="Monthly"
             recurrenceRule="RRULE:FREQ=MONTHLY"
           />
-        )}
+          )}
+        </div>
       </div>
 
       <EmployeeCheckinForm
