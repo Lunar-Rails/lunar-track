@@ -8,6 +8,7 @@ import type { Profile, ReviewMit, PlanMit } from '@/lib/types/database'
 import {
   notifyManagerCheckinSubmitted,
   notifyManagerCheckinReopened,
+  notifyEmployeeCheckinReviewed,
 } from '@/lib/notifications'
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
@@ -183,6 +184,109 @@ export async function upsertCheckinEmployee(formData: FormData): Promise<ActionR
             checkinId,
           }).catch((err) => console.error('[checkin-actions] notification failed:', err))
         }
+      }
+    })
+  }
+
+  return { success: true, id: checkinId }
+}
+
+export async function upsertCheckinManager(formData: FormData): Promise<ActionResult> {
+  const supabase = await createClient()
+  const caller = await getCallerProfile(supabase)
+  if (!caller) return { error: 'Not authenticated' }
+  if (caller.role !== 'MANAGER' && caller.role !== 'HR_ADMIN') {
+    return { error: 'Only managers can add notes' }
+  }
+
+  const schema = z.object({
+    checkinId: z.string().uuid(),
+    mgr_mit_notes: z.string().max(3000).optional(),
+    mgr_done_well: z.string().max(3000).optional(),
+    mgr_do_differently: z.string().max(3000).optional(),
+    mgr_support_commitments: z.string().max(3000).optional(),
+    mgr_private_note: z.string().max(3000).optional(),
+    submit: z.string().optional(),
+  })
+
+  const parsed = schema.safeParse({
+    checkinId: formData.get('checkinId'),
+    mgr_mit_notes: formData.get('mgr_mit_notes') || undefined,
+    mgr_done_well: formData.get('mgr_done_well') || undefined,
+    mgr_do_differently: formData.get('mgr_do_differently') || undefined,
+    mgr_support_commitments: formData.get('mgr_support_commitments') || undefined,
+    mgr_private_note: formData.get('mgr_private_note') || undefined,
+    submit: formData.get('submit') || undefined,
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
+
+  const { checkinId, submit: submitFlag, ...fields } = parsed.data
+  const isSubmit = submitFlag === 'true'
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: checkin } = await (supabase as any)
+    .from('checkins')
+    .select('id, employee_id, month, year, employee_submitted_at, manager_submitted_at, period_id')
+    .eq('id', checkinId)
+    .maybeSingle()
+
+  if (!checkin) return { error: 'Check-in not found' }
+  if (!checkin.employee_submitted_at) return { error: 'Employee has not submitted yet' }
+
+  // Verify manager has access to this employee (HR_ADMIN can see all)
+  if (caller.role === 'MANAGER') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: closure } = await (supabase as any)
+      .from('org_closure').select('depth')
+      .eq('ancestor_id', caller.id).eq('descendant_id', checkin.employee_id)
+      .gt('depth', 0).maybeSingle()
+    if (!closure) return { error: 'Not authorised to edit notes for this employee' }
+  }
+
+  // First submit = isSubmit AND the row has never been submitted before.
+  // Edit-after-submit saves use isSubmit=false (draft path), so they never
+  // re-stamp the timestamp or re-notify the employee.
+  const firstSubmit = isSubmit && !checkin.manager_submitted_at
+
+  const payload: Record<string, unknown> = {
+    mgr_mit_notes: fields.mgr_mit_notes ?? null,
+    mgr_done_well: fields.mgr_done_well ?? null,
+    mgr_do_differently: fields.mgr_do_differently ?? null,
+    mgr_support_commitments: fields.mgr_support_commitments ?? null,
+    mgr_private_note: fields.mgr_private_note ?? null,
+    updated_at: new Date().toISOString(),
+  }
+  if (firstSubmit) payload.manager_submitted_at = new Date().toISOString()
+
+  // For the first submit, use a conditional update guarded by IS NULL to prevent
+  // double-notification from a concurrent request (mirrors upsertCheckinEmployee).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let updateQuery = (supabase as any).from('checkins').update(payload).eq('id', checkinId)
+  if (firstSubmit) updateQuery = updateQuery.is('manager_submitted_at', null)
+  const { error: updateError, count } = await updateQuery.select('id')
+  if (updateError) return { error: 'Failed to save notes: ' + updateError.message }
+  if (firstSubmit && count === 0) return { error: 'Notes were already submitted in another session' }
+
+  revalidatePath(`/checkins/${checkinId}`)
+  revalidatePath('/checkins')
+
+  if (firstSubmit) {
+    const managerName = caller.full_name ?? caller.email
+    const { month, year } = checkin
+
+    after(async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: emp } = await (supabase as any)
+        .from('profiles').select('email, full_name, notification_prefs').eq('id', checkin.employee_id).single()
+      if (emp && emp.notification_prefs?.checkin_reviewed !== false) {
+        await notifyEmployeeCheckinReviewed({
+          employeeEmail: emp.email,
+          employeeName: emp.full_name,
+          managerName,
+          month: MONTH_NAMES[month - 1],
+          year,
+          checkinId,
+        }).catch((err: unknown) => console.error('[checkin-actions] review notification failed:', err))
       }
     })
   }

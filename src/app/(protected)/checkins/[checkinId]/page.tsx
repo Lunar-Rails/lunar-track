@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import EmployeeCheckinForm from '@/components/checkins/EmployeeCheckinForm'
 import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
 import ReopenCheckinButton from '@/components/checkins/ReopenCheckinButton'
+import ManagerCheckinNotes from '@/components/checkins/ManagerCheckinNotes'
 import type { Checkin, PerformancePeriod, Profile } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -40,22 +41,33 @@ export default async function CheckinDetailPage({
     .maybeSingle()
 
   if (!checkinRaw) notFound()
-  const checkin = checkinRaw as CheckinWithPeriod
 
   // Access: employee sees their own; manager/HR can read (no feedback form)
-  const isOwner = checkin.employee_id === user.id
+  const isOwner = checkinRaw.employee_id === user.id
   const isHRAdmin = profile.role === 'HR_ADMIN'
   const isManager = profile.role === 'MANAGER' || isHRAdmin
 
+  // Guard before any data is spread into client-bound props
   if (!isOwner && !isManager) redirect('/checkins')
+
+  const isManagerViewer = isManager && !isOwner
 
   if (!isOwner && isManager && !isHRAdmin) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: closureCheck } = await (supabase as any)
       .from('org_closure').select('depth')
-      .eq('ancestor_id', user.id).eq('descendant_id', checkin.employee_id).gt('depth', 0).maybeSingle()
+      .eq('ancestor_id', user.id).eq('descendant_id', checkinRaw.employee_id).gt('depth', 0).maybeSingle()
     if (!closureCheck) redirect('/checkins')
   }
+
+  // Strip mgr_private_note from the serialised RSC payload for non-manager viewers.
+  // All client components on this page receive `checkin` as a prop; stripping at
+  // the assignment site ensures the field never travels to the employee's browser.
+  // This assignment intentionally comes after all auth guards so unauthorised
+  // callers are redirected before any data is spread into client-bound props.
+  const checkin = (
+    isManagerViewer ? checkinRaw : { ...checkinRaw, mgr_private_note: null }
+  ) as CheckinWithPeriod
 
   const employeeSubmitted = !!checkin.employee_submitted_at
 
@@ -121,6 +133,14 @@ export default async function CheckinDetailPage({
         okrOptions={okrOptions}
         readOnly={!isOwner || employeeSubmitted}
       />
+
+      {/* Manager notes — shown to manager (editable) and to employee after manager submits */}
+      {employeeSubmitted && (isManager || !!checkin.manager_submitted_at) && (
+        <ManagerCheckinNotes
+          checkin={checkin}
+          isEditable={isManagerViewer}
+        />
+      )}
     </div>
   )
 }
