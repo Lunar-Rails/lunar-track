@@ -41,12 +41,19 @@ export default async function CheckinDetailPage({
     .maybeSingle()
 
   if (!checkinRaw) notFound()
-  const checkin = checkinRaw as CheckinWithPeriod
 
   // Access: employee sees their own; manager/HR can read (no feedback form)
-  const isOwner = checkin.employee_id === user.id
+  const isOwner = checkinRaw.employee_id === user.id
   const isHRAdmin = profile.role === 'HR_ADMIN'
   const isManager = profile.role === 'MANAGER' || isHRAdmin
+  const isManagerViewer = isManager && !isOwner
+
+  // Strip mgr_private_note from the serialised RSC payload for non-manager viewers.
+  // All client components on this page receive `checkin` as a prop; stripping at
+  // the assignment site ensures the field never travels to the employee's browser.
+  const checkin = (
+    isManagerViewer ? checkinRaw : { ...checkinRaw, mgr_private_note: null }
+  ) as CheckinWithPeriod
 
   if (!isOwner && !isManager) redirect('/checkins')
 
@@ -124,19 +131,12 @@ export default async function CheckinDetailPage({
       />
 
       {/* Manager notes — shown to manager (editable) and to employee after manager submits */}
-      {employeeSubmitted && (isManager || !!checkin.manager_submitted_at) && (() => {
-        const isManagerViewer = isManager && !isOwner
-        // Strip private note from payload for employee viewers — never send it to the client
-        const checkinForNotes = isManagerViewer
-          ? checkin
-          : { ...checkin, mgr_private_note: null }
-        return (
-          <ManagerCheckinNotes
-            checkin={checkinForNotes}
-            isEditable={isManagerViewer}
-          />
-        )
-      })()}
+      {employeeSubmitted && (isManager || !!checkin.manager_submitted_at) && (
+        <ManagerCheckinNotes
+          checkin={checkin}
+          isEditable={isManagerViewer}
+        />
+      )}
     </div>
   )
 }
