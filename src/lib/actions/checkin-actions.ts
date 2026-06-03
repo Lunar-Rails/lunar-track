@@ -226,7 +226,7 @@ export async function upsertCheckinManager(formData: FormData): Promise<ActionRe
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: checkin } = await (supabase as any)
     .from('checkins')
-    .select('id, employee_id, month, year, employee_submitted_at, period_id')
+    .select('id, employee_id, month, year, employee_submitted_at, manager_submitted_at, period_id')
     .eq('id', checkinId)
     .maybeSingle()
 
@@ -243,6 +243,11 @@ export async function upsertCheckinManager(formData: FormData): Promise<ActionRe
     if (!closure) return { error: 'Not authorised to edit notes for this employee' }
   }
 
+  // First submit = isSubmit AND the row has never been submitted before.
+  // Edit-after-submit saves use isSubmit=false (draft path), so they never
+  // re-stamp the timestamp or re-notify the employee.
+  const firstSubmit = isSubmit && !checkin.manager_submitted_at
+
   const payload: Record<string, unknown> = {
     mgr_mit_notes: fields.mgr_mit_notes ?? null,
     mgr_done_well: fields.mgr_done_well ?? null,
@@ -251,25 +256,29 @@ export async function upsertCheckinManager(formData: FormData): Promise<ActionRe
     mgr_private_note: fields.mgr_private_note ?? null,
     updated_at: new Date().toISOString(),
   }
-  if (isSubmit) payload.manager_submitted_at = new Date().toISOString()
+  if (firstSubmit) payload.manager_submitted_at = new Date().toISOString()
 
+  // For the first submit, use a conditional update guarded by IS NULL to prevent
+  // double-notification from a concurrent request (mirrors upsertCheckinEmployee).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: updateError } = await (supabase as any)
-    .from('checkins').update(payload).eq('id', checkinId)
+  let updateQuery = (supabase as any).from('checkins').update(payload).eq('id', checkinId)
+  if (firstSubmit) updateQuery = updateQuery.is('manager_submitted_at', null)
+  const { error: updateError, count } = await updateQuery.select('id')
   if (updateError) return { error: 'Failed to save notes: ' + updateError.message }
+  if (firstSubmit && count === 0) return { error: 'Notes were already submitted in another session' }
 
   revalidatePath(`/checkins/${checkinId}`)
   revalidatePath('/checkins')
 
-  if (isSubmit) {
+  if (firstSubmit) {
     const managerName = caller.full_name ?? caller.email
     const { month, year } = checkin
 
     after(async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const { data: emp } = await (supabase as any)
-        .from('profiles').select('email, full_name').eq('id', checkin.employee_id).single()
-      if (emp) {
+        .from('profiles').select('email, full_name, notification_prefs').eq('id', checkin.employee_id).single()
+      if (emp && emp.notification_prefs?.checkin_reviewed !== false) {
         await notifyEmployeeCheckinReviewed({
           employeeEmail: emp.email,
           employeeName: emp.full_name,
