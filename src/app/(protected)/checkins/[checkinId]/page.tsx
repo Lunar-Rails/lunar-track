@@ -46,24 +46,28 @@ export default async function CheckinDetailPage({
   const isOwner = checkinRaw.employee_id === user.id
   const isHRAdmin = profile.role === 'HR_ADMIN'
   const isManager = profile.role === 'MANAGER' || isHRAdmin
-  const isManagerViewer = isManager && !isOwner
 
-  // Strip mgr_private_note from the serialised RSC payload for non-manager viewers.
-  // All client components on this page receive `checkin` as a prop; stripping at
-  // the assignment site ensures the field never travels to the employee's browser.
-  const checkin = (
-    isManagerViewer ? checkinRaw : { ...checkinRaw, mgr_private_note: null }
-  ) as CheckinWithPeriod
-
+  // Guard before any data is spread into client-bound props
   if (!isOwner && !isManager) redirect('/checkins')
+
+  const isManagerViewer = isManager && !isOwner
 
   if (!isOwner && isManager && !isHRAdmin) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: closureCheck } = await (supabase as any)
       .from('org_closure').select('depth')
-      .eq('ancestor_id', user.id).eq('descendant_id', checkin.employee_id).gt('depth', 0).maybeSingle()
+      .eq('ancestor_id', user.id).eq('descendant_id', checkinRaw.employee_id).gt('depth', 0).maybeSingle()
     if (!closureCheck) redirect('/checkins')
   }
+
+  // Strip mgr_private_note from the serialised RSC payload for non-manager viewers.
+  // All client components on this page receive `checkin` as a prop; stripping at
+  // the assignment site ensures the field never travels to the employee's browser.
+  // This assignment intentionally comes after all auth guards so unauthorised
+  // callers are redirected before any data is spread into client-bound props.
+  const checkin = (
+    isManagerViewer ? checkinRaw : { ...checkinRaw, mgr_private_note: null }
+  ) as CheckinWithPeriod
 
   const employeeSubmitted = !!checkin.employee_submitted_at
 
