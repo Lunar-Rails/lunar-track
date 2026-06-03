@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge'
 import EmployeeCheckinForm from '@/components/checkins/EmployeeCheckinForm'
 import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
 import ReopenCheckinButton from '@/components/checkins/ReopenCheckinButton'
+import ManagerCheckinNotes from '@/components/checkins/ManagerCheckinNotes'
 import type { Checkin, PerformancePeriod, Profile } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
@@ -121,6 +122,21 @@ export default async function CheckinDetailPage({
         okrOptions={okrOptions}
         readOnly={!isOwner || employeeSubmitted}
       />
+
+      {/* Manager notes — shown to manager (editable) and to employee after manager submits */}
+      {employeeSubmitted && (isManager || !!checkin.manager_submitted_at) && (() => {
+        const isManagerViewer = isManager && !isOwner
+        // Strip private note from payload for employee viewers — never send it to the client
+        const checkinForNotes = isManagerViewer
+          ? checkin
+          : { ...checkin, mgr_private_note: null }
+        return (
+          <ManagerCheckinNotes
+            checkin={checkinForNotes}
+            isEditable={isManagerViewer}
+          />
+        )
+      })()}
     </div>
   )
 }
