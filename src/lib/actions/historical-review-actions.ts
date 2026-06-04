@@ -1,6 +1,7 @@
 'use server'
 
 import OpenAI from 'openai'
+import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 
@@ -19,14 +20,16 @@ export interface HistoricalReview {
   raw_import: string | null
 }
 
-export interface ExtractedReview {
-  period_label: string
-  source: string
-  professional_mastery: number | null
-  okrs_stretch_goals: number | null
-  behaviours_values: number | null
-  summary: string
-}
+const extractedReviewSchema = z.object({
+  period_label: z.string(),
+  source: z.string(),
+  professional_mastery: z.number().min(1).max(5).nullable(),
+  okrs_stretch_goals: z.number().min(1).max(5).nullable(),
+  behaviours_values: z.number().min(1).max(5).nullable(),
+  summary: z.string(),
+})
+
+export type ExtractedReview = z.infer<typeof extractedReviewSchema>
 
 export async function extractReviewWithLLM(rawText: string): Promise<{ data: ExtractedReview | null; error: string | null }> {
   const supabase = await createClient()
@@ -65,8 +68,12 @@ For scores: only extract a numeric score if the notes clearly state one on a 1�
     })
 
     const text = completion.choices[0]?.message?.content?.trim() ?? ''
-    const extracted = JSON.parse(text) as ExtractedReview
-    return { data: extracted, error: null }
+    const parsed = extractedReviewSchema.safeParse(JSON.parse(text))
+    if (!parsed.success) {
+      console.error('[extractReviewWithLLM] schema validation failed:', parsed.error.message)
+      return { data: null, error: 'Model returned unexpected data shape — try again or adjust your input.' }
+    }
+    return { data: parsed.data, error: null }
   } catch (err) {
     console.error('[extractReviewWithLLM]', err)
     return { data: null, error: 'Failed to extract review — check your input or try again.' }
