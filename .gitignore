@@ -34,3 +34,6 @@ tsconfig.tsbuildinfo
 
 # Local Netlify folder
 .netlify/
+
+netlify/functions/*.zip
+netlify/functions/manifest.json
