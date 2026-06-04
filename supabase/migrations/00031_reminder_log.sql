@@ -5,7 +5,7 @@
 --
 -- Only accessed by the service-role key in scheduled functions — no RLS needed.
 
-CREATE TABLE reminder_log (
+CREATE TABLE IF NOT EXISTS reminder_log (
   id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   employee_id   UUID        NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   channel       TEXT        NOT NULL CHECK (channel IN ('slack', 'email')),
@@ -18,4 +18,4 @@ CREATE TABLE reminder_log (
   UNIQUE (employee_id, channel, reminder_type, month, year)
 );
 
-CREATE INDEX reminder_log_period_idx ON reminder_log (channel, reminder_type, month, year);
+CREATE INDEX IF NOT EXISTS reminder_log_period_idx ON reminder_log (channel, reminder_type, month, year);
