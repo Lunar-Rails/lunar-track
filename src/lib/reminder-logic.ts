@@ -27,10 +27,15 @@ export function getMonthEnd(year: number, month: number): Date {
 }
 
 /**
- * Returns true if the given date is exactly `daysBeforeEnd` days before
- * the end of its calendar month (UTC).
+ * Returns true if the given date falls within the reminder window — i.e. between
+ * 1 and `windowDays` days before month end (inclusive), UTC.
+ *
+ * Running on a window rather than a single day lets missed or failed sends be
+ * automatically retried on subsequent cron runs. The `reminder_log` table prevents
+ * duplicate messages: an employee is only messaged once per period per channel
+ * regardless of how many days the function runs within the window.
  */
-export function isReminderDay(date: Date, daysBeforeEnd = 7): boolean {
+export function isInReminderWindow(date: Date, windowDays = 7): boolean {
   const year = date.getUTCFullYear()
   const month = date.getUTCMonth() + 1 // 1-based
   const dayOfMonth = date.getUTCDate()
@@ -38,7 +43,16 @@ export function isReminderDay(date: Date, daysBeforeEnd = 7): boolean {
   const monthEnd = getMonthEnd(year, month)
   const lastDay = monthEnd.getUTCDate()
 
-  return lastDay - dayOfMonth === daysBeforeEnd
+  const daysRemaining = lastDay - dayOfMonth
+  return daysRemaining >= 1 && daysRemaining <= windowDays
+}
+
+/**
+ * @deprecated Use `isInReminderWindow` instead.
+ * Kept for backwards compatibility — delegates to the new window check.
+ */
+export function isReminderDay(date: Date, daysBeforeEnd = 7): boolean {
+  return isInReminderWindow(date, daysBeforeEnd)
 }
 
 /**

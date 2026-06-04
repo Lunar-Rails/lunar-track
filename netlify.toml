@@ -9,6 +9,12 @@
   directory     = "netlify/functions"
   node_bundler  = "esbuild"
 
+[functions."slack-reminders"]
+  schedule = "0 9 * * *"
+
+[functions."email-reminders"]
+  schedule = "0 9 * * *"
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
