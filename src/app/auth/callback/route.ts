@@ -9,8 +9,19 @@ function safeRedirectPath(raw: string | null): string {
   return raw
 }
 
+// Netlify's Next.js plugin exposes the internal deploy host (main--<site>.netlify.app)
+// via `request.url`, so URL(request.url).origin points at the wrong host. Pin redirects
+// to the canonical public origin so auth cookies always attach to the same domain
+// the user reached the app on, never a branch/preview deploy URL.
+function getPublicOrigin(request: Request): string {
+  const configured = process.env.NEXT_PUBLIC_APP_URL
+  if (configured) return configured.replace(/\/$/, '')
+  return new URL(request.url).origin
+}
+
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams } = new URL(request.url)
+  const origin = getPublicOrigin(request)
   const code = searchParams.get('code')
   const next = safeRedirectPath(searchParams.get('next'))
 
