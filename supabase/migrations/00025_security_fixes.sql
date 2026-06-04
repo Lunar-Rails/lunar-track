@@ -15,6 +15,8 @@ CREATE POLICY profiles_self_update_meta
 
 -- WR-08: Add caller existence check to get_subordinates.
 -- Previously any authenticated user could query any manager's full org subtree.
+-- Drop first because CREATE OR REPLACE cannot change an existing function's return type.
+DROP FUNCTION IF EXISTS get_subordinates(UUID);
 CREATE OR REPLACE FUNCTION get_subordinates(manager_uuid UUID)
 RETURNS TABLE (
   id          UUID,

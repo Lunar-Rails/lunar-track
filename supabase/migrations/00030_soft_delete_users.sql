@@ -25,6 +25,8 @@ AS $$
 $$;
 
 -- Update get_subordinates to exclude inactive users
+-- Drop first because CREATE OR REPLACE cannot change an existing function's return type.
+DROP FUNCTION IF EXISTS get_subordinates(UUID);
 CREATE OR REPLACE FUNCTION get_subordinates(manager_uuid UUID)
 RETURNS TABLE (
   id UUID,

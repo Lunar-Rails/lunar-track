@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   getMonthEnd,
+  isInReminderWindow,
   isReminderDay,
   getReminderType,
   getQuarterForMonth,
@@ -37,39 +38,94 @@ describe('getMonthEnd', () => {
 })
 
 // ---------------------------------------------------------------------------
-// isReminderDay — "exactly 7 days before month-end"
+// isInReminderWindow — "between 1 and 7 days before month-end, inclusive"
 // ---------------------------------------------------------------------------
-describe('isReminderDay', () => {
-  it('returns true on the 24th of a 31-day month (31-24=7)', () => {
-    // January 24 → January 31 is 7 days out
+describe('isInReminderWindow', () => {
+  // Start of window (day -7)
+  it('returns true on the 24th of a 31-day month (31-24=7, window start)', () => {
+    expect(isInReminderWindow(new Date('2026-01-24T09:00:00Z'))).toBe(true)
+  })
+
+  // Day -6 — was false with the old single-day check, now true
+  it('returns true on the 25th of a 31-day month (31-25=6, inside window)', () => {
+    expect(isInReminderWindow(new Date('2026-01-25T09:00:00Z'))).toBe(true)
+  })
+
+  // End of window (day -1)
+  it('returns true on the 30th of a 31-day month (31-30=1, window end)', () => {
+    expect(isInReminderWindow(new Date('2026-01-30T09:00:00Z'))).toBe(true)
+  })
+
+  // Last day of month — not in window (0 days remaining)
+  it('returns false on the last day of the month (0 days remaining)', () => {
+    expect(isInReminderWindow(new Date('2026-01-31T09:00:00Z'))).toBe(false)
+  })
+
+  // Before window
+  it('returns false on the 23rd of a 31-day month (31-23=8, before window)', () => {
+    expect(isInReminderWindow(new Date('2026-01-23T09:00:00Z'))).toBe(false)
+  })
+
+  it('returns true on the 23rd of a 30-day month (30-23=7, window start)', () => {
+    // April has 30 days
+    expect(isInReminderWindow(new Date('2026-04-23T09:00:00Z'))).toBe(true)
+  })
+
+  it('returns true on the 29th of a 30-day month (30-29=1, window end)', () => {
+    expect(isInReminderWindow(new Date('2026-04-29T09:00:00Z'))).toBe(true)
+  })
+
+  it('returns false on April 30 (last day, 0 remaining)', () => {
+    expect(isInReminderWindow(new Date('2026-04-30T09:00:00Z'))).toBe(false)
+  })
+
+  it('returns true for all 7 days of the window in a 28-day February', () => {
+    // Feb 2025: last day = 28, window = days 21–27
+    for (let d = 21; d <= 27; d++) {
+      const pad = String(d).padStart(2, '0')
+      expect(isInReminderWindow(new Date(`2025-02-${pad}T09:00:00Z`))).toBe(true)
+    }
+  })
+
+  it('returns false on Feb 28 (last day of non-leap year)', () => {
+    expect(isInReminderWindow(new Date('2025-02-28T09:00:00Z'))).toBe(false)
+  })
+
+  it('returns true for all 7 days of the window in a 29-day February (leap year)', () => {
+    // Feb 2024: last day = 29, window = days 22–28
+    for (let d = 22; d <= 28; d++) {
+      const pad = String(d).padStart(2, '0')
+      expect(isInReminderWindow(new Date(`2024-02-${pad}T09:00:00Z`))).toBe(true)
+    }
+  })
+
+  it('returns false on the first of any month (far outside window)', () => {
+    for (const m of ['01', '04', '09', '12']) {
+      expect(isInReminderWindow(new Date(`2026-${m}-01T09:00:00Z`))).toBe(false)
+    }
+  })
+
+  it('respects a custom windowDays parameter', () => {
+    // 3-day window for a 31-day month: days 28, 29, 30 are in; 27 is out; 31 is out
+    expect(isInReminderWindow(new Date('2026-01-30T09:00:00Z'), 3)).toBe(true)
+    expect(isInReminderWindow(new Date('2026-01-28T09:00:00Z'), 3)).toBe(true)
+    expect(isInReminderWindow(new Date('2026-01-27T09:00:00Z'), 3)).toBe(false)
+    expect(isInReminderWindow(new Date('2026-01-31T09:00:00Z'), 3)).toBe(false)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// isReminderDay — deprecated alias, delegates to isInReminderWindow
+// ---------------------------------------------------------------------------
+describe('isReminderDay (deprecated alias)', () => {
+  it('still returns true on the classic day-7 date', () => {
     expect(isReminderDay(new Date('2026-01-24T09:00:00Z'))).toBe(true)
   })
-  it('returns false on the 25th of a 31-day month (31-25=6)', () => {
-    expect(isReminderDay(new Date('2026-01-25T09:00:00Z'))).toBe(false)
+  it('now also returns true inside the window (day -6)', () => {
+    expect(isReminderDay(new Date('2026-01-25T09:00:00Z'))).toBe(true)
   })
-  it('returns true on the 23rd of a 30-day month (30-23=7)', () => {
-    // April has 30 days → April 23
-    expect(isReminderDay(new Date('2026-04-23T09:00:00Z'))).toBe(true)
-  })
-  it('returns true on the 21st of February in a non-leap year (28-21=7)', () => {
-    expect(isReminderDay(new Date('2025-02-21T09:00:00Z'))).toBe(true)
-  })
-  it('returns true on the 22nd of February in a leap year (29-22=7)', () => {
-    expect(isReminderDay(new Date('2024-02-22T09:00:00Z'))).toBe(true)
-  })
-  it('returns false on the 21st of February in a leap year (29-21=8)', () => {
-    expect(isReminderDay(new Date('2024-02-21T09:00:00Z'))).toBe(false)
-  })
-  it('returns true on March 24 (31-day month, 31-24=7)', () => {
-    expect(isReminderDay(new Date('2026-03-24T09:00:00Z'))).toBe(true)
-  })
-  it('returns true on December 24 (31-day month)', () => {
-    expect(isReminderDay(new Date('2026-12-24T09:00:00Z'))).toBe(true)
-  })
-  it('returns false on the first of any month', () => {
-    for (const m of ['01', '04', '09', '12']) {
-      expect(isReminderDay(new Date(`2026-${m}-01T09:00:00Z`))).toBe(false)
-    }
+  it('returns false outside the window', () => {
+    expect(isReminderDay(new Date('2026-01-01T09:00:00Z'))).toBe(false)
   })
 })
 

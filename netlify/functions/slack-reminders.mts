@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Config } from '@netlify/functions'
 import {
-  isReminderDay,
+  isInReminderWindow,
   getReminderType,
   getReminderPeriod,
   getEffectiveDate,
@@ -17,6 +17,10 @@ interface Profile {
   id: string
   email: string
   full_name: string | null
+  notification_prefs?: {
+    checkin_reminders?: boolean
+    review_reminders?: boolean
+  } | null
 }
 
 export default async function handler(request: Request): Promise<Response> {
@@ -27,8 +31,8 @@ export default async function handler(request: Request): Promise<Response> {
 
   const today = getEffectiveDate(process.env.REMINDER_DATE_OVERRIDE)
 
-  if (!isReminderDay(today)) {
-    const msg = `[slack-reminders] Not a reminder day (${today.toISOString().slice(0, 10)}), exiting.`
+  if (!isInReminderWindow(today)) {
+    const msg = `[slack-reminders] Not in reminder window (${today.toISOString().slice(0, 10)}), exiting.`
     console.log(msg)
     return new Response(msg, { status: 200 })
   }
@@ -37,7 +41,7 @@ export default async function handler(request: Request): Promise<Response> {
   const type = getReminderType(period.month)
 
   console.log(
-    `[slack-reminders] Reminder day! type=${type} month=${period.month} quarter=${period.quarter} year=${period.year}`,
+    `[slack-reminders] In reminder window. type=${type} month=${period.month} quarter=${period.quarter} year=${period.year}`,
   )
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -62,7 +66,7 @@ export default async function handler(request: Request): Promise<Response> {
   // Fetch only EMPLOYEE profiles — managers and HR admins don't submit check-ins
   const { data: profiles, error: profilesError } = await supabase
     .from('profiles')
-    .select('id, email, full_name')
+    .select('id, email, full_name, notification_prefs')
     .eq('role', 'EMPLOYEE')
 
   if (profilesError) {
@@ -75,20 +79,26 @@ export default async function handler(request: Request): Promise<Response> {
     return new Response('No profiles', { status: 200 })
   }
 
-  // Batch-fetch submitted employees for this period
-  const submittedIds = await fetchSubmittedEmployeeIds(supabase, type, period)
+  const [submittedIds, alreadyRemindedIds] = await Promise.all([
+    fetchSubmittedEmployeeIds(supabase, type, period),
+    fetchAlreadyRemindedIds(supabase, 'slack', type, period),
+  ])
 
-  const pendingProfiles = (profiles as Profile[]).filter(
-    p => !submittedIds.has(p.id),
+  const pendingProfiles = (profiles as Profile[]).filter(p =>
+    !submittedIds.has(p.id) &&
+    !alreadyRemindedIds.has(p.id) &&
+    wantsReminder(p, type),
   )
 
+  const optedOut = (profiles as Profile[]).filter(p => !wantsReminder(p, type)).length
+
   console.log(
-    `[slack-reminders] ${profiles.length} total employees, ${submittedIds.size} already submitted, ${pendingProfiles.length} need reminders`,
+    `[slack-reminders] ${profiles.length} total employees, ${submittedIds.size} already submitted, ${alreadyRemindedIds.size} already reminded, ${optedOut} opted out, ${pendingProfiles.length} to send`,
   )
 
   const results = await Promise.allSettled(
     pendingProfiles.map(profile =>
-      sendReminderToEmployee(profile, type, period, appUrl, tokenMap),
+      sendReminderToEmployee(supabase, profile, type, period, appUrl, tokenMap),
     ),
   )
 
@@ -99,6 +109,12 @@ export default async function handler(request: Request): Promise<Response> {
   const summary = `[slack-reminders] Done. sent=${sent} skipped=${skipped} failed=${failed}`
   console.log(summary)
   return new Response(summary, { status: 200 })
+}
+
+function wantsReminder(profile: Profile, type: ReminderType): boolean {
+  const prefs = profile.notification_prefs
+  if (type === 'quarterly') return prefs?.review_reminders !== false
+  return prefs?.checkin_reminders !== false
 }
 
 async function fetchSubmittedEmployeeIds(
@@ -141,7 +157,47 @@ async function fetchSubmittedEmployeeIds(
   return new Set((rows ?? []).map((r: { employee_id: string }) => r.employee_id))
 }
 
+async function fetchAlreadyRemindedIds(
+  supabase: SupabaseClient,
+  channel: 'slack' | 'email',
+  type: ReminderType,
+  period: ReminderPeriod,
+): Promise<Set<string>> {
+  const { data: rows } = await supabase
+    .from('reminder_log')
+    .select('employee_id')
+    .eq('channel', channel)
+    .eq('reminder_type', type)
+    .eq('month', period.month)
+    .eq('year', period.year)
+
+  return new Set((rows ?? []).map((r: { employee_id: string }) => r.employee_id))
+}
+
+async function logReminderSent(
+  supabase: SupabaseClient,
+  employeeId: string,
+  channel: 'slack' | 'email',
+  type: ReminderType,
+  period: ReminderPeriod,
+): Promise<void> {
+  const { error } = await supabase.from('reminder_log').insert({
+    employee_id: employeeId,
+    channel,
+    reminder_type: type,
+    month: period.month,
+    year: period.year,
+  })
+  if (error) {
+    // Conflict = already logged (idempotent). Any other error is unexpected but non-fatal.
+    if (!error.message.includes('unique') && !error.message.includes('duplicate')) {
+      console.error(`[slack-reminders] Failed to log reminder for ${employeeId}:`, error.message)
+    }
+  }
+}
+
 async function sendReminderToEmployee(
+  supabase: SupabaseClient,
   profile: Profile,
   type: ReminderType,
   period: ReminderPeriod,
@@ -171,6 +227,7 @@ async function sendReminderToEmployee(
     console.log(
       `[slack-reminders] Sent ${type} reminder to ${profile.email} (${profile.full_name ?? 'unknown'})`,
     )
+    await logReminderSent(supabase, profile.id, 'slack', type, period)
     return 'sent'
   } else {
     console.error(`[slack-reminders] Failed to DM ${profile.email}`)
@@ -178,6 +235,8 @@ async function sendReminderToEmployee(
   }
 }
 
+// Schedule is also declared in netlify.toml under [functions."slack-reminders"]
+// as a fallback for Next.js plugin sites where inline config may not be picked up.
 export const config: Config = {
   schedule: '0 9 * * *', // Daily at 09:00 UTC
 }
