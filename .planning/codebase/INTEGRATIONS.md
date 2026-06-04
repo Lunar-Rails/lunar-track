@@ -1,138 +1,190 @@
+---
+last_mapped_commit: 804cf743d1651aa9bd1d761c60c4d1478e38a540
+---
+
 # External Integrations
 
-LunarTrack integrates with Supabase (auth + database), Slack (scheduled DM reminders), and Resend (email notifications), deployed on Netlify.
+**Analysis Date:** 2026-06-04
 
-**Analysis Date:** 2026-05-23
+## APIs & External Services
 
----
+**Supabase (primary backend):**
+- **PostgreSQL** — all structured data (profiles, org hierarchy, check-ins, OKRs, scores, kudos, guide, reminders log)
+- **Auth** — magic-link OTP (login UI) and optional Google OAuth helper (`src/components/auth/SignInButton.tsx` — not used on `src/app/login/page.tsx`)
+- **Storage** — public `avatars` bucket; upload in `src/components/profile/ProfileSettingsForm.tsx`
+- **PostgREST + RPC** — app queries tables and functions (`get_subordinates`, `upsert_profile_on_login`, `invite_team_member`, etc.) from pages and `src/lib/actions/*.ts`
+- SDK: `@supabase/supabase-js`, SSR wrapper `@supabase/ssr`
+- Auth env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- Elevated access: `SUPABASE_SERVICE_ROLE_KEY` (Netlify scheduled functions only)
 
-## Authentication & Identity
+**Mailtrap (transactional email — production path):**
+- REST API: `https://send.api.mailtrap.io/api/send`
+- Implementation: `src/lib/notifications.ts` (`sendEmail`, invite/check-in/kudos templates)
+- Also required by: `netlify/functions/email-reminders.mts`
+- Auth: `MAILTRAP_API_TOKEN` (Bearer)
+- From address: `MAILTRAP_FROM` (default `noreply@lunarrails.io` in code)
+- Behavior: no-ops when token missing (dev-safe); production cron returns 500 if missing
 
-**Auth Provider:** Supabase Auth + Google OAuth
-- Pattern: Supabase SSR (`@supabase/ssr ^0.10.2`) — the only supported pattern for Next.js App Router
-- OAuth callback route: `src/app/auth/callback/route.ts`
-- Auth guard in: `src/app/(protected)/layout.tsx`
-- Login page: `src/app/login/`
-- No username/password login; Google OAuth only
-- Profile provisioning via `upsert_profile_on_login` RPC: `src/lib/supabase/server.ts`
+**Resend (documented, not wired in app code):**
+- Package `resend` in `package.json` — **no imports under `src/` or `netlify/`**
+- `.env.example` lists `RESEND_API_KEY`, `RESEND_FROM` — stale relative to Mailtrap implementation
+- Treat Mailtrap as the live email provider unless Resend is reconnected
 
-**Client creation patterns:**
-- Browser (Client Components): `src/lib/supabase/client.ts` — `createBrowserClient<Database>(...)`
-- Server (Server Components / Actions): `src/lib/supabase/server.ts` — `createServerClient<Database>(...)` with async `cookies()`
+**Slack (check-in reminder DMs):**
+- REST API base: `https://slack.com/api` — `src/lib/slack.ts`
+- Methods used: `users.lookupByEmail`, `conversations.open`, `chat.postMessage` (Block Kit)
+- Multi-workspace: domain → bot token map from `SLACK_WORKSPACE_TOKENS` JSON; parsing in `src/lib/reminder-logic.ts` (`parseWorkspaceTokens`, `getTokenForEmail`)
+- Scheduled sender: `netlify/functions/slack-reminders.mts`
+- Setup doc: `docs/slack-reminders-setup.md`
+- Required bot scopes: `users:read.email`, `im:write`, `chat:write`
 
----
+**OpenAI (optional LLM extraction):**
+- SDK: `openai` package
+- Server Action: `extractReviewWithLLM` in `src/lib/actions/historical-review-actions.ts`
+- Model: `gpt-4o-mini` (structured JSON from pasted review notes)
+- Auth: `OPENAI_API_KEY` — returns user-facing error if unset
+
+**Google (client-side only, no server API key):**
+- **Fonts** — `next/font/google` in `src/app/layout.tsx` (Space Grotesk, Inter)
+- **Calendar deep links** — `src/components/checkins/ScheduleCallButton.tsx` opens `calendar.google.com` (no Google Calendar API integration)
+- **OAuth** — Supabase Auth provider `google` in `src/components/auth/SignInButton.tsx`; login page uses OTP via `src/components/auth/MagicLinkForm.tsx` instead
 
 ## Data Storage
 
-**Database:** Supabase PostgreSQL (managed)
-- Client: `@supabase/supabase-js ^2.104.0` with typed `Database` interface from `src/lib/types/database.ts`
-- RLS (Row-Level Security) enforces three-tier access model (Employee / Manager / HR Admin) at the database layer
-- Complex queries via `supabase.rpc()` calls (e.g. recursive hierarchy, profile provisioning)
-- Schema migrations managed via Supabase CLI: `supabase/` directory, push command in `package.json` (`supabase:push:new` uses `SUPABASE_POOLER` env var)
-- Service role key used in Netlify scheduled function (`SUPABASE_SERVICE_ROLE_KEY`) — bypasses RLS intentionally for server-side reminder queries
+**Databases:**
+- **Supabase PostgreSQL 17** (managed)
+  - Schema: `supabase/migrations/` (00001–00031+)
+  - Connection for CI/deploy migrations: `SUPABASE_POOLER` (Postgres URI, session/pooler mode)
+  - Client: Supabase JS with RLS enforced for browser/server user sessions (`auth.uid()`)
+  - Types: hand-maintained `src/lib/types/database.ts` (not auto-generated in repo)
 
-**File Storage:** Not detected — no Supabase Storage or S3 references found
+**File Storage:**
+- **Supabase Storage** — `avatars` public bucket
+  - Policies: `supabase/migrations/00026_avatar_storage_and_notification_prefs.sql`
+  - Client uploads: `src/components/profile/ProfileSettingsForm.tsx` (`supabase.storage.from('avatars').upload`)
 
-**Caching:** None detected
+**Caching:**
+- None (no Redis, no edge KV). Next.js `revalidatePath` used after Server Action mutations.
 
----
+## Authentication & Identity
 
-## Messaging & Notifications
+**Auth Provider:**
+- **Supabase Auth** (hosted)
+  - Primary login: email **magic link OTP** — `supabase.auth.signInWithOtp` in `src/components/auth/MagicLinkForm.tsx` and `src/components/auth/ResendMagicLinkButton.tsx`
+  - Callback: `src/app/auth/callback/route.ts` — `exchangeCodeForSession`, domain check, `upsert_profile_on_login` RPC
+  - Domain allowlist: `src/lib/auth/allowed-domains.ts` (also enforced in callback route)
+  - DB whitelist migration: `supabase/migrations/00018_domain_whitelist.sql`
+  - Session reads: always `getUser()` (not `getSession()`) per `src/proxy.ts` comments and protected layouts
 
-**Email:** Resend
-- Package: `resend ^6.12.3`
-- Integration layer: `src/lib/notifications.ts`
-- Uses direct `fetch('https://api.resend.com/emails', ...)` (raw HTTP, not Resend SDK client)
-- Required env vars:
-  - `RESEND_API_KEY` — API key
-  - `RESEND_FROM` — sender address
+**Authorization:**
+- **RLS** on Postgres tables (migrations e.g. `00025_security_fixes.sql`)
+- **Application roles** — `user_role` enum: `EMPLOYEE`, `MANAGER`, `HR_ADMIN` (`supabase/migrations/00001_foundation.sql`)
+- **Layout gates** — `src/app/(protected)/layout.tsx`, `src/app/(protected)/admin/layout.tsx`
 
-**Slack DM Reminders:**
-- Custom integration — no Slack SDK; raw Slack Web API calls via `fetch`
-- Integration layer: `src/lib/slack.ts`
-- Bot token scopes required per workspace: `users:read.email`, `im:write`, `chat:write`
-- Multi-workspace support: token map keyed by email domain (`SLACK_WORKSPACE_TOKENS` JSON)
-- Reminder logic: `src/lib/reminder-logic.ts`
-- Delivery mechanism: Netlify scheduled function `netlify/functions/slack-reminders.mts`
-  - Schedule: daily at 09:00 UTC (`cron: '0 9 * * *'`)
-  - Sends DMs on reminder days (month-end check-in prompts, quarterly prompts)
+**Service role usage (bypasses RLS):**
+- `netlify/functions/email-reminders.mts`
+- `netlify/functions/slack-reminders.mts`
+- Not used in `src/lib/actions/` for normal user flows (invites use RPC with user JWT)
 
----
+## Monitoring & Observability
 
-## Analytics & Monitoring
+**Error Tracking:**
+- None (no Sentry, Datadog, etc.)
 
-**Error Tracking:** Not detected (no Sentry, Datadog, etc.)
+**Logs:**
+- `console.log` / `console.error` in notifications (`src/lib/notifications.ts`), Slack helper (`src/lib/slack.ts`), Netlify functions, and Server Actions
+- Netlify function execution logs for scheduled reminders
 
-**Analytics:** Not detected (no GA, Posthog, Mixpanel, etc.)
+## CI/CD & Deployment
 
-**Logs:** `console.log` / `console.error` only; structured with `[module]` prefixes (e.g. `[slack-reminders]`, `[supabase/server]`, `[notifications]`)
+**Hosting:**
+- **Netlify** — `netlify.toml`
+  - Build: `npm run build:deploy` → `scripts/netlify-build.sh` (optional `supabase db push` then `next build`)
+  - Publish: `.next`
+  - Plugin: `@netlify/plugin-nextjs`
 
----
+**CI Pipeline:**
+- Not detected (no `.github/workflows/` or similar in repo)
 
-## Deployment Platform
+**Database migrations on deploy:**
+- `scripts/netlify-build.sh` runs `npx supabase db push --db-url "$SUPABASE_POOLER"` when `SUPABASE_POOLER` is set
+- Local/manual: `npm run supabase:push` (sources `.env.local` in npm script — do not commit secrets)
 
-**Hosting:** Netlify
-- Config: `netlify.toml`
-- Adapter: `@netlify/plugin-nextjs ^5.15.11` (dev dep)
-- Build: `npm run build` → publishes `.next/`
-- Node.js version: 20 (pinned in `netlify.toml`)
-- Scheduled functions bundled with esbuild from `netlify/functions/` directory
-- Functions type: `@netlify/functions ^5.2.2`
+## Environment Configuration
 
-**CI Pipeline:** Not detected (no GitHub Actions, CircleCI configs found)
+**Required env vars (runtime app):**
+| Variable | Used in |
+|----------|---------|
+| `NEXT_PUBLIC_SUPABASE_URL` | `src/lib/supabase/client.ts`, `server.ts`, `src/proxy.ts`, Netlify functions |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Same |
+| `NEXT_PUBLIC_APP_URL` | `src/app/layout.tsx` metadata, notifications, Slack reminder links |
 
----
+**Required for production build (migrations):**
+| Variable | Used in |
+|----------|---------|
+| `SUPABASE_POOLER` | `scripts/netlify-build.sh` |
 
-## Environment Variables
+**Required for scheduled reminders (Netlify Functions):**
+| Variable | Used in |
+|----------|---------|
+| `SUPABASE_SERVICE_ROLE_KEY` | `netlify/functions/email-reminders.mts`, `slack-reminders.mts` |
+| `MAILTRAP_API_TOKEN` | `email-reminders.mts` (hard fail if missing in cron) |
+| `SLACK_WORKSPACE_TOKENS` | `slack-reminders.mts` (warn + skip sends if empty) |
+| `NEXT_PUBLIC_APP_URL` | Reminder deep links in `src/lib/reminder-logic.ts` / Slack blocks |
 
-### Required (Next.js App)
-
-| Variable | Used In | Purpose |
-|----------|---------|---------|
-| `NEXT_PUBLIC_SUPABASE_URL` | `src/lib/supabase/client.ts`, `src/lib/supabase/server.ts` | Supabase project URL (public) |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `src/lib/supabase/client.ts`, `src/lib/supabase/server.ts` | Supabase anon key (public) |
-| `SUPABASE_SERVICE_ROLE_KEY` | `netlify/functions/slack-reminders.mts` | Service role — bypasses RLS for scheduled jobs |
-| `RESEND_API_KEY` | `src/lib/notifications.ts` | Resend email API key (server-only) |
-| `RESEND_FROM` | `src/lib/notifications.ts` | Sender email address |
-| `NEXT_PUBLIC_APP_URL` | `netlify/functions/slack-reminders.mts` | App base URL for links in DMs |
-| `NEXT_PUBLIC_SITE_URL` | App code | Site URL (likely auth redirect) |
-
-### Required (Netlify Functions only)
-
+**Optional / feature flags:**
 | Variable | Purpose |
 |----------|---------|
-| `SLACK_WORKSPACE_TOKENS` | JSON map of email domain → Slack bot token (e.g. `{"bcomm.com": "xoxb-..."}`) |
-| `REMINDER_DATE_OVERRIDE` | Optional: override today's date for testing reminder logic (ISO date string) |
-| `SUPABASE_POOLER` | Supabase connection pooler URL for CLI schema push (`npm run supabase:push:new`) |
+| `MAILTRAP_FROM` | Sender email override |
+| `REMINDER_SECRET` | `x-reminder-secret` header check on cron HTTP invocations |
+| `REMINDER_DATE_OVERRIDE` | Test override for “today” in reminder logic |
+| `OPENAI_API_KEY` | Historical review AI extract |
+| `NEXT_PUBLIC_SITE_URL` | Calendar invite descriptions on check-in pages |
+| `RESEND_API_KEY` / `RESEND_FROM` | Documented in `.env.example` only — not used by current code |
 
-### Public vs Server-only
-
-- `NEXT_PUBLIC_*` variables are browser-exposed; contain only public Supabase endpoints and app URLs — no secrets
-- `RESEND_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SLACK_WORKSPACE_TOKENS` are server-only; never prefixed `NEXT_PUBLIC_`
-
----
+**Secrets location:**
+- Local: `.env.local` (gitignored)
+- Production: Netlify environment variables (Site configuration); Supabase dashboard for DB/API keys
+- Template reference: `.env.example` (no secret values)
 
 ## Webhooks & Callbacks
 
 **Incoming:**
-- `src/app/auth/callback/route.ts` — Supabase OAuth callback (Google SSO redirect URI)
+- **Supabase Auth OAuth/magic-link callback** — `GET src/app/auth/callback/route.ts` (`?code=`, `?next=`)
+- **Onboarding reset** — `GET src/app/onboarding/reset/route.ts` (clears `pending_manager_id`, redirects)
+- **Netlify scheduled function HTTP** — `email-reminders`, `slack-reminders` (cron `0 9 * * *` UTC per `netlify.toml`); optional `REMINDER_SECRET` header auth
+- No Stripe, GitHub, or generic webhook routes
 
 **Outgoing:**
-- Slack Web API (`https://slack.com/api`) — called from Netlify scheduled function
-- Resend API (`https://api.resend.com/emails`) — called from Server Actions via `src/lib/notifications.ts`
+- Mailtrap send API (email notifications and cron reminders)
+- Slack Web API (DM reminders)
+- OpenAI Chat Completions API (on-demand from Server Action)
+- Supabase REST/RPC/Storage (all app reads/writes)
+- Google Calendar **URL** only (user browser opens new tab — not a server callback)
+
+## Integration Data Flow (reminders)
+
+```text
+Netlify Cron (09:00 UTC)
+    │
+    ├─► email-reminders.mts
+    │       ├─► Supabase (service role) — profiles, check-in status
+    │       └─► Mailtrap API — employee emails
+    │
+    └─► slack-reminders.mts
+            ├─► Supabase (service role) — profiles
+            └─► Slack API — per-domain bot token DM
+```
+
+Shared logic: `src/lib/reminder-logic.ts` (window dates, message blocks, token map).
+
+## Integration Notes for Implementers
+
+- **Align `.env.example` with Mailtrap** — production code paths use `MAILTRAP_*`, not Resend.
+- **Do not add API routes for domain logic** — extend `src/lib/actions/` and Supabase RPC/migrations instead.
+- **New email provider** — replace `sendEmail` in `src/lib/notifications.ts` and update `netlify/functions/email-reminders.mts` guard/env checks together.
+- **New Slack workspace** — add domain → `xoxb-` token entry in `SLACK_WORKSPACE_TOKENS` and install the CiaoBob app in that workspace (`docs/slack-reminders-setup.md`).
 
 ---
 
-## SDK Wrappers / Integration Layers
-
-| File | Wraps | Notes |
-|------|-------|-------|
-| `src/lib/supabase/client.ts` | `@supabase/ssr` `createBrowserClient` | Typed with `Database` generic |
-| `src/lib/supabase/server.ts` | `@supabase/ssr` `createServerClient` | Async cookies; includes `getOrProvisionProfile` helper |
-| `src/lib/slack.ts` | Slack Web API (raw `fetch`) | Multi-workspace token routing |
-| `src/lib/notifications.ts` | Resend API (raw `fetch`) | Email send helper |
-| `src/lib/reminder-logic.ts` | Business logic | Reminder scheduling, message building, quarter/period utilities |
-
----
-
-*Integration audit: 2026-05-23*
+*Integration audit: 2026-06-04*

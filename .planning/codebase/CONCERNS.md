@@ -1,346 +1,280 @@
+---
+last_mapped_commit: 804cf743d1651aa9bd1d761c60c4d1478e38a540
+---
+
 # Codebase Concerns
 
-**Analysis Date:** 2026-05-23
+**Analysis Date:** 2026-06-04
+
+## Tech Debt
+
+**Supabase client typed as `any` at every call site:**
+- Issue: `createClient()` returns `SupabaseClient<Database>`, but pages and server actions cast to `(supabase as any)` before `.from()` / `.rpc()`. Schema drift surfaces only at runtime.
+- Files: `src/lib/actions/*.ts`, `src/app/(protected)/**/*.tsx`, `src/lib/supabase/server.ts`, `src/proxy.ts`, `src/app/auth/callback/route.ts` (~45 files, 200+ cast sites)
+- Impact: Broken column renames, missing RLS policies, and RPC signature changes are invisible to `tsc`.
+- Fix approach: Regenerate `src/lib/types/database.ts` via `supabase gen types typescript` and remove casts; add a CI check that fails on new `as any` on the Supabase client.
+
+**Hand-maintained `Database` types:**
+- Issue: `src/lib/types/database.ts` (~393 lines) is edited manually instead of generated from the live schema.
+- Files: `src/lib/types/database.ts`
+- Impact: Types lag migrations; contributes to the `as any` workaround culture.
+- Fix approach: Generate types in CI after `supabase db push` and commit the artifact.
+
+**Dead edge middleware (`src/proxy.ts`):**
+- Issue: Auth redirect, session cookie refresh, and first-check-in gate live in `src/proxy.ts` with export name `proxy`, but Next.js only runs `src/middleware.ts` with a `middleware` export. No `middleware.ts` exists in the repo.
+- Files: `src/proxy.ts`, `src/app/(protected)/layout.tsx` (partial substitute)
+- Impact: First-check-in gate and centralized unauthenticated redirects never run at the edge; behavior depends on each route calling `getUser()` / layout redirects.
+- Fix approach: Rename to `src/middleware.ts` and export `middleware` (or re-export `proxy` as `middleware`).
+
+**Monolithic server pages:**
+- Issue: Team dashboard, employee detail, and analytics pages mix data fetching, business rules, and large JSX in single files.
+- Files: `src/app/(protected)/team/page.tsx` (~710 lines), `src/app/(protected)/team/[employeeId]/page.tsx` (~599), `src/app/(protected)/dashboard/page.tsx` (~528), `src/app/(protected)/analytics/page.tsx` (~400), `src/components/org/OrgChart.tsx` (~504)
+- Impact: Hard to test, review, and change one concern without regressions.
+- Fix approach: Extract query helpers under `src/lib/queries/` and presentational subcomponents; keep pages as thin composers.
+
+**OKR workflow bypass:**
+- Issue: New goals are inserted with `status: 'APPROVED'` while transition tables, inbox flows, and manager review UI assume DRAFT → PENDING_REVIEW → APPROVED.
+- Files: `src/lib/actions/okr-actions.ts` (create path ~line 61), `src/lib/actions/onboarding-actions.ts` (seed goals as APPROVED)
+- Impact: Dead code paths, misleading inbox/scoring semantics, and inconsistent product behavior if review is re-enabled later.
+- Fix approach: Decide product intent; either default to `DRAFT` and wire submit-for-review, or remove unused transition UI and document manager-less goals.
+
+**Duplicate SQL migrations:**
+- Issue: `supabase/migrations/00017_ai_builder_and_values.sql` and `00019_ai_builder_and_values.sql` are near-identical (AI Builder columns + company value seed DELETE/INSERT).
+- Files: `supabase/migrations/00017_ai_builder_and_values.sql`, `supabase/migrations/00019_ai_builder_and_values.sql`
+- Impact: Fresh database applies destructive `DELETE FROM company_values` twice; confusing history for operators.
+- Fix approach: Squash or document one as no-op on replay; avoid duplicate destructive seeds in new environments.
+
+**Environment variable documentation drift:**
+- Issue: `.env.example` documents Resend (`RESEND_API_KEY`, `RESEND_FROM`) but runtime email uses Mailtrap HTTP API. `AGENTS.md` still references Resend optional no-op.
+- Files: `.env.example`, `src/lib/notifications.ts`, `AGENTS.md`
+- Impact: New deploys configure the wrong provider; emails silently no-op when only Resend is set.
+- Fix approach: Align `.env.example` and ops docs with `MAILTRAP_API_TOKEN` / `MAILTRAP_FROM`.
+
+**Declared stack vs implementation:**
+- Issue: `package.json` includes `zustand` and `nuqs`; no `useSessionStore`, `useUIStore`, or `nuqs` usage exists in `src/`. PROJECT/AGENTS still describe Next.js 15 while the app runs Next 16.2.4.
+- Files: `package.json`, `PROJECT.md`, `AGENTS.md`
+- Impact: Unused dependencies and misleading onboarding docs.
+- Fix approach: Remove unused packages or implement the documented stores; update PROJECT.md to Next 16.
+
+**Period auto-management on every layout load:**
+- Issue: `ensureCurrentPeriod()` runs from `src/app/(protected)/layout.tsx` for every authenticated MANAGER/HR_ADMIN request and discards errors from inserts/updates.
+- Files: `src/app/(protected)/layout.tsx`, `src/lib/actions/period-actions.ts`
+- Impact: Extra DB writes on unrelated page views; silent failure if RLS or constraints block period writes.
+- Fix approach: Move to a scheduled Netlify function (service role) or HR-only admin action with explicit error surfacing.
+
+**Demo / cleanup migrations in production history:**
+- Issue: Migrations include one-off data fixes and test-data cleanup (`00022_cleanup_demo_data.sql`, `00027_clean_team_test_data.sql`, `00029_import_employees.sql`).
+- Files: `supabase/migrations/00022_cleanup_demo_data.sql`, `supabase/migrations/00027_clean_team_test_data.sql`, `supabase/migrations/00029_import_employees.sql`
+- Impact: New environment bootstrap runs opinionated seed/cleanup SQL; risk if replayed on wrong database.
+- Fix approach: Separate seed scripts from versioned schema migrations; gate data migrations behind explicit ops runbooks.
+
+## Known Bugs
+
+**Open redirect after OAuth:**
+- Symptoms: Authenticated users can be sent to external origins via crafted `next` query param (e.g. `//evil.com`).
+- Files: `src/app/auth/callback/route.ts` (lines 8, 24, 55)
+- Trigger: Complete Google OAuth with `?next=//attacker.example/path`.
+- Workaround: None in app; block at reverse proxy if needed.
+- Fix: Allow only relative paths: `next.startsWith('/') && !next.startsWith('//') && !next.includes('://')`.
+
+**Auth callback succeeds without profile when RPC fails:**
+- Symptoms: User has a valid session but `upsert_profile_on_login` fails (e.g. domain allowed in TS but rejected in SQL); callback logs error and still redirects to `next`. Protected layout then redirects to login in a loop or shows broken state.
+- Files: `src/app/auth/callback/route.ts`, `src/lib/auth/allowed-domains.ts`, `supabase/migrations/00018_domain_whitelist.sql`
+- Trigger: Sign in with `clovrlabs.com` (in TS whitelist, not in SQL RPC whitelist).
+- Workaround: Add domain to SQL function and redeploy migration.
+- Fix: On `rpcError`, sign out and redirect to `/login?error=provision`; align domain lists.
+
+**Domain whitelist split-brain:**
+- Symptoms: `isAllowedEmail()` passes in callback but `upsert_profile_on_login` raises `Email domain not allowed` for domains present only in TypeScript.
+- Files: `src/lib/auth/allowed-domains.ts` (`clovrlabs.com`), `supabase/migrations/00018_domain_whitelist.sql` (no `clovrlabs.com`)
+- Trigger: Any `@clovrlabs.com` user completing OAuth.
+- Workaround: Patch SQL whitelist to match TS.
+- Fix: Single source of truth (DB table or shared config tested in CI).
+
+**Profile fallback insert skips domain check:**
+- Symptoms: When RPC fails, `getOrProvisionProfile` inserts into `profiles` without calling `isAllowedEmail()`.
+- Files: `src/lib/supabase/server.ts` (fallback block ~lines 61–75)
+- Trigger: RPC failure modes other than schema-cache miss (or malicious session if auth boundary fails elsewhere).
+- Workaround: Rely on callback domain check (does not cover deep-link provisioning path).
+- Fix: Guard fallback with `isAllowedEmail(user.email)`; prefer failing closed.
+
+## Security Considerations
+
+**Reminder HTTP endpoints optional auth:**
+- Risk: `netlify/functions/slack-reminders.mts` and `email-reminders.mts` only enforce `REMINDER_SECRET` when the env var is set (`if (reminderSecret && ...)`). If unset, any caller who discovers the function URL can trigger mass Slack DMs / emails.
+- Files: `netlify/functions/slack-reminders.mts`, `netlify/functions/email-reminders.mts`
+- Current mitigation: Documented as optional in `.env.example`; Slack path filters `role = 'EMPLOYEE'`.
+- Recommendations: Require `REMINDER_SECRET` in production (fail closed if missing); restrict invokers to Netlify scheduled triggers only.
+
+**Service role in scheduled functions:**
+- Risk: `SUPABASE_SERVICE_ROLE_KEY` bypasses RLS for reminder batch jobs and any future admin automation.
+- Files: `netlify/functions/slack-reminders.mts`, `netlify/functions/email-reminders.mts`
+- Current mitigation: Functions only read profiles/check-in status and send notifications; not exposed to browsers.
+- Recommendations: Scope service role to minimal RPCs; audit function logs; rotate key on compromise.
+
+**OpenAI historical review extraction:**
+- Risk: Manager-pasted text is sent to OpenAI; model output is `JSON.parse`d without schema validation. Prompt injection could skew extracted scores or summary; PII leaves BCOMM infra.
+- Files: `src/lib/actions/historical-review-actions.ts`
+- Current mitigation: Requires `OPENAI_API_KEY`; server action checks authentication before save (separate from extract).
+- Recommendations: Zod-validate extracted JSON; truncate/sanitize input; document data-processing policy for HR.
+
+**LLM and Slack tokens in environment:**
+- Risk: `OPENAI_API_KEY`, `SLACK_WORKSPACE_TOKENS` (JSON domain → token map) are high-value secrets in Netlify env.
+- Files: `.env.example`, `src/lib/slack.ts`, `netlify/functions/slack-reminders.mts`
+- Recommendations: Netlify secret scanning, least-privilege Slack bot scopes, no tokens in logs.
+
+**Guide content XSS surface (mitigated):**
+- Risk: HR-editable markdown rendered as HTML.
+- Files: `src/app/(protected)/guide/page.tsx` (`dangerouslySetInnerHTML` after `sanitize-html`)
+- Current mitigation: `marked` + `sanitize-html` with restricted tags/schemes.
+- Recommendations: Keep admin-only write access; re-audit allowed tags when upgrading `sanitize-html`.
+
+**Email HTML injection (largely mitigated):**
+- Risk: User-supplied names/titles in notification templates.
+- Files: `src/lib/notifications.ts` (`esc()` used on dynamic fields in OKR/check-in templates)
+- Current mitigation: `esc()` helper on interpolated user strings.
+- Recommendations: Audit any new templates for unescaped interpolation; add regression test for `esc()`.
+
+**RLS role escalation (mitigated in DB):**
+- Risk: Users updating their own `role` to `HR_ADMIN` via PostgREST.
+- Files: `supabase/migrations/00025_security_fixes.sql` (policy fix), originally `00001_foundation.sql`
+- Current mitigation: `profiles_self_update_meta` WITH CHECK preserves existing role.
+- Recommendations: Verify policy on production; add integration test against direct REST PATCH.
+
+## Performance Bottlenecks
+
+**Heavy team page per request:**
+- Problem: `src/app/(protected)/team/page.tsx` issues many sequential Supabase queries (subordinates, check-ins, scores, OKRs, quarterly status) in one RSC render.
+- Files: `src/app/(protected)/team/page.tsx`
+- Cause: Inline orchestration without parallel `Promise.all` or consolidated RPC.
+- Improvement path: Add `get_manager_team_dashboard` RPC returning one JSON payload; cache per-request subtrees where safe.
+
+**Analytics page multi-RPC fan-out:**
+- Problem: `src/app/(protected)/analytics/page.tsx` loads several chart datasets with separate queries.
+- Files: `src/app/(protected)/analytics/page.tsx`
+- Cause: Independent fetches per chart section.
+- Improvement path: Parallelize fetches; consider materialized views for org-wide aggregates.
+
+**Manager layout inbox count:**
+- Problem: Every protected navigation for managers/HR runs `get_subordinates` + `get_pending_okr_count` in layout.
+- Files: `src/app/(protected)/layout.tsx`
+- Cause: Badge count computed on all routes, not only inbox.
+- Improvement path: Lazy-load badge via client fetch or cache with short TTL.
+
+**Org chart client bundle:**
+- Problem: `src/components/org/OrgChart.tsx` (~504 lines) with interactive layout loads for `/org` and admin org views.
+- Files: `src/components/org/OrgChart.tsx`, `src/app/(protected)/org/page.tsx`, `src/app/(protected)/admin/org/page.tsx`
+- Improvement path: `dynamic()` import with loading skeleton; simplify graph for large hierarchies.
+
+## Fragile Areas
+
+**Org closure rebuild after manager change:**
+- Files: `src/lib/actions/user-actions.ts` (`assignManager`), `supabase/migrations/00010_org_structure.sql` (`rebuild_closure_for_employee`)
+- Why fragile: Profile `manager_id` updates before RPC; RPC failure leaves manager updated but stale `org_closure` (explicit error returned, manual repair needed).
+- Safe modification: Run assign + rebuild in a single DB transaction via RPC; add admin repair tool.
+- Test coverage: None automated.
+
+**Quarterly check-in → OKR sync:**
+- Files: `src/lib/actions/quarterly-checkin-actions.ts` (`syncNextQuarterGoalsToOkrs`)
+- Why fragile: Soft-deletes and upserts OKRs per goal id; depends on `performance_periods` existing for next quarter (created by `ensureCurrentPeriod`).
+- Safe modification: Add tests for delete/sync edge cases; ensure next period exists before submit.
+- Test coverage: None.
+
+**MIT auto-carry between monthly check-ins:**
+- Files: `src/lib/actions/checkin-actions.ts` (carry on submit, `.catch` on failure)
+- Why fragile: Fire-and-forget carry; failure only logged, employee may lose MIT continuity.
+- Safe modification: Await carry; surface retry in UI on failure.
+
+**Check-in submit race on first insert:**
+- Files: `src/lib/actions/checkin-actions.ts`, `src/lib/actions/quarterly-checkin-actions.ts`
+- Why fragile: Update path uses conditional `.is('employee_submitted_at', null)`; concurrent first-time inserts can race until UNIQUE constraint (`00002_core_features.sql`) returns `23505` (handled for quarterly, verify monthly UX).
+- Safe modification: Use upsert with conflict target or single transactional RPC for submit.
+
+**Theme hydration:**
+- Files: `src/components/theme/ThemeProvider.tsx`
+- Why fragile: ESLint flags synchronous `setState` in `useEffect` (react-hooks/set-state-in-effect); possible flash or double render.
+- Safe modification: Initialize theme from cookie/script tag per Next.js + LR design patterns.
+
+## Scaling Limits
+
+**Supabase RLS + closure table:**
+- Current capacity: Org hierarchy queries use `org_closure` materialized paths; suitable for hundreds of employees per manager subtree.
+- Limit: Deep reorgs trigger `rebuild_closure_for_employee` cost; very large subtrees slow admin reassignment.
+- Scaling path: Batch closure rebuilds; background job for mass imports (`00029_import_employees.sql` pattern should not run in request path).
+
+**Netlify serverless reminders:**
+- Current capacity: Daily cron invokes functions that iterate all EMPLOYEE profiles sequentially (Slack lookup + DM per user).
+- Limit: Timeouts and rate limits as headcount grows; no queue/backpressure beyond `00031_reminder_log.sql` dedup.
+- Scaling path: Chunk employees; queue with retry; move to Supabase Edge Function or worker with higher timeout.
+
+**Single-region hosted Supabase:**
+- Current capacity: One remote Postgres project (no local Docker in repo).
+- Limit: All environments share dependency on Supabase availability and connection pooler (`SUPABASE_POOLER` for migrations).
+- Scaling path: Read replicas only via Supabase plan; app remains single Next deployment on Netlify.
+
+## Dependencies at Risk
+
+**Next.js 16 / React 19:**
+- Risk: Fast-moving App Router and React Compiler rules; eslint-plugin-react-hooks stricter (already failing in `ThemeProvider.tsx`).
+- Impact: Build/lint CI noise; subtle RSC boundary bugs.
+- Migration plan: Pin versions in lockfile; run codemods on major upgrades; fix hook lint before enabling stricter CI.
+
+**Supabase SSR package (`@supabase/ssr@0.10.2`):**
+- Risk: Auth cookie patterns are easy to miswire; project comment references middleware refresh but middleware is absent.
+- Impact: Stale sessions or failed cookie refresh on edge.
+- Migration plan: Implement official middleware template; test magic link + OAuth flows.
+
+**OpenAI SDK (`openai@^6.39.0`):**
+- Risk: Model deprecation (`gpt-4o-mini`), API key exposure in serverless logs.
+- Impact: Historical import feature breaks silently when key missing (returns error string).
+- Migration plan: Abstract provider; version model in config.
+
+## Missing Critical Features
+
+**Data retention policy:**
+- Problem: PROJECT.md requires retention policy for long-term operational data; no documented retention, purge jobs, or export/delete runbook in repo.
+- Blocks: Compliance sign-off for HR performance data (check-ins, scores, kudos, mood).
+
+**Automated test suite beyond reminders:**
+- Problem: Only `src/lib/__tests__/reminder-logic.test.ts` (~334 lines) runs via `npm test`; no component, server action, or RLS integration tests.
+- Blocks: Safe refactors of check-in v2, scoring, and auth flows.
+
+**Operational monitoring:**
+- Problem: No Sentry/Datadog or structured logging contract; failures use `console.error` in actions and pages.
+- Blocks: Proactive detection of silent notification drops and RPC failures.
+
+## Test Coverage Gaps
+
+**Server actions (check-ins, scoring, OKRs):**
+- What's not tested: Submit guards, conditional update races, carry MIT, quarterly OKR sync, performance score persistence.
+- Files: `src/lib/actions/checkin-actions.ts`, `src/lib/actions/quarterly-checkin-actions.ts`, `src/lib/actions/performance-actions.ts`, `src/lib/actions/okr-actions.ts`
+- Risk: Regressions in core product flows; prior review found silent success bugs (many fixed, not regression-locked).
+- Priority: High
+
+**Auth and provisioning:**
+- What's not tested: Domain whitelist parity TS/SQL, callback redirect validation, `getOrProvisionProfile` fallback.
+- Files: `src/app/auth/callback/route.ts`, `src/lib/supabase/server.ts`, `src/lib/auth/allowed-domains.ts`
+- Risk: Login loops and unauthorized profile creation.
+- Priority: High
+
+**RLS policies:**
+- What's not tested: Direct PostgREST access patterns for `profiles`, `quarterly_scores`, `get_subordinates`.
+- Files: `supabase/migrations/00001_foundation.sql`, `00025_security_fixes.sql`
+- Risk: Data leaks between employees/managers.
+- Priority: High
+
+**Netlify reminder functions:**
+- What's not tested: Secret enforcement, idempotency via `reminder_log`, role filtering.
+- Files: `netlify/functions/slack-reminders.mts`, `netlify/functions/email-reminders.mts`, `supabase/migrations/00031_reminder_log.sql`
+- Risk: Accidental spam or unauthenticated invocation.
+- Priority: Medium
+
+**UI forms (check-in v2):**
+- What's not tested: MIT list state, tab auto-save, goal link dropdown behavior (plain `useState`, not RHF).
+- Files: `src/components/checkins/EmployeeCheckinForm.tsx`, `src/components/checkins/QuarterlyCheckinEmployeeForm.tsx`, `src/components/checkins/MitPlanList.tsx`
+- Risk: UX regressions on long forms.
+- Priority: Medium
 
 ---
 
-## Security Concerns
-
-### [Critical] Missing Next.js Middleware — Auth Guard Is Partially Bypassed
-
-`src/proxy.ts` exports a `proxy` function and a route `config`, but **there is no `src/middleware.ts` file**. In Next.js the middleware entry point must be named `middleware.ts` at `src/` or the repo root. The current file is never invoked by the Next.js runtime.
-
-- Files: `src/proxy.ts` (dead code as middleware)
-- Impact: Auth redirect logic in `proxy.ts` never runs server-side. The `(protected)` layout does redirect unauthenticated users, but middleware is the correct defense-in-depth layer for this. Caching or edge-case route access could slip through before the layout redirect fires.
-- Fix: Rename `src/proxy.ts` to `src/middleware.ts` and verify the matcher covers all protected paths.
-
----
-
-### [Critical] `profiles_self_update_meta` RLS Policy Allows Role Self-Escalation
-
-The RLS policy on `profiles` (`profiles_self_update_meta`) allows any authenticated user to `UPDATE` their own row with no `WITH CHECK` constraint on individual columns:
-
-```sql
-CREATE POLICY profiles_self_update_meta
-  ON profiles FOR UPDATE
-  USING (id = (SELECT auth.uid()))
-  WITH CHECK (id = (SELECT auth.uid()));
-```
-
-- Files: `supabase/migrations/00001_foundation.sql` (line 241–244)
-- Impact: A user who can issue Supabase client calls directly (e.g. via the anon key in the browser) could set their own `role` to `HR_ADMIN`. The application Server Actions do not write role via the user's own session so the practical exploit path is a direct PostgREST call using their session JWT.
-- Fix: Restrict the WITH CHECK to only the columns a user may legitimately update (e.g. `full_name`, `avatar_url`). Move role updates to a security-definer function callable only by HR_ADMIN, or add a column-level check: `WITH CHECK (id = auth.uid() AND role = OLD.role)`.
-
----
-
-### [Warning] Unescaped User Content in HTML Email Templates
-
-Email templates in `src/lib/notifications.ts` interpolate user-controlled strings directly into raw HTML without escaping:
-
-```typescript
-// Line 152 — okrTitle is an employee-submitted string
-${okrTitle}
-
-// Line 155 — manager comment is user input
-${comment ? `<p><strong>Manager note:</strong> ${comment}</p>` : ''}
-```
-
-- Files: `src/lib/notifications.ts` (lines 140–156)
-- Impact: An employee who sets an OKR title like `</blockquote><script>alert(1)</script>` could inject HTML into the notification email delivered to their manager. Email clients vary in how they handle embedded HTML/scripts — the risk is HTML injection in email (phishing-quality content, link substitution), not DOM XSS.
-- Fix: HTML-escape all user-supplied strings before interpolation. Use a helper like:
-  ```typescript
-  const esc = (s: string) => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
-  ```
-  Apply to `okrTitle`, `comment`, `employeeName`, `managerName`, etc.
-
----
-
-### [Warning] Domain Whitelist Maintained in Two Places — Drift Risk
-
-Allowed email domains are duplicated between application code and the database migration:
-
-- `src/lib/auth/allowed-domains.ts` — checked in the OAuth callback route
-- `supabase/migrations/00018_domain_whitelist.sql` — enforced in `upsert_profile_on_login` PLPGSQL function
-
-These must be kept in sync manually. A new domain added only to the TypeScript file would be accepted by the callback but rejected by the DB RPC (causing a silent login failure). The reverse exposes data.
-
-- Files: `src/lib/auth/allowed-domains.ts`, `supabase/migrations/00018_domain_whitelist.sql`
-- Fix: Make one authoritative. The DB-level guard is stronger; consider having the TS file query the DB for the list, or add a test that asserts both sets are identical.
-
----
-
-### [Warning] Netlify Slack Reminder Function Has No Request Authentication
-
-`netlify/functions/slack-reminders.mts` is a scheduled function but its HTTP handler accepts any `GET` request with no bearer token or secret validation. If triggered via its direct URL it would broadcast Slack reminders to all users.
-
-- Files: `netlify/functions/slack-reminders.mts` (line 22 — `handler()` has no auth check)
-- Impact: Low on Netlify scheduled functions (they are not publicly routable by default), but the lack of defense-in-depth means any future change in routing or testing could trigger mass Slack DMs.
-- Fix: Add a shared secret check: `if (request.headers.get('x-reminder-secret') !== process.env.REMINDER_SECRET) return new Response('Forbidden', { status: 403 })`.
-
----
-
-### [Info] Service Role Key Falls Back to Anon Key for User Deletion
-
-In `removeUser`, if `SUPABASE_SERVICE_ROLE_KEY` is absent, the action silently falls back to deleting only the `profiles` row (not the `auth.users` entry). The user can re-authenticate and recreate their profile.
-
-- Files: `src/lib/actions/admin-actions.ts` (lines 31–38)
-- Impact: HR Admin "removal" of a user in environments without the service role key configured is incomplete — the user retains valid Google OAuth credentials and can re-enter the app on next login.
-- Fix: Either make `SUPABASE_SERVICE_ROLE_KEY` required and error hard when missing, or document the fallback behaviour clearly in the admin UI.
-
----
-
-## Data Integrity Concerns
-
-### [Warning] Several DB Writes Discard Errors Silently
-
-Multiple `update` calls in Server Actions do not destructure `{ error }` and have no error path:
-
-```typescript
-// checkin-actions.ts line 118 — update return value ignored
-await (supabase as any).from('checkins').update(payload).eq('id', existing.id)
-
-// performance-actions.ts line 131 — update return value ignored
-await (supabase as any).from('quarterly_scores').update(payload).eq('id', existing.id)
-
-// performance-actions.ts line 265 — update return value ignored
-await (supabase as any).from('annual_scores').update(payload).eq('id', existing.id)
-
-// okr-actions.ts line 137, 145, 189, 239 — multiple updates ignore errors
-```
-
-- Files: `src/lib/actions/checkin-actions.ts` (line 118), `src/lib/actions/performance-actions.ts` (lines 131, 265), `src/lib/actions/okr-actions.ts` (lines 137, 145, 189, 239)
-- Impact: A failed update (RLS violation, constraint error, network hiccup) returns `{ success: true }` to the caller. Users receive false confirmation that data was saved.
-- Fix: Destructure `{ error }` from every mutation and return an error result on failure.
-
----
-
-### [Warning] `deleteQuarterlyCheckin` Does Not Check Submitted Status
-
-`deleteQuarterlyCheckin` in `src/lib/actions/quarterly-checkin-actions.ts` allows an employee to delete any of their own quarterly check-ins, including submitted ones. The monthly checkin action explicitly guards `if (existing?.employee_submitted_at) return { error: '...' }` but the quarterly equivalent has no such guard.
-
-- Files: `src/lib/actions/quarterly-checkin-actions.ts` (lines 234–255)
-- Impact: An employee can delete a quarterly check-in after submission, which removes the manager's visibility into the completed quarter. The `DeleteQuarterlyCheckinButton` component exists and is surfaced in the UI.
-- Fix: Add `const existing = await ... .select('employee_submitted_at')...` and guard: `if (existing?.employee_submitted_at) return { error: 'Cannot delete a submitted check-in' }`.
-
----
-
-### [Warning] OKR Creation Uses Sequential Inserts Without a Transaction
-
-`createOkr` inserts one key result at a time in a `for` loop. If a key-result insert fails midway, a cleanup `delete` on the parent OKR is attempted, but initiative inserts that already succeeded are not cleaned up, and the OKR row may survive if the cleanup itself fails silently.
-
-- Files: `src/lib/actions/okr-actions.ts` (lines 70–100)
-- Impact: Partial OKR objects (objective row exists, some KRs missing) can accumulate in the DB without the user knowing.
-- Fix: Wrap the OKR + KR + initiative creation in a Supabase `rpc` call (PLPGSQL function inside a `BEGIN … COMMIT` block) so the operation is atomic, or use the Supabase JS client's `insert … returning` with a single batch insert for KRs and initiatives.
-
----
-
-### [Warning] `upsert_profile_on_login` Overwrites `full_name` and `avatar_url` on Every Login
-
-The migration-18 version of `upsert_profile_on_login` always updates `full_name` and `avatar_url` from the OAuth provider on re-login:
-
-```sql
-ON CONFLICT (id) DO UPDATE
-  SET full_name = EXCLUDED.full_name,
-      avatar_url = EXCLUDED.avatar_url,
-```
-
-- Files: `supabase/migrations/00018_domain_whitelist.sql`
-- Impact: If a user has manually changed their display name inside the app and then re-logs in via Google (whose display name differs), their name silently reverts to the Google profile name. An HR admin who renamed a user in the `profiles` table will lose that change.
-- Fix: Only update `full_name`/`avatar_url` when the current values are `NULL`, or expose a separate "sync from provider" flag.
-
----
-
-### [Warning] Duplicate Migration Number `00019`
-
-Two migration files share the same number prefix:
-- `supabase/migrations/00019_ai_builder_and_values.sql`
-- `supabase/migrations/00019_mood_tracking.sql`
-
-- Files: `supabase/migrations/00019_ai_builder_and_values.sql`, `supabase/migrations/00019_mood_tracking.sql`
-- Impact: Supabase CLI applies migrations in lexicographic order. Both files will be applied, but the ordering between them is non-deterministic across different sort implementations. If they have inter-dependencies (one creates a column the other references) the order matters. The Supabase CLI may also reject the second file if it expects unique version numbers.
-- Fix: Renumber one file to `00019` and the other to `00020`, and cascade-increment subsequent migrations.
-
----
-
-## Code Quality Concerns
-
-### [Warning] Pervasive `(supabase as any)` Type Escape
-
-The generated `Database` type is imported in `src/lib/supabase/server.ts` and `src/lib/supabase/client.ts` via `createServerClient<Database>` and `createBrowserClient<Database>`, but the typed client is immediately cast to `any` at every call site across the codebase. This defeats the purpose of the generated types entirely.
-
-Affected files (non-exhaustive):
-- `src/lib/actions/checkin-actions.ts` — 8 instances
-- `src/lib/actions/performance-actions.ts` — 10 instances
-- `src/lib/actions/okr-actions.ts` — 12 instances
-- `src/lib/actions/quarterly-checkin-actions.ts` — 10 instances
-- `src/lib/actions/admin-actions.ts` — 6 instances
-- `src/lib/supabase/server.ts` — 3 instances
-- `src/app/(protected)/dashboard/page.tsx` — 8 instances
-- Nearly every page under `src/app/(protected)/`
-
-Total: ~80+ `(supabase as any)` casts across the codebase.
-
-- Impact: No compile-time validation of table names, column names, or return types. Schema changes will produce runtime errors that TypeScript cannot catch. Refactoring is unsafe.
-- Fix: Re-run `supabase gen types typescript` to regenerate `src/lib/types/database.ts` from the current schema, ensure it includes all tables (especially those added in later migrations), and remove the `as any` casts. The `Database` type is already threaded through `createServerClient<Database>` — the casts suggest the generated types are stale or incomplete.
-
----
-
-### [Warning] `deleteOkr` Allows Deleting an Approved OKR
-
-`deleteOkr` in `src/lib/actions/okr-actions.ts` only checks employee ownership but not OKR status. An employee can soft-delete an `APPROVED` OKR that a manager has already reviewed and approved.
-
-- Files: `src/lib/actions/okr-actions.ts` (lines 175–193)
-- Impact: Approved goals can disappear from the manager's team view after approval, undermining the integrity of the review workflow. The `updateOkr` function correctly guards `if (okr.status !== 'DRAFT' && okr.status !== 'REVISION_REQUESTED')` but `deleteOkr` has no such check.
-- Fix: Add `if (okr.status === 'APPROVED' || okr.status === 'PENDING_REVIEW') return { error: 'Cannot delete an OKR in review or approved state' }`.
-
----
-
-### [Warning] Large God Pages — Dashboard and Team Pages
-
-Several Server Component pages contain extensive data-fetching, business logic, and all rendering in a single file:
-
-- `src/app/(protected)/dashboard/page.tsx` — 487 lines, 12+ parallel Supabase queries, conditional rendering for 3 roles
-- `src/app/(protected)/team/page.tsx` — 424 lines
-- `src/app/(protected)/team/[employeeId]/page.tsx` — 475 lines
-- `src/app/(protected)/analytics/page.tsx` — 392 lines
-- `src/app/(protected)/admin/scores/calibration/page.tsx` — 370 lines
-
-- Impact: Difficult to test, maintain, or extend. Business logic (role checks, data aggregation) is mixed with JSX. Streaming/Suspense optimizations are impossible without decomposition.
-- Fix: Extract data-fetching into query helper functions in `src/lib/queries/`, and split UI into focused sub-components in `src/components/`.
-
----
-
-### [Info] `approveTeamRequest` and `declineTeamRequest` Have No Role Guard in Application Code
-
-`src/lib/actions/onboarding-actions.ts` — `approveTeamRequest` and `declineTeamRequest` call RPCs without verifying the caller is a MANAGER or HR_ADMIN at the application layer. Authorization relies entirely on the database-level RPC function behavior.
-
-- Files: `src/lib/actions/onboarding-actions.ts` (lines 44–67)
-- Impact: Low — RLS/RPC enforces the rule in the DB. But the pattern is inconsistent with every other action in the codebase, which performs an explicit role check before any DB call. A future refactor that moves logic could silently remove the only guard.
-- Fix: Add an explicit caller role check before the RPC calls, consistent with `verifyHRAdmin` in `admin-actions.ts`.
-
----
-
-### [Info] `okr-actions.ts` Creates All OKRs with Status `APPROVED` Directly
-
-In `createOkr`, new OKRs are inserted with `status: 'APPROVED'` bypassing the DRAFT → PENDING_REVIEW → APPROVED workflow:
-
-```typescript
-// okr-actions.ts line 56–62
-.insert({
-  status: 'APPROVED',  // skips review workflow
-})
-```
-
-- Files: `src/lib/actions/okr-actions.ts` (line 60)
-- Impact: The review workflow (`DRAFT` → `PENDING_REVIEW` → manager review) exists in the codebase (the `transitionOkrStatus` action and `TRANSITIONS` map) but is bypassed for new OKRs. Depending on product intent this may be intentional, but it means managers never review new goals before they become active.
-- Fix: Clarify intent. If the bypass is intentional, remove the `DRAFT`/`PENDING_REVIEW` UI state machinery to reduce confusion. If review should be enforced, change the insert to `status: 'DRAFT'`.
-
----
-
-## Performance Concerns
-
-### [Warning] N+1 Inserts for OKR Key Results and Initiatives
-
-`createOkr` and `updateOkr` each execute one `INSERT` per key result and one `INSERT` per initiative in sequential `for` loops. An OKR with 3 key results and 3 initiatives each would execute 9 sequential round-trips to Supabase.
-
-- Files: `src/lib/actions/okr-actions.ts` (lines 70–100 for create, 147–168 for update)
-- Impact: Latency proportional to KR count. `updateOkr` additionally does a bulk `DELETE` first then re-inserts, so every save operation is O(KRs + initiatives) round-trips.
-- Fix: Batch KR inserts with a single `.insert([...array])`. Initiatives for a given KR can also be batched. The RPC approach (atomic, one round-trip) is the ideal fix.
-
----
-
-### [Warning] `force-dynamic` on All Protected Pages Prevents Any Caching
-
-Every page under `src/app/(protected)/` exports `export const dynamic = 'force-dynamic'`. This is correct for session-dependent pages, but means zero static or ISR caching even for pages like `/guide` which renders mostly static admin-authored content.
-
-- Files: All files under `src/app/(protected)/` with `export const dynamic = 'force-dynamic'`
-- Impact: Cold load on Netlify Edge / Next.js serverless causes fresh DB queries on every single page navigation. On a team of 50 employees all logging in at period-end, this results in high query concurrency against Supabase.
-- Fix: For data that doesn't change per-user request (guide content, company values, performance periods), consider `unstable_cache` or segment-level `revalidate` tagging rather than blanket `force-dynamic`.
-
----
-
-### [Info] Dashboard Fetches All Quarterly Check-in History to Compute Value Usage
-
-`src/app/(protected)/dashboard/page.tsx` (line 200–211) fetches **all** `quarterly_checkins` rows for the current user to compute a `valueUsage` frequency map client-side:
-
-```typescript
-const { data: myQCheckinsRaw } = await (supabase as any)
-  .from('quarterly_checkins').select('value_assessments, value_self_assessments').eq('employee_id', user.id)
-```
-
-- Files: `src/app/(protected)/dashboard/page.tsx` (lines 200–211)
-- Impact: Currently low (employees have at most ~8 quarterly check-ins per 2 years), but grows unboundedly. The aggregation should move to a DB-level query or `rpc()`.
-- Fix: Add a Supabase RPC that returns pre-aggregated value usage counts, or add an annual limit on the query (e.g. `.gte('created_at', twoYearsAgo)`).
-
----
-
-## Operational Concerns
-
-### [Warning] No Startup Environment Variable Validation
-
-There is no `src/env.ts` or equivalent that validates required environment variables at build or startup time. All env vars are accessed inline with `!` non-null assertions or silent fallbacks:
-
-```typescript
-process.env.NEXT_PUBLIC_SUPABASE_URL!   // throws at runtime if missing
-process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!  // throws at runtime if missing
-process.env.RESEND_API_KEY              // silently no-ops if missing
-process.env.SUPABASE_SERVICE_ROLE_KEY   // silently degrades if missing
-```
-
-- Files: `src/lib/supabase/server.ts` (lines 10–11), `src/lib/supabase/client.ts` (lines 6–7), `src/lib/notifications.ts` (line 10), `src/lib/actions/admin-actions.ts` (line 31)
-- Impact: A misconfigured deployment (missing `NEXT_PUBLIC_SUPABASE_URL`) fails at runtime on the first request rather than at build/start time. Degraded behaviors (no email, no full user deletion) are silent.
-- Fix: Add a Zod-validated `src/lib/env.ts` that parses `process.env` at module load time and throws a descriptive error on startup if any required variable is absent. Use the T3 `t3-env` pattern or a simple Zod `z.object({...}).parse(process.env)`.
-
----
-
-### [Warning] No Error Monitoring Integration
-
-There is no Sentry, Datadog, or equivalent error reporting integration. Errors in Server Actions and Server Components are only logged to `console.error`.
-
-- Files: All Server Actions (`src/lib/actions/*.ts`), `src/lib/notifications.ts`, `src/lib/supabase/server.ts`
-- Impact: Production errors (failed DB writes, email send failures, RPC errors) are invisible unless Netlify/Vercel function logs are actively monitored. The silent-success pattern in several update calls (see Data Integrity section) compounds this — no error fires even when a write fails.
-- Fix: Add Sentry or equivalent. At minimum, wrap Server Action error returns in a structured logger that includes user context.
-
----
-
-### [Warning] No `error.tsx` Global Error Boundary
-
-There is no `src/app/error.tsx` or `src/app/(protected)/error.tsx` file. An unhandled exception in any Server Component (e.g. an unguarded `null` dereference after a failed DB query) will surface a raw Next.js 500 page.
-
-- Files: `src/app/` (missing `error.tsx`)
-- Impact: Users see an unbranded crash page. Internal debugging detail may be exposed in development mode.
-- Fix: Add `src/app/error.tsx` with a branded error UI and a "Go back to dashboard" button. Add `src/app/(protected)/error.tsx` for in-app errors.
-
----
-
-### [Warning] No `.env.example` File
-
-There is no `.env.example` or `.env.template` file documenting the required environment variables for new developers or deployment configurations.
-
-- Files: Repository root (missing `.env.example`)
-- Required variables (at minimum): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, `RESEND_FROM`, `NEXT_PUBLIC_APP_URL`, `SLACK_WORKSPACE_TOKENS`, `REMINDER_DATE_OVERRIDE`
-- Fix: Create `.env.example` with all variables listed, values replaced with descriptive placeholders.
-
----
-
-### [Info] Netlify Deployment with `@netlify/plugin-nextjs` — Potential Vercel Mismatch
-
-The project deploys to **Netlify** (`netlify.toml`, `@netlify/plugin-nextjs`) but the CLAUDE.md and project skills reference **Vercel** as the target platform. Some Next.js features behave differently between adapters (especially middleware, ISR revalidation, and Edge Runtime).
-
-- Files: `netlify.toml`, `package.json` (`@netlify/plugin-nextjs` in devDependencies)
-- Impact: Documentation and skills advice may not match the actual deployment environment. Edge caching behavior, function timeouts, and middleware handling may differ.
-- Fix: Align documentation with the actual deployment target or migrate to Vercel if that is the intended platform.
-
----
-
-### [Info] Hardcoded Internal Emails in Migration
-
-`supabase/migrations/00020_hr_admins_max_francesco.sql` contains hardcoded email addresses of specific individuals being granted HR_ADMIN access via a `UPDATE profiles SET role = 'HR_ADMIN' WHERE email IN (...)` migration.
-
-- Files: `supabase/migrations/00020_hr_admins_max_francesco.sql`
-- Impact: Personal email addresses are committed to version history permanently. While these are internal BCOMM emails, it sets a bad precedent for role management via migrations. Role grants should be done via the admin UI or a parameterized bootstrap script not committed to history.
-- Fix: Use the admin UI (`/admin/users`) for role grants going forward. This migration cannot be removed from history, but new ones should not follow this pattern.
-
----
-
-*Concerns audit: 2026-05-23*
+*Concerns audit: 2026-06-04*

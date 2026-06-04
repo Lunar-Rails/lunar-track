@@ -118,12 +118,12 @@ export async function notifyManagerCheckinSubmitted(opts: {
   checkinId: string
 }): Promise<void> {
   const { managerEmail, managerName, employeeName, month, year, checkinId } = opts
-  const greeting = managerName ? `Hi ${managerName.split(' ')[0]},` : 'Hi,'
+  const greeting = managerName ? `Hi ${esc(managerName.split(' ')[0])},` : 'Hi,'
   const url = `${APP_URL}/checkins/${checkinId}`
 
   await sendEmail(
     managerEmail,
-    `${employeeName} submitted their ${month} check-in`,
+    `${esc(employeeName)} submitted their ${month} check-in`,
     baseTemplate(`
       <p>${greeting}</p>
       <p><strong>${esc(employeeName)}</strong> has submitted their <strong>${month} ${year}</strong> check-in and it's ready for your review.</p>
@@ -145,7 +145,7 @@ export async function notifyEmployeeCheckinReviewed(opts: {
   checkinId: string
 }): Promise<void> {
   const { employeeEmail, employeeName, managerName, month, year, checkinId } = opts
-  const greeting = employeeName ? `Hi ${employeeName.split(' ')[0]},` : 'Hi,'
+  const greeting = employeeName ? `Hi ${esc(employeeName.split(' ')[0])},` : 'Hi,'
   const url = `${APP_URL}/checkins/${checkinId}`
 
   await sendEmail(
@@ -171,7 +171,7 @@ export async function notifyEmployeeOkrStatusChanged(opts: {
   comment?: string | null
 }): Promise<void> {
   const { employeeEmail, employeeName, okrTitle, newStatus, managerName, comment } = opts
-  const greeting = employeeName ? `Hi ${employeeName.split(' ')[0]},` : 'Hi,'
+  const greeting = employeeName ? `Hi ${esc(employeeName.split(' ')[0])},` : 'Hi,'
 
   const statusLabel: Record<string, string> = {
     APPROVED: '✅ Approved',
@@ -324,12 +324,12 @@ export async function notifyManagerCheckinReopened(opts: {
   checkinId: string
 }): Promise<void> {
   const { managerEmail, managerName, employeeName, month, year, checkinId } = opts
-  const greeting = managerName ? `Hi ${managerName.split(' ')[0]},` : 'Hi,'
+  const greeting = managerName ? `Hi ${esc(managerName.split(' ')[0])},` : 'Hi,'
   const url = `${APP_URL}/checkins/${checkinId}`
 
   await sendEmail(
     managerEmail,
-    `${employeeName} reopened their ${month} check-in`,
+    `${esc(employeeName)} reopened their ${month} check-in`,
     baseTemplate(`
       <p>${greeting}</p>
       <p><strong>${esc(employeeName)}</strong> has reopened their <strong>${month} ${year}</strong> check-in to make some edits. You'll get another notification when they resubmit.</p>

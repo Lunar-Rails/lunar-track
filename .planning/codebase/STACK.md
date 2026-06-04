@@ -1,166 +1,142 @@
+---
+last_mapped_commit: 804cf743d1651aa9bd1d761c60c4d1478e38a540
+---
+
 # Technology Stack
 
-LunarTrack (internal package name: `ciaobob`) — Next.js 16 App Router performance management tool.
-
-**Analysis Date:** 2026-05-23
-
----
+**Analysis Date:** 2026-06-04
 
 ## Languages
 
 **Primary:**
-- TypeScript 5.x — all application code (`tsconfig.json` strict mode enabled)
+- **TypeScript** (^5, strict) — entire application under `src/`, Netlify functions under `netlify/functions/`, shared logic in `src/lib/`
+- **SQL** — schema and RLS in `supabase/migrations/*.sql` (32 migration files)
 
 **Secondary:**
-- None — no Python, Go, or other server-side languages
-
-**TypeScript Config highlights (`tsconfig.json`):**
-- `strict: true`
-- `target: "ES2017"`
-- `moduleResolution: "bundler"` (Next.js bundler mode)
-- Path alias: `@/*` → `./src/*`
-- `isolatedModules: true`
-
----
+- **Bash** — deployment and migration scripts in `scripts/netlify-build.sh`, npm script wrappers in `package.json`
+- **CSS** — Tailwind v4 + LR design tokens in `src/app/globals.css`
 
 ## Runtime
 
 **Environment:**
-- Node.js 20 (pinned in `netlify.toml` `[build.environment] NODE_VERSION = "20"`)
+- **Node.js 20** — pinned in `netlify.toml` `[build.environment] NODE_VERSION = "20"`
+- **Next.js 16.2.4** App Router — single deployable app (no monorepo packages)
 
 **Package Manager:**
-- npm (lockfile: `package-lock.json` present)
-
----
+- **npm** (primary) — `package-lock.json` present; install via `npm install`
+- Lockfile: **present** (`package-lock.json`, lockfileVersion 3)
+- Additional lockfiles exist (`bun.lock`, `deno.lock`) but `package.json` scripts and Netlify build use npm
 
 ## Frameworks
 
 **Core:**
-- Next.js `16.2.4` — App Router, Server Components, Server Actions (no API routes for app logic)
-- React `19.2.4` — UI runtime; ships with Next.js 16
-- React DOM `19.2.4`
-
-**Build/Dev:**
-- Turbopack — default bundler in Next.js 16 (`next dev` uses Turbopack automatically)
-- PostCSS via `@tailwindcss/postcss ^4` (`postcss.config.mjs`)
-- ESLint `^9` with `eslint-config-next 16.2.4` (core-web-vitals + TypeScript rules; `eslint.config.mjs`)
+- **Next.js 16.2.4** — App Router, Server Components, Server Actions, Route Handlers (`src/app/**/route.ts`)
+- **React 19.2.4** — UI runtime with React Server Components
+- **React DOM 19.2.4**
 
 **Testing:**
-- Vitest `^4.1.7` — test runner
-  - Run: `npm test` (single run) / `npm run test:watch` (watch mode)
-  - No vitest config file found; runs with defaults
-  - One test file: `src/lib/__tests__/reminder-logic.test.ts`
+- **Vitest 4.1.7** — unit tests; run via `npm test` / `npm run test:watch`
+- Config: **not detected** (no `vitest.config.*`; Vitest uses defaults)
+- Tests: `src/lib/__tests__/reminder-logic.test.ts` only
 
----
-
-## Styling
-
-**Framework:** Tailwind CSS `^4` (CSS-first config, no `tailwind.config.ts`)
-- Config lives in `src/app/globals.css` via `@theme` directives
-- `@tailwindcss/postcss ^4` for PostCSS integration
-- `@tailwindcss/typography ^0.5.19` — used in rich-text/guide content
-
-**Component Library:** Shadcn/ui (new-york style, `components.json`)
-- Components owned in `src/components/ui/`
-- Icon library: `lucide-react ^1.8.0`
-- Base color: neutral; CSS variables enabled
-- Installed components: `alert`, `avatar`, `badge`, `button`, `card`, `dialog`, `dropdown-menu`, `form`, `input`, `label`, `select`, `separator`, `sheet`, `table`, `tabs`, `textarea`
-
-**Design System:** LR Design System tokens
-- `lr-*` CSS custom properties (e.g. `bg-lr-bg`, `text-lr-text`)
-- Fonts loaded via `next/font/google`: Space Grotesk (display/headings, `--font-display`) + Inter (body, `--font-sans`)
-- Applied in `src/app/layout.tsx`
-
-**Utilities:**
-- `clsx ^2.1.1` — conditional class names
-- `tailwind-merge ^3.5.0` — merge Tailwind classes without conflicts
-- `class-variance-authority ^0.7.1` — variant-based component styling
-
----
-
-## State Management
-
-**Client State:** Zustand `^5.0.12`
-- Used in `src/app/layout.tsx` (NuqsAdapter wraps all children)
-- No dedicated store files found in `src/lib/` — state likely co-located in feature components
-
-**URL State:** nuqs `^2.8.9`
-- `NuqsAdapter` wraps root layout at `src/app/layout.tsx`
-- Provides `useQueryState` for type-safe search params
-
----
-
-## Form Handling
-
-- React Hook Form `^7.73.1` — uncontrolled input model, integrates with Server Actions
-- `@hookform/resolvers ^5.2.2` — Zod → RHF bridge
-- Zod `^4.3.6` — schema validation (import from `"zod"`, v4 is package root)
-
----
-
-## Data Access
-
-**Pattern:** Server Components + Server Actions (no API routes for app logic)
-- Server action files in `src/lib/actions/`: `admin-actions.ts`, `checkin-actions.ts`, `guide-actions.ts`, `okr-actions.ts`, `okr-progress-actions.ts`, `onboarding-actions.ts`, `performance-actions.ts`, `period-actions.ts`, `quarterly-checkin-actions.ts`, `user-actions.ts`
-- 11 files with `'use server'` directive
-- 48 files with `'use client'` directive
-
-**Database client:** `@supabase/supabase-js ^2.104.0`
-- Browser client: `src/lib/supabase/client.ts` — `createBrowserClient` from `@supabase/ssr`
-- Server client: `src/lib/supabase/server.ts` — `createServerClient` from `@supabase/ssr`
-
----
+**Build/Dev:**
+- **Turbopack** — default for `npm run dev` (`next dev`)
+- **ESLint 9** + `eslint-config-next` 16.2.4 — `eslint.config.mjs`
+- **PostCSS** + `@tailwindcss/postcss` — `postcss.config.mjs`
+- **Supabase CLI** (^2.20.12, devDependency) — `supabase db push` in build and `npm run supabase:push`
 
 ## Key Dependencies
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `next` | `16.2.4` | Core framework |
-| `react` / `react-dom` | `19.2.4` | UI runtime |
-| `@supabase/ssr` | `^0.10.2` | SSR-safe Supabase client (replaces deprecated auth-helpers) |
-| `@supabase/supabase-js` | `^2.104.0` | Supabase database + auth client |
-| `zod` | `^4.3.6` | Schema validation |
-| `react-hook-form` | `^7.73.1` | Form state management |
-| `zustand` | `^5.0.12` | Client-side global state |
-| `nuqs` | `^2.8.9` | Type-safe URL state (`useQueryState`) |
-| `tailwindcss` | `^4` | Utility-first CSS |
-| `radix-ui` | `^1.4.3` | Headless primitives (consumed via Shadcn) |
-| `date-fns` | `^4.1.0` | Date/quarter calculations |
-| `recharts` | `^3.8.1` | Charts (analytics, org performance curves) |
-| `resend` | `^6.12.3` | Email notifications (via Resend API) |
-| `marked` | `^18.0.2` | Markdown → HTML rendering (guide content) |
-| `sanitize-html` | `^2.17.3` | Sanitize rendered HTML (XSS protection) |
-| `@tanstack/react-table` | `^8.21.3` | Data tables (dep declared; not actively used in source as of analysis) |
+**Critical (app cannot run without):**
+- `next@16.2.4` — framework
+- `react@19.2.4` / `react-dom@19.2.4` — UI
+- `@supabase/supabase-js@^2.104.0` — database, auth, storage client
+- `@supabase/ssr@^0.10.2` — cookie-based SSR auth (`src/lib/supabase/server.ts`, `src/lib/supabase/client.ts`, `src/proxy.ts`)
+- `zod@^4.3.6` — validation in Server Actions (`src/lib/actions/*.ts`)
 
----
+**Data & auth:**
+- `@supabase/ssr` + `@supabase/supabase-js` — all persistence and Google/magic-link auth flows
+- `pg@^8.21.0` (dev) — used indirectly via Supabase CLI for remote migrations
 
-## Dev Dependencies
+**UI & styling:**
+- `tailwindcss@^4` + `@tailwindcss/postcss` — utility CSS
+- `@tailwindcss/typography` — prose styling for guide content
+- `radix-ui@^1.4.3` — headless primitives (via Shadcn copies in `src/components/ui/`)
+- `class-variance-authority`, `clsx`, `tailwind-merge` — component variants (`src/lib/utils.ts`)
+- `lucide-react` — icons (Shadcn `iconLibrary` in `components.json`)
+- LR Design System — **in-repo CSS variables**, not a separate npm package; tokens in `src/app/globals.css` (`--lr-*`, `.dark` theme)
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `vitest` | `^4.1.7` | Test runner |
-| `typescript` | `^5` | Type checking |
-| `eslint` | `^9` | Linting |
-| `eslint-config-next` | `16.2.4` | Next.js ESLint rules |
-| `tailwindcss` | `^4` | CSS build |
-| `@tailwindcss/postcss` | `^4` | PostCSS integration |
-| `@netlify/functions` | `^5.2.2` | Netlify scheduled function types |
-| `@netlify/plugin-nextjs` | `^5.15.11` | Next.js on Netlify adapter |
-| `pg` | `^8.21.0` | PostgreSQL client (likely for migrations/scripts) |
+**Forms & state:**
+- `react-hook-form@^7.73.1` + `@hookform/resolvers@^5.2.2` — used in `src/components/performance/AnnualScoreForm.tsx` and Shadcn `src/components/ui/form.tsx`
+- Monthly/quarterly check-in forms use **plain `useState`** per project conventions (not RHF)
+- `nuqs@^2.8.9` — URL query state; `NuqsAdapter` in `src/app/layout.tsx`
+- `zustand@^5.0.12` — **declared in `package.json` but not imported under `src/`** (no global client stores in use)
 
----
+**Domain libraries:**
+- `date-fns@^4.1.0` — period/quarter date logic
+- `@tanstack/react-table@^8.21.3` — **declared but no imports under `src/`**
+- `recharts@^3.8.1` — HR analytics charts (`src/components/analytics/*.tsx`)
+- `marked@^18.0.2` + `sanitize-html@^2.17.3` — framework guide rendering (`src/app/(protected)/guide/page.tsx`)
+- `openai@^6.39.0` — historical review LLM extraction (`src/lib/actions/historical-review-actions.ts`, model `gpt-4o-mini`)
+
+**Notifications (see INTEGRATIONS.md):**
+- Email runtime uses **Mailtrap HTTP API** in `src/lib/notifications.ts` (`MAILTRAP_API_TOKEN`)
+- `resend@^6.12.3` — **dependency present, no application imports**; `.env.example` still documents Resend vars
+
+**Netlify serverless:**
+- `@netlify/functions@^5.2.2` — scheduled reminder handlers
+- `@netlify/plugin-nextjs@^5.15.11` — Next.js on Netlify
+
+## Configuration
+
+**Environment:**
+- Template: `.env.example` (committed; documents variable names only)
+- Local/runtime: `.env.local` (gitignored; not read by mapper)
+- Required for app: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_APP_URL`
+- Build/deploy migrations: `SUPABASE_POOLER` (Postgres URI for `supabase db push`)
+- Optional/feature: `SUPABASE_SERVICE_ROLE_KEY`, `MAILTRAP_API_TOKEN`, `MAILTRAP_FROM`, `SLACK_WORKSPACE_TOKENS`, `REMINDER_SECRET`, `REMINDER_DATE_OVERRIDE`, `OPENAI_API_KEY`, `NEXT_PUBLIC_SITE_URL`
+
+**Build:**
+- `next.config.ts` — minimal Next config (empty options object)
+- `tsconfig.json` — strict TS, path alias `@/*` → `./src/*`, excludes `netlify` and `pmai`
+- `components.json` — Shadcn CLI config (style `new-york`, RSC, CSS in `src/app/globals.css`)
+- `netlify.toml` — build command, Node version, function schedules, Next plugin
+- `supabase/config.toml` — local Supabase project (`project_id = "lunar-track"`, Postgres major version 17)
+
+**Scripts (`package.json`):**
+| Script | Purpose |
+|--------|---------|
+| `dev` | `next dev` (port 3000) |
+| `build` | `next build` |
+| `build:deploy` | `scripts/netlify-build.sh` (migrations + build) |
+| `start` | `next start` |
+| `lint` | `eslint` |
+| `test` / `test:watch` | Vitest |
+| `supabase:push` | Remote migration via `SUPABASE_POOLER` |
 
 ## Platform Requirements
 
 **Development:**
 - Node.js 20+
 - npm
+- Supabase project credentials in `.env.local`
+- Optional: Supabase CLI for local stack (`supabase/config.toml` ports 54321–54329)
 
 **Production:**
-- Deployed on **Netlify** (`netlify.toml`, `@netlify/plugin-nextjs`)
-- Build: `npm run build` → `.next/`
-- Scheduled functions: Netlify Functions with esbuild bundler, `netlify/functions/` directory
+- **Netlify** — publish `.next`, build via `npm run build:deploy`
+- **Supabase hosted** — PostgreSQL 17, Auth, Storage (`avatars` bucket per `supabase/migrations/00026_avatar_storage_and_notification_prefs.sql`)
+- Scheduled **Netlify Functions** at 09:00 UTC daily (`netlify.toml`)
+
+## Application Architecture (stack-level)
+
+**Pattern:** Next.js App Router monolith — Server Components fetch via Supabase; mutations via Server Actions in `src/lib/actions/`; no REST API routes for core domain logic.
+
+**Auth guard:** `src/app/(protected)/layout.tsx` calls `supabase.auth.getUser()` and redirects to `/login`. Note: `src/proxy.ts` exports `proxy` (not `middleware`) and is **not wired** as Next.js middleware — global edge auth from that file does not run.
+
+**Entry layout:** `src/app/layout.tsx` — fonts (Google: Space Grotesk, Inter), `ThemeProvider`, `NuqsAdapter`.
+
+**Route handlers:** `src/app/auth/callback/route.ts`, `src/app/onboarding/reset/route.ts`.
 
 ---
 
-*Stack analysis: 2026-05-23*
+*Stack analysis: 2026-06-04*

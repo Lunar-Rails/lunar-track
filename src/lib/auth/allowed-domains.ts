@@ -1,19 +1,17 @@
-// Domain whitelist for login. To add a new company domain, add it here and push to main.
-// This is the single source of truth — enforced in src/app/auth/callback/route.ts.
-const ALLOWED_DOMAINS = [
-  'lunarrails.io',
-  'clovrlabs.com',
-  '40acres.pro',
-  'chainlabs.ai',
-  'podproza.cz',
-  'osirisconcepts.com',
-] as const
+import { createClient } from '@/lib/supabase/server'
 
-type AllowedDomain = (typeof ALLOWED_DOMAINS)[number]
-
-export function isAllowedEmail(email: string): boolean {
+export async function isAllowedEmail(email: string): Promise<boolean> {
   const domain = email.split('@')[1]?.toLowerCase()
-  return !!domain && ALLOWED_DOMAINS.includes(domain as AllowedDomain)
+  if (!domain) return false
+
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('allowed_domains')
+    .select('domain')
+    .eq('domain', domain)
+    .maybeSingle()
+
+  return !!data
 }
 
 export const DOMAIN_ERROR_MESSAGE =

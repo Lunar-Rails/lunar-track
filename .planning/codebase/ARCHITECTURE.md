@@ -1,267 +1,275 @@
-<!-- refreshed: 2026-05-23 -->
+---
+last_mapped_commit: 804cf743d1651aa9bd1d761c60c4d1478e38a540
+---
+
+<!-- refreshed: 2026-06-04 -->
 # Architecture
 
-**Analysis Date:** 2026-05-23
+**Analysis Date:** 2026-06-04
 
 ## System Overview
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                         Browser (Client)                                 │
-│   Client Components ('use client') — forms, interactive UI, sidebar     │
-│   `src/components/**` (interactive leaf components)                      │
-└────────────────────────────┬────────────────────────────────────────────┘
-                             │  HTTP / RSC streaming
-                             ▼
+│                         Browser (React 19 client islands)                │
+│  Forms, charts, sheets — `src/components/**` (use client where needed) │
+└───────────────────────────────┬─────────────────────────────────────────┘
+                                │ Server Actions + RSC props
+                                ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                    Next.js App Router (SSR)                              │
-│   Server Components (page.tsx / layout.tsx) — data fetch + render       │
-│   `src/app/(protected)/` — all authenticated pages                       │
-│   `src/app/auth/callback/route.ts` — OAuth exchange route                │
-└──────────┬───────────────────────────────────────────┬───────────────────┘
-           │  Server Actions ('use server')             │  Direct DB queries
-           │  `src/lib/actions/*.ts`                    │  via Supabase client
-           ▼                                            ▼
-┌──────────────────────────┐         ┌──────────────────────────────────────┐
-│   Supabase Auth (GoTrue) │         │   Supabase PostgreSQL                 │
-│   Google OAuth + SSR     │         │   RLS enforced at DB layer            │
-│   cookies via @supabase/ssr│       │   `supabase/migrations/`             │
-└──────────────────────────┘         └──────────────────────────────────────┘
+│              Next.js 16 App Router — `src/app/**`                        │
+│  RSC pages (data fetch) │ Route handlers │ Layouts (auth shell)        │
+└───────┬─────────────────────────────┬───────────────────┬───────────────┘
+        │                             │                   │
+        ▼                             ▼                   ▼
+┌───────────────┐           ┌─────────────────┐   ┌──────────────────────┐
+│ src/proxy.ts  │           │ src/lib/actions │   │ Netlify scheduled fns  │
+│ Request gate  │           │ Mutations + Zod │   │ `netlify/functions/*`  │
+│ (auth redirect│           │ revalidatePath  │   │ service-role Supabase  │
+│  first-checkin)│          └────────┬────────┘   └──────────┬───────────┘
+└───────┬───────┘                   │                         │
+        │                           ▼                         │
+        │              ┌────────────────────────────────────────┐
+        └─────────────►│ Supabase (Auth + PostgreSQL + RLS)   │
+                       │ `supabase/migrations/*.sql`            │
+                       │ RPC: hierarchy, invites, scoring       │
+                       └────────────────────────────────────────┘
+                                │
+                                ▼
+                       ┌────────────────────────────────────────┐
+                       │ External: Mailtrap, Slack, OpenAI      │
+                       │ `src/lib/notifications.ts`, `slack.ts` │
+                       └────────────────────────────────────────┘
 ```
+
+**Product:** CiaoBob (package name `ciaobob`) — internal BCOMM performance management (monthly check-ins, quarterly reviews, OKRs/goals, manager scoring, annual roll-up).
 
 ## Component Responsibilities
 
-| Component | Responsibility | Location |
-|-----------|----------------|----------|
-| Root layout | Fonts, ThemeProvider, NuqsAdapter | `src/app/layout.tsx` |
-| Protected layout | Auth gate, onboarding redirect, period init, inbox count | `src/app/(protected)/layout.tsx` |
+| Component | Responsibility | File |
+|-----------|----------------|------|
+| App Router pages | Server-rendered UI; load data via Supabase in RSC; enforce route-level access | `src/app/**/page.tsx` |
+| Route handlers | OAuth callback, onboarding reset | `src/app/auth/callback/route.ts`, `src/app/onboarding/reset/route.ts` |
+| Proxy (edge request) | Session refresh cookies; unauthenticated redirect; first-check-in gate | `src/proxy.ts` |
+| Protected layout | Auth + onboarded check; period bootstrap; inbox badge; app chrome | `src/app/(protected)/layout.tsx` |
 | Admin layout | HR_ADMIN role gate | `src/app/(protected)/admin/layout.tsx` |
-| Page components | Server-side data fetch + render tree | `src/app/(protected)/*/page.tsx` |
-| Server Actions | Mutations with Zod validation + revalidatePath | `src/lib/actions/*.ts` |
-| Supabase server client | SSR cookie-based client, profile provisioning | `src/lib/supabase/server.ts` |
-| Supabase browser client | Client-side reads (minimal use) | `src/lib/supabase/client.ts` |
-| Domain types | All TypeScript interfaces + Database type map | `src/lib/types/database.ts` |
+| Server Actions | All app mutations; Zod validation; `revalidatePath` | `src/lib/actions/*.ts` |
+| Supabase clients | SSR cookie client (server), browser client (rare) | `src/lib/supabase/server.ts`, `client.ts` |
+| Domain types | Hand-maintained TS models + partial `Database` map | `src/lib/types/database.ts` |
+| UI components | Feature UI + Shadcn primitives (LR tokens) | `src/components/**` |
+| SQL migrations | Schema, RLS, SECURITY DEFINER RPCs | `supabase/migrations/*.sql` |
+| Scheduled jobs | Email/Slack check-in reminders (bypass RLS with service role) | `netlify/functions/email-reminders.mts`, `slack-reminders.mts` |
 
 ## Pattern Overview
 
-**Overall:** Full-stack SSR with React Server Components as the primary rendering layer. Data mutations flow exclusively through Next.js Server Actions. Client components are leaf nodes used only for interactivity (forms, navigation state, charts).
+**Overall:** Next.js App Router monolith with **Server Components-first** data loading and **Server Actions** for mutations (no dedicated API route layer for app logic).
 
 **Key Characteristics:**
-- `force-dynamic` on every page — no static generation, every request re-renders server-side
-- No API routes for application logic — only `auth/callback/route.ts` and `onboarding/reset/route.ts` exist
-- RLS enforced at the database layer; application layer adds a second check in Server Actions
-- `revalidatePath` is called after every mutation to purge the Next.js router cache
+- **Supabase as BFF:** All persistence through `@supabase/ssr` with Row Level Security; complex hierarchy and admin operations via PostgreSQL RPCs.
+- **Thin client, fat server:** ~55 client components; pages are async RSC that query Supabase and pass serializable props into forms/charts.
+- **Defense-in-depth auth:** `src/proxy.ts` (request interception) + `src/app/(protected)/layout.tsx` (session/profile/onboarding) + per-page checks (ownership, `org_closure` subtree).
+- **No separate service layer:** Business logic lives in Server Actions and occasionally inline in large page components (e.g. `src/app/(protected)/dashboard/page.tsx`).
 
 ## Layers
 
-**Routing Layer:**
-- Purpose: URL mapping, layout nesting, auth guards
+**Presentation (RSC pages):**
+- Purpose: Compose UI, fetch read models, redirect unauthorized users.
 - Location: `src/app/`
-- Contains: `layout.tsx`, `page.tsx`, `route.ts` files
-- Depends on: Supabase server client, Server Actions
-- Used by: Browser
+- Contains: `page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`
+- Depends on: `@/lib/supabase/server`, `@/components/*`, `@/lib/types/database`
+- Used by: HTTP requests via App Router
 
-**Data Fetch Layer (Server Components):**
-- Purpose: Fetch all data needed for a page using Supabase client directly
-- Location: `src/app/(protected)/*/page.tsx`
-- Contains: `async` Server Components with direct `supabase.from(...)` calls and `rpc()` calls
-- Depends on: `src/lib/supabase/server.ts`, `src/lib/types/database.ts`
-- Used by: React render tree
+**Presentation (client islands):**
+- Purpose: Interactive forms (MIT arrays, mood, charts), optimistic UX with `useTransition`.
+- Location: `src/components/` (feature folders + `ui/` Shadcn)
+- Contains: `'use client'` components; call imported Server Actions directly.
+- Depends on: Server Actions, `next/navigation`, Radix/Shadcn UI
+- Used by: RSC pages as children
 
-**Mutation Layer (Server Actions):**
-- Purpose: All create/update/delete operations; Zod validation; RLS-backed writes
-- Location: `src/lib/actions/*.ts`
-- Contains: `'use server'` functions, always validates caller role before writing
-- Depends on: `src/lib/supabase/server.ts`, Zod, `next/cache`
-- Used by: Client Components (via form actions or direct calls)
+**Request / session (proxy):**
+- Purpose: Run before route handlers; maintain Supabase auth cookies; redirect unauthenticated users; enforce first monthly check-in for employees/managers.
+- Location: `src/proxy.ts` (Next.js 16 convention — replaces `middleware.ts`)
+- Contains: `export async function proxy`, `export const config.matcher`
+- Depends on: `@supabase/ssr`, env `NEXT_PUBLIC_SUPABASE_*`
+- Used by: Next.js for matched paths
 
-**UI Layer (Client Components):**
-- Purpose: Interactive forms, controlled inputs, navigation state
-- Location: `src/components/**`
-- Contains: `'use client'` components — forms, charts, dropdowns, sidebar
-- Depends on: Server Actions (imported as async functions), Shadcn/ui, Tailwind
-- Used by: Server Component page trees
+**Application / mutations (Server Actions):**
+- Purpose: Validate input (Zod), authorize caller, read/write Supabase, trigger notifications, revalidate caches.
+- Location: `src/lib/actions/` (one file per domain: checkins, okrs, performance, admin, etc.)
+- Contains: `'use server'` functions; local `ActionResult` type per file.
+- Depends on: `createClient`, `revalidatePath`, `after` (deferred notifications), `@/lib/notifications`
+- Used by: Client components and occasionally RSC (inline server functions in `src/app/(protected)/admin/scores/page.tsx`)
 
-**Database Layer:**
-- Purpose: Data persistence, access control, hierarchy traversal
-- Location: `supabase/migrations/`
-- Contains: Tables, RLS policies, SECURITY DEFINER functions, closure table
-- Used by: All Supabase client calls (RLS applies automatically)
+**Data access:**
+- Purpose: Typed-ish access to Postgres via Supabase JS; RLS enforces employee/manager/HR boundaries.
+- Location: Server Actions, RSC pages, `src/lib/supabase/server.ts`, Netlify functions (service role)
+- Contains: `.from()`, `.rpc()`, occasional `(supabase as any)` casts when generated types lag RPCs/tables.
+- Depends on: Supabase hosted project, migrations in `supabase/migrations/`
+- Used by: All server-side code
+
+**Database / policy:**
+- Purpose: Canonical schema, closure-table org hierarchy, SECURITY DEFINER helpers, RLS policies.
+- Location: `supabase/migrations/` (32 SQL files, `00001`–`00031`)
+- Contains: Tables (`profiles`, `org_closure`, `checkins`, `okrs`, `quarterly_scores`, …), RPCs (`get_subordinates`, `upsert_profile_on_login`, …)
+- Depends on: Supabase Auth (`auth.users`)
+- Used by: PostgREST + application clients
+
+**Integrations (side effects):**
+- Purpose: Email (Mailtrap), Slack DMs, OpenAI extraction for historical reviews.
+- Location: `src/lib/notifications.ts`, `src/lib/slack.ts`, `src/lib/actions/historical-review-actions.ts`
+- Depends on: env vars (`MAILTRAP_API_TOKEN`, `OPENAI_API_KEY`, workspace Slack tokens in reminder functions)
+- Used by: Server Actions and Netlify cron handlers
 
 ## Data Flow
 
-### Authenticated Page Request
+### Primary Request Path (authenticated page view)
 
-1. Browser requests `/dashboard`
-2. `(protected)/layout.tsx` — calls `supabase.auth.getUser()`, redirects to `/login` if no session
-3. `getOrProvisionProfile()` — fetches or backfills `profiles` row
-4. `ensureCurrentPeriod()` — idempotent quarter auto-creation/advancement
-5. `dashboard/page.tsx` — parallel `Promise.all` fetches for check-ins, OKRs, scores, mood, quarterly check-in
-6. Server Component renders full HTML; streamed to browser
+1. **Request enters proxy** — `src/proxy.ts` refreshes session cookies via `getUser()`, redirects to `/login` if no user, optionally redirects to `/checkins` if first check-in not submitted (`src/proxy.ts:53-91`).
+2. **Protected layout runs** — `src/app/(protected)/layout.tsx` re-validates user, loads/provisions `Profile` via `getOrProvisionProfile`, redirects to `/onboarding` if needed, calls `ensureCurrentPeriod()` (`src/lib/actions/period-actions.ts`), computes manager inbox count via RPCs.
+3. **Page RSC executes** — e.g. `src/app/(protected)/checkins/[checkinId]/page.tsx` loads rows with `.from()` / joins, applies access rules (owner, manager subtree via `org_closure`, HR).
+4. **Client island hydrates** — e.g. `EmployeeCheckinForm` receives props; user edits local state (`useState` for MIT arrays per project conventions).
+5. **Render** — `StandardLayout` wraps page with `Header` + role-aware `Sidebar` (`src/components/layout/StandardLayout.tsx`).
 
-### Mutation Flow (Server Action)
+### Mutation Path (form submit)
 
-1. Client Component submits form or calls Server Action directly
-2. Server Action (`'use server'`) — calls `createClient()` to get SSR Supabase client
-3. Action fetches `getCallerProfile()` to validate identity + role
-4. Zod schema validates all inputs
-5. Supabase write — RLS policies enforce access at DB layer as a second gate
-6. `revalidatePath(...)` called to invalidate router cache
-7. Returns `{ success: true }` or `{ error: string }` to client
+1. **Client invokes Server Action** — e.g. `upsertCheckinEmployee(formData)` from `src/components/checkins/EmployeeCheckinForm.tsx` inside `startTransition`.
+2. **Action authenticates** — `getCallerProfile()` or inline `getUser()` + `profiles` row (`src/lib/actions/checkin-actions.ts:19-25`).
+3. **Zod parses FormData** — JSON-stringified MIT fields parsed with nested schemas (`src/lib/actions/checkin-actions.ts:47-80`).
+4. **Supabase write** — upsert into `checkins` / related tables; RLS must allow row.
+5. **Side effects** — `after()` schedules emails (`notifyManagerCheckinSubmitted`, etc. in `src/lib/notifications.ts`); auto-carry `next_mits` to following month on submit.
+6. **Cache invalidation** — `revalidatePath('/checkins')`, client `router.refresh()`.
 
-### OAuth Login Flow
+### Auth / onboarding path
 
-1. User clicks "Sign in with Google" on `/login`
-2. Supabase redirects to Google OAuth
-3. Google redirects to `src/app/auth/callback/route.ts` with `?code=`
-4. Route exchanges code for session via `supabase.auth.exchangeCodeForSession()`
-5. Email domain checked against `ALLOWED_DOMAINS` in `src/lib/auth/allowed-domains.ts`
-6. `upsert_profile_on_login` RPC called — creates/updates `profiles` row without overwriting `role`
-7. Redirect to `/dashboard` (or `?next=` param)
+1. User submits magic link on `src/app/login/page.tsx` → Supabase Auth email flow.
+2. **`GET /auth/callback`** — `src/app/auth/callback/route.ts` exchanges code, enforces `isAllowedEmail` (`src/lib/auth/allowed-domains.ts`), calls `upsert_profile_on_login` RPC.
+3. Redirect to `/dashboard` or `next` param; protected layout sends non-onboarded users to `src/app/onboarding/page.tsx`.
+4. Onboarding actions in `src/lib/actions/onboarding-actions.ts` set manager relationship and `is_onboarded`.
 
-### New Employee Onboarding Flow
+### Scheduled reminders (outside request path)
 
-1. New user completes OAuth — profile created with `is_onboarded = false`
-2. Protected layout redirects `EMPLOYEE` with `is_onboarded = false` to `/onboarding`
-3. Employee selects manager → `pending_manager_id` set, manager notified
-4. Manager approves via `/inbox` → `approve_team_request` RPC called (sets `is_onboarded = true`, rebuilds org closure)
-5. Employee can now access all protected routes
+1. Netlify cron invokes `netlify/functions/email-reminders.mts` or `slack-reminders.mts` (`netlify.toml` schedules `0 9 * * *`).
+2. Uses `@supabase/supabase-js` with **service role** (not RLS-scoped user session).
+3. Shared date logic in `src/lib/reminder-logic.ts`; sends via `src/lib/notifications.ts` / `src/lib/slack.ts`.
 
 **State Management:**
-- No client-side global state store (Zustand or similar) is present in this codebase currently
-- URL state via `nuqs` (`NuqsAdapter` in root layout) for filter/tab params
-- All application state is derived from Supabase on each server render
+- **Server:** No global server store; data fetched per request in RSC. `revalidatePath` invalidates Next cache after mutations.
+- **URL:** `nuqs` adapter in root layout (`src/app/layout.tsx`) for typed search params where used (quarter filters, tabs).
+- **Client:** Local `useState` / `useTransition` in forms; **Zustand is listed in `package.json` but not used** in `src/` — do not introduce global client stores for server data.
 
 ## Key Abstractions
 
-**Performance Period:**
-- Purpose: Time-scoped container (Q1–Q4 per year) for all check-ins, OKRs, and scores
-- Auto-managed by `ensureCurrentPeriod()` in `src/lib/actions/period-actions.ts`
-- Tables: `performance_periods`
+**Profile + roles:**
+- Purpose: Authenticated user identity and authorization tier (`EMPLOYEE` | `MANAGER` | `HR_ADMIN`).
+- Examples: `src/lib/types/database.ts` (`Profile`), enforced in layouts and actions.
+- Pattern: Load once per layout or action via `profiles` table; HR routes add `src/app/(protected)/admin/layout.tsx` gate.
 
-**Org Closure Table:**
-- Purpose: Efficient O(1) hierarchy queries without recursive CTE on hot paths
-- Pattern: Each manager assignment change calls `rebuild_closure_for_employee()` SECURITY DEFINER function
-- Used by: All RLS policies that check `private.is_in_my_subtree()`
-- Tables: `org_closure` (`ancestor_id`, `descendant_id`, `depth`)
+**Org hierarchy (`org_closure`):**
+- Purpose: Materialized closure table for manager/report relationships and subtree queries.
+- Examples: Manager page access `src/app/(protected)/checkins/[checkinId]/page.tsx:55-60`; RPC `get_subordinates` across dashboard/team/inbox.
+- Pattern: Prefer `.rpc('get_subordinates', { manager_uuid })` over ad-hoc recursive queries in TS.
 
-**SECURITY DEFINER Functions (private schema):**
-- Purpose: Encapsulate role checks used in RLS policies without exposing logic to PostgREST
-- Key functions: `private.current_user_role()`, `private.is_hr_admin()`, `private.is_in_my_subtree(target_user_id)`
-- Location: `supabase/migrations/00001_foundation.sql`
+**Performance period:**
+- Purpose: Quarterly calendar container for check-ins, OKRs, and scores.
+- Examples: `ensureCurrentPeriod()` in protected layout; `performance_periods` table.
+- Pattern: Open period drives "current quarter" UX; auto-created/advanced in `src/lib/actions/period-actions.ts`.
 
-**Dual-section Check-ins:**
-- Purpose: Each check-in has an employee section (filled pre-meeting) and a manager section (filled post-meeting)
-- Visibility gate: Manager can only see a check-in once `employee_submitted_at IS NOT NULL`
-- Tables: `checkins` (monthly), `quarterly_checkins` (quarterly)
+**Check-in v2 (monthly / quarterly):**
+- Purpose: Two-tab employee workflows (review MITs/goals → plan next period); JSONB `mits`, `next_mits`, `goals`, `value_assessments`.
+- Examples: `src/lib/actions/checkin-actions.ts`, `src/lib/actions/quarterly-checkin-actions.ts`; UI `src/components/checkins/*`.
+- Pattern: Client `useState` arrays → Server Action → Zod → Supabase; auto-carry on submit documented in project conventions.
+
+**ActionResult:**
+- Purpose: Discriminated union for mutation outcomes without throwing for validation errors.
+- Examples: `{ success: true; id?: string } | { error: string }` repeated per action file.
+- Pattern: Return errors to client; display in form state — not `next-safe-action` despite stack docs mentioning it elsewhere.
 
 ## Entry Points
 
-**Root redirect (`/`):**
-- Location: `src/app/page.tsx`
-- Triggers: Any unauthenticated visit
-- Responsibilities: Redirect to `/dashboard` (authenticated) or `/login` (unauthenticated)
+**HTTP pages (App Router):**
+- Location: `src/app/**/page.tsx` (30+ routes under `(protected)`, plus `login`, `onboarding`, root redirect).
+- Triggers: User navigation.
+- Responsibilities: Read-heavy RSC; role-specific dashboards (`src/app/(protected)/dashboard/page.tsx`), CRUD surfaces for check-ins/OKRs/team/scoring.
 
-**Protected layout:**
-- Location: `src/app/(protected)/layout.tsx`
-- Triggers: Every request to any `/(protected)/*` route
-- Responsibilities: Auth gate, profile provisioning, onboarding redirect, period auto-advance, inbox count
+**Route handlers:**
+- Location: `src/app/auth/callback/route.ts`, `src/app/onboarding/reset/route.ts`
+- Triggers: OAuth redirect, onboarding reset link.
+- Responsibilities: Session exchange, domain whitelist, profile provisioning.
 
-**Auth callback:**
-- Location: `src/app/auth/callback/route.ts`
-- Triggers: Google OAuth redirect
-- Responsibilities: Session exchange, domain validation, profile upsert
+**Proxy:**
+- Location: `src/proxy.ts`
+- Triggers: All non-static routes per `config.matcher`.
+- Responsibilities: Auth cookie refresh, login redirect, first-check-in gate.
 
-## Auth Model
+**Server Actions:**
+- Location: `src/lib/actions/*.ts` (14 modules)
+- Triggers: Form submission / button handlers from client components.
+- Responsibilities: All write paths; only sanctioned mutation API.
 
-**Provider:** Google OAuth via Supabase Auth (`@supabase/ssr`)
-
-**Session storage:** HTTP-only cookies managed by `@supabase/ssr`. `createServerClient` reads/writes cookies via Next.js `cookies()`. `createBrowserClient` used for client-side reads only.
-
-**Domain restriction:** `src/lib/auth/allowed-domains.ts` — enforced at the application layer in `auth/callback/route.ts`. Also enforced at DB layer via `supabase/migrations/00018_domain_whitelist.sql`.
-
-**Profile provisioning:** `upsert_profile_on_login` SECURITY DEFINER RPC — never overwrites `role` or `manager_id` on re-login.
-
-## 3-Tier Role Model
-
-| Role | Access | Key Capabilities |
-|------|--------|-----------------|
-| `EMPLOYEE` | Own data only | Submit check-ins, manage own OKRs, view own scores (when unlocked) |
-| `MANAGER` | Own data + subtree | Review reports' check-ins, approve OKRs, submit quarterly scores, view team |
-| `HR_ADMIN` | All data | Everything above + admin panel, score calibration, org management, analytics |
-
-**Enforcement layers:**
-1. **Database RLS policies** — every table has policies using `private.is_in_my_subtree()` and `private.is_hr_admin()`. This is the primary enforcement layer.
-2. **Layout-level gates** — `(protected)/admin/layout.tsx` redirects non-HR_ADMIN users to `/dashboard`
-3. **Server Action guards** — every mutation action calls `getCallerProfile()` and checks `caller.role` before writing
-
-**Score visibility gate:** `quarterly_scores.visible_to_employee` boolean. RLS policy `qscores_employee_read` only returns rows where `visible_to_employee = true`. HR_ADMIN unlocks scores per employee.
-
-## Database Schema Overview
-
-**Core tables:**
-
-| Table | Purpose |
-|-------|---------|
-| `profiles` | One row per user; holds `role`, `manager_id`, `is_onboarded` |
-| `org_closure` | Closure table for hierarchy; `ancestor_id / descendant_id / depth` |
-| `performance_periods` | Q1–Q4 per year; `status: open|closed` |
-| `okrs` | Employee goals per period; `status: DRAFT→PENDING_REVIEW→APPROVED|REVISION_REQUESTED` |
-| `key_results` | Sub-items of OKRs with `progress_status` |
-| `okr_initiatives` / `initiatives` | Sub-items of key results; `completed` boolean |
-| `checkins` | Monthly check-ins; employee + manager dual-section; MIT arrays as JSONB |
-| `quarterly_checkins` | Quarterly self-assessment; OKR progress, CSS, value self-assessments |
-| `quarterly_scores` | Manager-submitted 1–5 scores per 3 dimensions; `visible_to_employee` gate |
-| `annual_scores` | Computed + override annual scores; `suggested_*` vs `final_*` fields |
-| `company_values` | 7 BCOMM values lookup table; `value_ratings` JSONB on quarterly_scores |
-| `pulse_options` | Configurable mood/energy labels and colours |
-| `guide_sections` | CMS-style content for the framework guide page |
-
-**OKR lifecycle:** `DRAFT` → `PENDING_REVIEW` (employee submits for approval) → `APPROVED` or `REVISION_REQUESTED` (manager action)
-
-**Scoring lifecycle:** Manager fills `quarterly_scores` → HR_ADMIN sets `visible_to_employee = true` → Employee can read score → HR_ADMIN finalizes `annual_scores`
+**Netlify functions:**
+- Location: `netlify/functions/email-reminders.mts`, `slack-reminders.mts`
+- Triggers: Cron + optional `REMINDER_SECRET` header.
+- Responsibilities: Batch reminder delivery with service-role DB access.
 
 ## Architectural Constraints
 
-- **`force-dynamic`:** Every page opts out of static generation. No ISR. All pages re-render on every request.
-- **No middleware:** No `middleware.ts` file exists. Auth is enforced in layouts, not at the edge.
-- **Type safety gap:** Supabase client calls are cast with `as any` throughout pages and Server Actions due to incomplete generated types. The manually-maintained `src/lib/types/database.ts` is the source of truth.
-- **Deployment:** Netlify with `@netlify/plugin-nextjs`. Not Vercel. `netlify.toml` configures build + functions directory.
-- **Notifications:** Resend email API via direct `fetch` in `src/lib/notifications.ts`. No-ops silently if `RESEND_API_KEY` is absent.
-- **Threading:** Single-threaded Node.js event loop per Netlify function invocation.
-- **Global state:** No module-level singletons. Supabase clients are created per-request.
+- **Threading:** Node.js server runtime per request (RSC + Server Actions + proxy default in Next 16); no worker threads. Cron functions are isolated Netlify invocations.
+- **Global state:** No in-process shared mutable app state. Session is cookie-backed Supabase JWT. Each request creates a fresh `createClient()` from `cookies()`.
+- **No REST API layer:** Do not add `src/app/api/**` routes for domain logic — stack standard is Server Actions only (existing route handlers are auth/onboarding only).
+- **RLS required:** Application must assume anon/authenticated clients cannot bypass Postgres policies; service role only in scheduled functions.
+- **Internal-only:** Google/magic-link auth via Supabase; domain whitelist at callback (`src/lib/auth/allowed-domains.ts`).
+- **Dynamic rendering:** Protected pages overwhelmingly set `export const dynamic = 'force-dynamic'` — no static auth pages.
 
 ## Anti-Patterns
 
-### Repeated profile fetch inside pages
+### Duplicated authorization in proxy, layout, and pages
 
-**What happens:** `dashboard/page.tsx` fetches `profiles` directly after the layout already fetched and validated the profile.
-**Why it's wrong:** Redundant DB round-trip on the most-visited page.
-**Do this instead:** Pass `profile` as a prop from the layout, or use React context to share the already-fetched profile down the Server Component tree.
+**What happens:** `src/proxy.ts`, `src/app/(protected)/layout.tsx`, and individual pages all re-fetch `profiles` and apply redirects.
+**Why it's wrong:** Drift risk — a new route under `(protected)` might assume proxy enforced onboarding when only layout does consistently.
+**Do this instead:** Treat layout as canonical for profile/onboarding; use page-level checks only for resource ownership (pattern in `src/app/(protected)/checkins/[checkinId]/page.tsx`). Keep proxy limited to session + global gates.
 
-### `as any` casts on Supabase client
+### `(supabase as any)` at call sites
 
-**What happens:** Nearly all DB queries are prefixed with `(supabase as any)` before `.from(...)` or `.rpc(...)`.
-**Why it's wrong:** Eliminates TypeScript type checking on query results; return types must be manually cast.
-**Do this instead:** Run `supabase gen types typescript` to regenerate `src/lib/types/database.ts` with full column-level types, then remove all `as any` casts.
+**What happens:** Widespread eslint-suppressed casts for RPCs and tables not fully reflected in `Database` (`src/app/(protected)/dashboard/page.tsx`, most actions).
+**Why it's wrong:** Loses compile-time safety; hides schema drift between `src/lib/types/database.ts` and migrations.
+**Do this instead:** Extend `Database['public']['Functions']` and table types when adding RPCs; reserve casts to rare edge cases.
+
+### Large RSC pages with inline queries
+
+**What happens:** `src/app/(protected)/dashboard/page.tsx` and `src/app/(protected)/team/[employeeId]/page.tsx` contain extensive sequential Supabase queries in one file.
+**Why it's wrong:** Hard to test, reuse, or optimize; blurs page vs data-access responsibilities.
+**Do this instead:** Extract read helpers colocated under `src/lib/` (e.g. `src/lib/queries/dashboard.ts`) when adding new data — keep pages as orchestration only.
+
+### Per-file `ActionResult` duplication
+
+**What happens:** Each `src/lib/actions/*.ts` redefines identical `ActionResult` type.
+**Why it's wrong:** Inconsistent evolution if one file adds fields others lack.
+**Do this instead:** Add shared `src/lib/actions/types.ts` when touching actions — single exported union.
 
 ## Error Handling
 
-**Strategy:** Server Actions return a discriminated union `{ success: true } | { error: string }`. Pages redirect on missing auth. No global error boundary is configured.
+**Strategy:** Server Actions return `{ error: string }` for expected failures (validation, auth, RLS); unexpected Supabase errors logged with `console.error` and mapped to user-safe messages. Route handlers redirect with query `error` codes (`src/app/login/page.tsx`). RSC uses `redirect()`, `notFound()` from `next/navigation`.
 
 **Patterns:**
-- Auth failures: `redirect('/login')` from layouts and pages
-- Action failures: Return `{ error: 'message' }` string; client shows inline error
-- Notification failures: Swallowed with `console.error` — non-fatal
-- RPC schema cache misses: Explicit fallback to direct table queries in `getOrProvisionProfile()`
+- Early return guards: `if (!caller) return { error: 'Not authenticated' }` in actions.
+- Zod `safeParse` → first issue message to client.
+- `src/app/(protected)/error.tsx` client boundary for render failures.
+- Notifications fail open: missing `MAILTRAP_API_TOKEN` no-ops (`src/lib/notifications.ts:19-26`).
 
 ## Cross-Cutting Concerns
 
-**Logging:** `console.error` for server-side errors; `console.log` for dev-mode notification previews. No structured logging.
-**Validation:** Zod schemas defined inline within each Server Action. Client forms use React Hook Form with the same Zod schema via `@hookform/resolvers`.
-**Authentication:** Enforced at three layers — layout redirect, Server Action role check, and Supabase RLS.
-**Email notifications:** `src/lib/notifications.ts` — triggered from Server Actions after mutations (check-in submitted, check-in reviewed, OKR approved/revised).
+**Logging:** `console.log` / `console.error` with prefixed tags (`[dashboard]`, `[notifications]`, `[auth/callback]`). No centralized logger or Sentry.
+
+**Validation:** Zod 4 in Server Actions; check-in MIT arrays JSON-parsed from `FormData`. Some admin forms use React Hook Form + Shadcn `Form` (`src/components/ui/form.tsx`).
+
+**Authentication:** Supabase SSR magic link / OAuth; `getUser()` only (never `getSession()` in proxy). Profile provisioning via RPC + fallback insert in `src/lib/supabase/server.ts`. Domain check on callback, not on every provision path.
+
+**Authorization:** Postgres RLS + application checks (role, `org_closure` depth, row ownership). HR admin via separate layout.
+
+**Styling:** Tailwind v4 + LR design tokens in `src/app/globals.css`; Shadcn components under `src/components/ui/`.
+
+**Email / Slack / AI:** Optional env-gated integrations; never block core DB writes on notification failure (use `after()` where applicable).
 
 ---
 
-*Architecture analysis: 2026-05-23*
+*Architecture analysis: 2026-06-04*

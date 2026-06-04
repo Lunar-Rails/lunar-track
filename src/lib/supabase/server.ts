@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import type { User } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import type { Database, Profile } from '@/lib/types/database'
+import { isAllowedEmail } from '@/lib/auth/allowed-domains'
 
 export async function createClient() {
   const cookieStore = await cookies()
@@ -60,6 +61,11 @@ export async function getOrProvisionProfile(
     }
     // Fallback when PostgREST schema cache is cold — insert the profile row
     // directly so new users can still reach onboarding.
+    if (!user.email || !await isAllowedEmail(user.email)) {
+      console.error('[supabase/server] fallback blocked — email domain not allowed:', user.email)
+      return null
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { error: insertError } = await (supabase as any)
       .from('profiles')
