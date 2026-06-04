@@ -29,6 +29,10 @@ export interface ExtractedReview {
 }
 
 export async function extractReviewWithLLM(rawText: string): Promise<{ data: ExtractedReview | null; error: string | null }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { data: null, error: 'Not authenticated' }
+
   const key = process.env.OPENAI_API_KEY
   if (!key) return { data: null, error: 'OPENAI_API_KEY not configured' }
 
