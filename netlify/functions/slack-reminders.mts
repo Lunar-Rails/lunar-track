@@ -25,7 +25,11 @@ interface Profile {
 
 export default async function handler(request: Request): Promise<Response> {
   const reminderSecret = process.env.REMINDER_SECRET
-  if (reminderSecret && request.headers.get('x-reminder-secret') !== reminderSecret) {
+  if (!reminderSecret) {
+    console.error('[slack-reminders] REMINDER_SECRET not set — refusing to run')
+    return new Response('Forbidden: REMINDER_SECRET not configured', { status: 403 })
+  }
+  if (request.headers.get('x-reminder-secret') !== reminderSecret) {
     return new Response('Forbidden', { status: 403 })
   }
 
