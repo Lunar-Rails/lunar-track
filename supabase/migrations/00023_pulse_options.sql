@@ -13,18 +13,28 @@ CREATE TABLE IF NOT EXISTS pulse_options (
 
 ALTER TABLE pulse_options ENABLE ROW LEVEL SECURITY;
 
--- All authenticated users can read (needed for dashboard + check-in forms)
-CREATE POLICY "pulse_options_read" ON pulse_options
-  FOR SELECT USING (auth.role() = 'authenticated');
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'pulse_options' AND policyname = 'pulse_options_read'
+  ) THEN
+    CREATE POLICY "pulse_options_read" ON pulse_options
+      FOR SELECT USING (auth.role() = 'authenticated');
+  END IF;
+END $$;
 
--- Only HR admins can mutate (enforced in server actions too, but belt-and-suspenders)
-CREATE POLICY "pulse_options_admin_write" ON pulse_options
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid() AND profiles.role = 'HR_ADMIN'
-    )
-  );
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'pulse_options' AND policyname = 'pulse_options_admin_write'
+  ) THEN
+    CREATE POLICY "pulse_options_admin_write" ON pulse_options
+      FOR ALL USING (
+        EXISTS (
+          SELECT 1 FROM profiles
+          WHERE profiles.id = auth.uid() AND profiles.role = 'HR_ADMIN'
+        )
+      );
+  END IF;
+END $$;
 
 -- Seed default values
 INSERT INTO pulse_options (type, slug, label, color, emoji, sort_order) VALUES
