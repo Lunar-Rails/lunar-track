@@ -61,7 +61,7 @@ export async function getOrProvisionProfile(
     }
     // Fallback when PostgREST schema cache is cold — insert the profile row
     // directly so new users can still reach onboarding.
-    if (!user.email || !isAllowedEmail(user.email)) {
+    if (!user.email || !await isAllowedEmail(user.email)) {
       console.error('[supabase/server] fallback blocked — email domain not allowed:', user.email)
       return null
     }

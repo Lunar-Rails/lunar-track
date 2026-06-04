@@ -11,6 +11,8 @@ export default async function ProtectedLayout({
   children: React.ReactNode
 }) {
   const supabase = await createClient()
+  // Defense-in-depth: middleware already redirects unauthenticated requests,
+  // but this layout catches any edge cases (e.g. SSR without middleware).
   const { data: { user }, error } = await supabase.auth.getUser()
 
   if (error || !user) {

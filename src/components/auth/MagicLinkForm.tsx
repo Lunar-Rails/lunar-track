@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { isAllowedEmail, DOMAIN_ERROR_MESSAGE } from '@/lib/auth/allowed-domains'
+import { checkDomainAction } from '@/lib/auth/check-domain-action'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -43,8 +43,9 @@ export default function MagicLinkForm() {
     if (!email) return
     setError(null)
     startTransition(async () => {
-      if (!isAllowedEmail(email)) {
-        setError(DOMAIN_ERROR_MESSAGE)
+      const { allowed, error: domainError } = await checkDomainAction(email)
+      if (!allowed) {
+        setError(domainError)
         return
       }
       const supabase = createClient()

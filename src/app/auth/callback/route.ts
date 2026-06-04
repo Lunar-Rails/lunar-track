@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/login?error=no_user`)
   }
 
-  if (!isAllowedEmail(user.email)) {
+  if (!await isAllowedEmail(user.email)) {
     await supabase.auth.signOut()
     return NextResponse.redirect(`${origin}/login?error=domain`)
   }

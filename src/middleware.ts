@@ -10,12 +10,11 @@ const GATE_EXEMPT_PREFIXES = [
   '/auth',
   '/onboarding',
   '/settings',
-  '/dashboard',
   '/org',
   '/team',
 ]
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
