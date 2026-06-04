@@ -57,6 +57,8 @@ export async function GET(request: Request) {
 
   if (rpcError) {
     console.error('[auth/callback] upsert_profile_on_login error:', rpcError.message)
+    await supabase.auth.signOut()
+    return NextResponse.redirect(`${origin}/login?error=provision`)
   }
 
   return NextResponse.redirect(`${origin}${next}`)
