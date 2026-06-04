@@ -2,7 +2,7 @@
 phase: codebase
 slug: retroactive-audit
 status: draft
-threats_open: 5
+threats_open: 2
 asvs_level: 1
 created: 2026-06-04
 register_authored_at_plan_time: false
@@ -39,10 +39,10 @@ register_authored_at_plan_time: false
 | T-CB-06 | Elevation | `profiles` RLS self-update | mitigate | `profiles_self_update_meta` preserves `role` on UPDATE | **closed** |
 | T-CB-07 | Spoofing / DoS | Netlify reminder HTTP handlers | mitigate | Require `REMINDER_SECRET` (fail closed if unset) | **closed** |
 | T-CB-08 | Tampering | Email HTML (`notifications.ts`) | mitigate | `esc()` on all user-controlled HTML interpolations | **closed** |
-| T-CB-09 | Information disclosure | `get_subordinates` RPC | mitigate | Caller auth check (00025); no arbitrary manager_uuid reads | **open** |
+| T-CB-09 | Information disclosure | `get_subordinates` RPC | mitigate | Caller auth check (00025); no arbitrary manager_uuid reads | **closed** |
 | T-CB-10 | Information disclosure | `compute_annual_averages` RPC | mitigate | Role-aware caller check (employee = self only) | **closed** |
-| T-CB-11 | Tampering | OpenAI historical extract | mitigate | Zod (or equivalent) validate model JSON before use | **open** |
-| T-CB-12 | Information disclosure / Abuse | `extractReviewWithLLM` | mitigate | Authenticate caller; restrict to manager/HR on report | **open** |
+| T-CB-11 | Tampering | OpenAI historical extract | mitigate | Zod (or equivalent) validate model JSON before use | **closed** |
+| T-CB-12 | Information disclosure / Abuse | `extractReviewWithLLM` | mitigate | Authenticate caller; restrict to manager/HR on report | **closed** |
 | T-CB-13 | Elevation | Netlify service role | mitigate | Cron-only invocation; minimal queries; EMPLOYEE-only reminders | **closed** |
 | T-CB-14 | Tampering | HR guide markdown render | mitigate | `marked` + `sanitize-html` before `dangerouslySetInnerHTML` | **closed** |
 
@@ -62,10 +62,10 @@ register_authored_at_plan_time: false
 | T-CB-06 | **closed** | `supabase/migrations/00025_security_fixes.sql:8-14` — `WITH CHECK (... AND role = (SELECT role FROM profiles WHERE id = auth.uid()))`. |
 | T-CB-07 | **closed** | Fixed: Both handlers return 403 when `REMINDER_SECRET` is not set. Commit `1ecfbc9`. |
 | T-CB-08 | **closed** | Fixed: `esc()` applied to all greetings and subjects across all notification functions. Commit `599c185`. |
-| T-CB-09 | **open** | **Regression:** `00025_security_fixes.sql:37-41` added caller check; `00030_soft_delete_users.sql:30-59` replaced function with SQL body **without** `auth.uid()` check. Latest definition has no `RAISE EXCEPTION 'Unauthorized'`. |
+| T-CB-09 | **closed** | Fixed: `00032_restore_get_subordinates_caller_check.sql` restores `auth.uid()` guard with 00030 return type + `is_active` filter. Commit `536ddc4`. |
 | T-CB-10 | **closed** | `supabase/migrations/00025_security_fixes.sql:72-84` — role check + employee self-only. No later migration replaces `compute_annual_averages`. |
-| T-CB-11 | **open** | `src/lib/actions/historical-review-actions.ts:64` — `JSON.parse(text) as ExtractedReview`; no Zod/`safeParse`. |
-| T-CB-12 | **open** | `extractReviewWithLLM` (`historical-review-actions.ts:31-69`) has no `getUser()` / role check; `saveHistoricalReview` checks auth at `:83-84` only. |
+| T-CB-11 | **closed** | Fixed: `extractedReviewSchema.safeParse()` replaces unsafe cast. Scores constrained 1–5. Commit `cabafa3`. |
+| T-CB-12 | **closed** | Fixed: `getUser()` auth check added at top of `extractReviewWithLLM`. Commit `8b2b11a`. |
 | T-CB-13 | **closed** | Service role scoped in code: `slack-reminders.mts:64-70`, `email-reminders.mts:64-69` — `.eq('role', 'EMPLOYEE')`; idempotency via `reminder_log` (`:160-175`, `:162-177`). Platform cron in `netlify.toml` (documented in INTEGRATIONS.md). |
 | T-CB-14 | **closed** | `src/app/(protected)/guide/page.tsx:12-18` — `sanitizeHtml` with restricted tags/schemes before `:139` `dangerouslySetInnerHTML`. |
 
@@ -93,18 +93,14 @@ No accepted risks.
 |------------|---------------|--------|------|--------|
 | 2026-06-04 | 14 | 4 | 10 | gsd-security-auditor (retroactive STRIDE) |
 | 2026-06-04 | 14 | 9 | 5 | gsd-audit-fix (F-01–F-05 auto-fixed) |
+| 2026-06-04 | 14 | 12 | 2 | gsd-audit-fix (F-06–F-08 auto-fixed) |
 
 ---
 
 ## Remediation Priority (open threats)
 
-1. **T-CB-01** — Safe redirect helper on `next` in callback (and stale-session branch `:24`).
-2. **T-CB-02 / T-CB-03 / T-CB-04** — Align SQL whitelist with TS; guard fallback; fail closed on RPC provision failure.
-3. **T-CB-05** — Add `src/middleware.ts` exporting `middleware` (re-export from `proxy` or rename).
-4. **T-CB-09** — Restore `get_subordinates` caller checks from 00025 without dropping 00030 columns/filters.
-5. **T-CB-07** — `if (!process.env.REMINDER_SECRET) return 403` in both Netlify handlers.
-6. **T-CB-12 / T-CB-11** — Auth + Zod on `extractReviewWithLLM`.
-7. **T-CB-08** — `esc()` on greetings and email subjects.
+1. **T-CB-02** — Align SQL domain whitelist with TS (`clovrlabs.com` missing in SQL). Design decision: single source of truth.
+2. **T-CB-05** — Add `src/middleware.ts` exporting `middleware` (re-export from `proxy` or rename). Architectural change.
 
 ---
 
