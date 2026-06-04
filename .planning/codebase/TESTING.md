@@ -1,155 +1,280 @@
+---
+last_mapped_commit: 804cf743d1651aa9bd1d761c60c4d1478e38a540
+---
+
 # Testing Patterns
 
-**Analysis Date:** 2026-05-23
+**Analysis Date:** 2026-06-04
 
 ## Test Framework
 
 **Runner:**
 - Vitest 4.1.7
-- Config: no dedicated `vitest.config.*` file detected — Vitest runs with defaults (reads from `package.json`)
+- Config: Not detected — no `vitest.config.ts` / `vitest.config.mjs`; Vitest defaults apply (Node environment, no global setup file)
 
 **Assertion Library:**
-- Vitest built-in (`expect`) with `describe` / `it` from `vitest`
+- Vitest built-in `expect` (Chai-compatible)
 
 **Run Commands:**
 ```bash
-npm run test          # vitest run (single pass, CI mode)
-npm run test:watch    # vitest (watch mode)
+npm test              # Run all tests once (vitest run)
+npm run test:watch    # Watch mode (vitest)
+npx vitest run src/lib/__tests__/reminder-logic.test.ts   # Single file
 ```
 
-No coverage command is configured in `package.json` scripts.
+**Current status:** 1 test file, 45 tests, all passing (verified 2026-06-04).
 
 ## Test File Organization
 
 **Location:**
-- Co-located under `src/lib/__tests__/` — a dedicated `__tests__` directory adjacent to the lib modules being tested
+- Co-located `__tests__` subdirectory next to source — `src/lib/__tests__/reminder-logic.test.ts` tests `src/lib/reminder-logic.ts`
+- Netlify functions and server actions have no tests yet
 
 **Naming:**
-- `<module-name>.test.ts` — e.g., `reminder-logic.test.ts`
+- `<module-name>.test.ts` — matches source module name
 
-**Current test files (total: 1):**
-- `src/lib/__tests__/reminder-logic.test.ts` — tests pure utility functions exported from `src/lib/reminder-logic.ts`
+**Structure:**
+```
+src/lib/
+├── reminder-logic.ts          # Pure functions under test
+└── __tests__/
+    └── reminder-logic.test.ts # Unit tests
+```
+
+**Recommended placement for new tests:**
+| Code under test | Test file location |
+|-----------------|-------------------|
+| `src/lib/<name>.ts` | `src/lib/__tests__/<name>.test.ts` |
+| `src/lib/actions/<name>-actions.ts` | `src/lib/actions/__tests__/<name>-actions.test.ts` (not yet used) |
+| Shared test helpers | `src/lib/__tests__/helpers/` or `src/test/` (neither exists yet) |
 
 ## Test Structure
 
 **Suite Organization:**
 ```typescript
 import { describe, it, expect } from 'vitest'
-import { functionUnderTest } from '../module-name'
+import { getMonthEnd, isInReminderWindow } from '../reminder-logic'
 
-describe('functionName', () => {
-  it('descriptive assertion in plain English', () => {
-    expect(functionUnderTest(input)).toBe(expectedValue)
+// ---------------------------------------------------------------------------
+// getMonthEnd
+// ---------------------------------------------------------------------------
+describe('getMonthEnd', () => {
+  it('returns the last day of January (31)', () => {
+    expect(getMonthEnd(2026, 1).getUTCDate()).toBe(31)
   })
 })
 ```
 
-Each exported function gets its own `describe` block with a header comment:
-```typescript
-// ---------------------------------------------------------------------------
-// functionName
-// ---------------------------------------------------------------------------
-describe('functionName', () => { ... })
-```
+**Patterns observed in `src/lib/__tests__/reminder-logic.test.ts`:**
+- Section dividers with `// ---` comment blocks per exported function
+- One `describe` block per function or logical group
+- Descriptive `it('…')` strings stating input condition and expected outcome
+- Loop-based cases for month/quarter permutations — `for (const m of [3, 6, 9, 12])`
+- Fixed UTC ISO date strings — `new Date('2026-01-24T09:00:00Z')` for deterministic calendar math
+- No `beforeEach` / `afterEach` — tests are fully isolated pure function calls
+
+## What Gets Tested
+
+**Currently tested:**
+- `src/lib/reminder-logic.ts` — calendar window logic, Slack message builders, token parsing (45 cases)
+
+**Design intent for testability:**
+- Module header documents: *"Pure functions … No I/O — kept dependency-free for easy unit testing"* — `src/lib/reminder-logic.ts`
+- Netlify cron functions import this module — `netlify/functions/slack-reminders.mts`, `netlify/functions/email-reminders.mts`
+
+**Not tested (high-value gaps):**
+- All 13 server action modules in `src/lib/actions/`
+- Supabase auth / RLS behavior
+- React components and forms
+- Netlify scheduled functions (`netlify/functions/*.mts`)
+- Email notifications (`src/lib/notifications.ts`)
+- Slack API wrapper (`src/lib/slack.ts`)
+
+## Mocking
+
+**Framework:** Vitest built-in mocking (`vi.mock`, `vi.spyOn`) — available but **not used** in the existing suite
 
 **Patterns:**
-- No `beforeEach` / `afterEach` / `beforeAll` — tests are stateless pure-function calls
-- No async tests — all tested functions are synchronous
-- Parameterized cases done with `for...of` loops inside `it` blocks, not `it.each`
+- No mocks in current tests — pure functions only
+- No `@vitest/coverage-v8` or MSW installed
 
-## What IS Tested
+**What to Mock (when adding action/integration tests):**
+- `@/lib/supabase/server` → `createClient` returning chained query builder stubs
+- `next/cache` → `revalidatePath` as no-op
+- `next/server` → `after` as synchronous executor or no-op
+- External fetch (Mailtrap, Slack, OpenAI) in `src/lib/notifications.ts`, `src/lib/slack.ts`, `src/lib/actions/historical-review-actions.ts`
 
-**`src/lib/reminder-logic.ts`** — thoroughly covered (279 lines of tests):
-- `getMonthEnd` — correct last day for all month lengths including leap years
-- `isReminderDay` — 7-days-before-month-end logic for 31-day, 30-day, and February (leap/non-leap)
-- `getReminderType` — monthly vs quarterly classification by month number
-- `getQuarterForMonth` — correct Q1–Q4 mapping for all 12 months
-- `getReminderPeriod` — composite object shape and values
-- `buildReminderMessage` — Slack Block Kit structure, correct URLs, deadline date in text
-- `parseWorkspaceTokens` — valid JSON, invalid JSON, wrong shape, non-string values
-- `getTokenForEmail` — domain matching, case-insensitivity, unknown domain, malformed email, empty map
-- `getEffectiveDate` — current date fallback, valid ISO override, invalid override fallback
+**What NOT to Mock:**
+- Pure logic extracted to `src/lib/` — test directly like `reminder-logic.ts`
+- Zod schemas — run real parse/ safeParse against fixture `FormData` values
 
-## What Is NOT Tested (Coverage Gaps)
+**Suggested mock skeleton for server actions:**
+```typescript
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-**Server Actions (all untested):**
-- `src/lib/actions/checkin-actions.ts` — `upsertCheckinEmployee`, `carryMitsToNextMonth`
-- `src/lib/actions/okr-actions.ts` — `createOkr`, `updateOkr`, `deleteOkr`, `transitionOkrStatus`
-- `src/lib/actions/performance-actions.ts` — `upsertQuarterlyScore`, `toggleScoreVisibility`, `finalizeAnnualScore`
-- `src/lib/actions/quarterly-checkin-actions.ts`
-- `src/lib/actions/onboarding-actions.ts`
-- `src/lib/actions/user-actions.ts`
-- `src/lib/actions/admin-actions.ts`
-- `src/lib/actions/period-actions.ts`
-- `src/lib/actions/guide-actions.ts`
-- `src/lib/actions/okr-progress-actions.ts`
+vi.mock('@/lib/supabase/server', () => ({
+  createClient: vi.fn(),
+}))
 
-**Auth and middleware:**
-- `src/lib/supabase/server.ts` — `getOrProvisionProfile` not tested
-- `src/lib/auth/allowed-domains.ts` — not tested
-- `src/proxy.ts` — not tested
+describe('upsertCheckinEmployee', () => {
+  beforeEach(() => {
+    vi.resetAllMocks()
+  })
 
-**Notifications:**
-- `src/lib/notifications.ts` — not tested
-- `src/lib/slack.ts` — not tested
+  it('returns error when not authenticated', async () => {
+    // arrange mock supabase with no user
+    // act + assert
+  })
+})
+```
 
-**UI components (all untested):**
-- No component tests (no React Testing Library, no Playwright, no Storybook)
-- All of `src/components/**` is untested
+## Fixtures and Factories
 
-**Business logic in pages:**
-- All `src/app/(protected)/**/page.tsx` files — data fetching and role-based rendering untested
+**Test Data:**
+- Inline literals in each test — no shared fixture files yet
+- Example token map object in `getTokenForEmail` tests — `src/lib/__tests__/reminder-logic.test.ts`
 
-**Critical untested paths:**
-- OKR state machine transitions (`TRANSITIONS` map in `okr-actions.ts`) — no test for invalid transitions
-- AI Builder gate enforcing B/V score cap at 4 in `upsertQuarterlyScore`
-- `carryMitsToNextMonth` — MIT carry-forward logic after check-in submission
-- Annual score averaging via `compute_annual_averages` RPC
-- Org closure permission checks (manager-only actions)
-- Onboarding redirect guard in `src/app/(protected)/layout.tsx`
+**Location:**
+- Not detected — no `src/test/fixtures/` or factory modules
 
-## E2E / Integration Split
+**Recommendation:** Add typed factories mirroring `src/lib/types/database.ts` interfaces when action tests are introduced:
+```typescript
+// src/lib/__tests__/factories/profile.ts
+import type { Profile } from '@/lib/types/database'
 
-- **Unit tests:** 1 file covering pure utility functions
-- **Integration tests:** None
-- **E2E tests:** None — no Playwright, Cypress, or similar configured
-- **Component tests:** None — no React Testing Library or equivalent
-
-## Test Utilities / Helpers
-
-None. Tests import directly from the module under test with no shared fixtures, factories, or mock utilities.
+export function buildProfile(overrides: Partial<Profile> = {}): Profile {
+  return {
+    id: '00000000-0000-4000-8000-000000000001',
+    email: 'alice@lunarrails.io',
+    full_name: 'Alice',
+    role: 'EMPLOYEE',
+    // …defaults
+    ...overrides,
+  }
+}
+```
 
 ## Coverage
 
-**Requirements:** None enforced. No coverage threshold configured, no `--coverage` script in `package.json`.
+**Requirements:** None enforced — no coverage script in `package.json`, no CI gate
 
-**Estimated coverage by area:**
-- `src/lib/reminder-logic.ts`: high — all exported functions covered
-- `src/lib/actions/*`: 0%
-- `src/components/*`: 0%
-- `src/app/*`: 0%
-- `src/lib/supabase/*`: 0%
-- `src/lib/notifications.ts`: 0%
+**View Coverage:**
+- Not configured — would require adding `@vitest/coverage-v8` and a script such as `vitest run --coverage`
 
-## Overall Test Quality Assessment
+**Practical target:** Prioritize pure lib functions and validation logic before UI; server actions second with mocked Supabase
 
-**Current state:** Minimal. One well-written test file covers one pure utility module. The core application logic — Server Actions, auth flows, permission checks, data mutations — has zero test coverage.
+## Test Types
 
-**Strengths of the existing test:**
-- Covers edge cases thoroughly (leap years, boundary months, malformed inputs)
-- Tests are descriptive and self-documenting
-- No external dependencies or mocks needed (pure functions)
+**Unit Tests:**
+- Scope: Pure functions in `src/lib/` with no I/O
+- Approach: Direct import + `expect` — current sole pattern
+- Example: `src/lib/__tests__/reminder-logic.test.ts`
 
-**Critical gaps:**
-- The OKR status machine, quarterly scoring rules, MIT carry-forward, and annual score computation are entirely untested business rules
-- No smoke tests or integration tests verify that Server Actions reach the database correctly
-- No auth boundary tests confirm role enforcement (EMPLOYEE vs MANAGER vs HR_ADMIN) at the action level
+**Integration Tests:**
+- Not used
+- Candidate scope: Server actions with mocked Supabase client verifying Zod + auth guards + payload shape
 
-**Recommended additions in priority order:**
-1. Unit tests for Server Action business logic (mock Supabase client) — especially `transitionOkrStatus`, `upsertQuarterlyScore`, and `carryMitsToNextMonth`
-2. Integration tests for the auth guard in `src/app/(protected)/layout.tsx`
-3. E2E smoke tests for the happy path of check-in submission and quarterly scoring
+**E2E Tests:**
+- Not used — no Playwright, Cypress, or `@testing-library/react` in dependencies
+- Manual validation per `AGENTS.md`: `npm run dev`, Google OAuth, `tsc`, ESLint
+
+**Component Tests:**
+- Not used — no `@testing-library/react` or `jsdom` environment configured
+
+## Type Checking & Lint as Quality Gates
+
+**TypeScript:**
+```bash
+npx tsc --noEmit
+```
+- `strict: true` in `tsconfig.json`
+- Used as primary static verification alongside tests
+
+**ESLint:**
+```bash
+npm run lint
+```
+- ~8 pre-existing errors and ~14 warnings (per project docs) — not treated as test failures
+
+## CI/CD Testing
+
+**CI Pipeline:** Not detected — no `.github/workflows/` in repository
+
+**Deploy validation:** `npm run build` via Netlify (`scripts/netlify-build.sh`) — build-time type check through Next.js compiler, no test step
+
+## Common Patterns
+
+**Async Testing:**
+```typescript
+it('returns today when no override is provided', () => {
+  const before = Date.now()
+  const d = getEffectiveDate()
+  const after = Date.now()
+  expect(d.getTime()).toBeGreaterThanOrEqual(before)
+  expect(d.getTime()).toBeLessThanOrEqual(after)
+})
+```
+- Synchronous tests preferred; time-range assertions for `Date.now()`-based functions
+
+**Error / edge-case Testing:**
+```typescript
+it('returns empty object for invalid JSON', () => {
+  expect(parseWorkspaceTokens('not-json')).toEqual({})
+})
+
+it('returns null for an unknown domain', () => {
+  expect(getTokenForEmail('dave@unknown.com', tokenMap)).toBeNull()
+})
+```
+- Test fallback paths and null returns explicitly
+
+**Parameterized cases:**
+```typescript
+for (const m of [3, 6, 9, 12]) {
+  expect(getReminderType(m)).toBe('quarterly')
+}
+```
+
+## Adding New Tests — Prescriptive Guide
+
+1. **Extract pure logic first.** If testing calendar, scoring, or validation rules, move them to `src/lib/<name>.ts` with no Supabase imports (follow `reminder-logic.ts`).
+
+2. **Place tests in `__tests__/` adjacent to source.** Name file `<name>.test.ts`.
+
+3. **Use Vitest imports explicitly:**
+   ```typescript
+   import { describe, it, expect } from 'vitest'
+   ```
+
+4. **Prefer UTC-fixed dates** for any date logic — avoid locale-dependent assertions.
+
+5. **Server action tests:** Mock `createClient`, stub `auth.getUser()`, chain `.from().select().eq().single()` returns; assert `{ error }` vs `{ success: true }` — pattern in `src/lib/actions/checkin-actions.ts`.
+
+6. **Do not add a test runner switch** — stay on Vitest (already in `devDependencies`).
+
+7. **Optional vitest config** (when adding jsdom or path aliases):
+   ```typescript
+   // vitest.config.ts
+   import { defineConfig } from 'vitest/config'
+   import path from 'path'
+
+   export default defineConfig({
+     test: {
+       environment: 'node',
+     },
+     resolve: {
+       alias: { '@': path.resolve(__dirname, './src') },
+     },
+   })
+   ```
+   Required before component tests can import `@/` paths reliably.
+
+## Environment Notes
+
+**Secrets in tests:** Never read `.env.local` in unit tests; pass overrides as function arguments (see `getEffectiveDate('2026-03-24T09:00:00Z')` and `REMINDER_DATE_OVERRIDE` pattern in Netlify functions).
+
+**Excluded from TypeScript compile:** `pmai`, `netlify` folders in `tsconfig.json` `exclude` — Netlify functions import from `src/lib/` at runtime but are not type-checked by root `tsc`.
 
 ---
 
-*Testing analysis: 2026-05-23*
+*Testing analysis: 2026-06-04*

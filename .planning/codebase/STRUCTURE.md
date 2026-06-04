@@ -1,345 +1,284 @@
+---
+last_mapped_commit: 804cf743d1651aa9bd1d761c60c4d1478e38a540
+---
+
 # Codebase Structure
 
-**Analysis Date:** 2026-05-23
+**Analysis Date:** 2026-06-04
 
 ## Directory Layout
 
 ```
-lunar-track-org/
-├── src/
-│   ├── app/                         # Next.js App Router — routes, layouts, pages
-│   │   ├── layout.tsx               # Root layout: fonts, ThemeProvider, NuqsAdapter
-│   │   ├── page.tsx                 # Root redirect (→ /dashboard or /login)
-│   │   ├── globals.css              # Global CSS, LR design tokens
-│   │   ├── auth/
-│   │   │   └── callback/
-│   │   │       └── route.ts         # OAuth code exchange + domain check
-│   │   ├── login/
-│   │   │   └── page.tsx             # Google sign-in page
-│   │   ├── onboarding/
-│   │   │   ├── page.tsx             # New-employee onboarding (manager select)
-│   │   │   └── reset/
-│   │   │       └── route.ts         # Clears pending_manager_id (re-select)
-│   │   └── (protected)/             # Route group — auth-gated; no URL segment
-│   │       ├── layout.tsx           # Auth gate, profile provision, period init
-│   │       ├── dashboard/
-│   │       │   └── page.tsx         # Home dashboard — check-ins, OKRs, scores, mood
-│   │       ├── checkins/
-│   │       │   ├── page.tsx         # Monthly check-in list
-│   │       │   ├── new/
-│   │       │   │   └── page.tsx     # New monthly check-in form
-│   │       │   └── [checkinId]/
-│   │       │       └── page.tsx     # View/edit a single check-in
-│   │       ├── quarterly-checkins/
-│   │       │   ├── page.tsx         # Quarterly check-in list
-│   │       │   ├── new/
-│   │       │   │   └── page.tsx     # New quarterly check-in form
-│   │       │   └── [checkinId]/
-│   │       │       └── page.tsx     # View/edit a quarterly check-in
-│   │       ├── okrs/
-│   │       │   ├── page.tsx         # OKR list for current period
-│   │       │   ├── new/
-│   │       │   │   └── page.tsx     # Create new OKR
-│   │       │   └── [okrId]/
-│   │       │       └── page.tsx     # View/edit OKR + key results + initiatives
-│   │       ├── scoring/
-│   │       │   └── [employeeId]/
-│   │       │       └── [periodId]/
-│   │       │           └── page.tsx # Manager quarterly scoring form
-│   │       ├── team/
-│   │       │   ├── page.tsx         # Manager's direct reports list
-│   │       │   └── [employeeId]/
-│   │       │       └── page.tsx     # Individual employee 360 view
-│   │       ├── annual-scores/
-│   │       │   └── [employeeId]/
-│   │       │       └── page.tsx     # Annual score finalization
-│   │       ├── my-performance/
-│   │       │   └── page.tsx         # Employee's own performance history
-│   │       ├── inbox/
-│   │       │   └── page.tsx         # Manager/HR pending actions (check-ins + OKR approvals)
-│   │       ├── org/
-│   │       │   └── page.tsx         # Org chart tree view
-│   │       ├── analytics/
-│   │       │   └── page.tsx         # HR_ADMIN analytics dashboard
-│   │       ├── guide/
-│   │       │   └── page.tsx         # Framework guide (editable by HR_ADMIN)
-│   │       └── admin/
-│   │           ├── layout.tsx       # HR_ADMIN role gate
-│   │           ├── page.tsx         # Admin home
-│   │           ├── settings/
-│   │           │   └── page.tsx     # Org settings
-│   │           ├── users/
-│   │           │   └── page.tsx     # User management table
-│   │           ├── org/
-│   │           │   └── page.tsx     # Org structure editor
-│   │           ├── scores/
-│   │           │   ├── page.tsx     # Score overview / visibility toggles
-│   │           │   └── calibration/
-│   │           │       └── page.tsx # Score calibration view
-│   │           └── values/
-│   │               └── page.tsx     # Company values admin
-│   ├── components/
-│   │   ├── admin/                   # HR_ADMIN-specific UI components
-│   │   │   ├── CompanyValuesAdmin.tsx
-│   │   │   ├── ManagerSelect.tsx
-│   │   │   ├── OrgTree.tsx
-│   │   │   ├── PeriodFilter.tsx
-│   │   │   ├── PulseOptionsAdmin.tsx
-│   │   │   ├── RoleSelect.tsx
-│   │   │   ├── StickyAdminHeader.tsx
-│   │   │   └── UsersTable.tsx
-│   │   ├── analytics/               # Chart components (HR_ADMIN analytics page)
-│   │   │   ├── MoodTrendOrgChart.tsx
-│   │   │   ├── PerformerCurveChart.tsx
-│   │   │   ├── ScoreDistributionChart.tsx
-│   │   │   └── ValueUsageChart.tsx
-│   │   ├── auth/                    # Login UI components
-│   │   │   ├── MagicLinkForm.tsx
-│   │   │   ├── SignInButton.tsx
-│   │   │   └── SignOutButton.tsx
-│   │   ├── checkins/                # Monthly + quarterly check-in form components
-│   │   │   ├── DeleteQuarterlyCheckinButton.tsx
-│   │   │   ├── EmployeeCheckinForm.tsx     # Employee pre-meeting section
-│   │   │   ├── GoalAchievementList.tsx
-│   │   │   ├── MitPlanList.tsx
-│   │   │   ├── MitReviewList.tsx
-│   │   │   ├── MonthSelector.tsx
-│   │   │   ├── MonthlyDoneWellSummary.tsx
-│   │   │   ├── MoodSelector.tsx
-│   │   │   ├── MoodTrendSummary.tsx
-│   │   │   ├── QuarterlyCheckinEmployeeForm.tsx
-│   │   │   ├── ScheduleCallButton.tsx
-│   │   │   └── ValueChipSelector.tsx
-│   │   ├── dashboard/               # Dashboard-specific widgets
-│   │   │   ├── PendingApprovals.tsx # Manager join request approvals card
-│   │   │   └── PulseCard.tsx        # Mood/energy pulse widget
-│   │   ├── guide/
-│   │   │   └── GuideSectionEditor.tsx  # Rich-text guide section editor
-│   │   ├── layout/                  # Shell components
-│   │   │   ├── Header.tsx           # Top bar with user avatar + sign out
-│   │   │   ├── Sidebar.tsx          # Role-aware nav sidebar
-│   │   │   └── StandardLayout.tsx   # Wrapper: Header + Sidebar + main content
-│   │   ├── okrs/                    # OKR management components
-│   │   │   ├── AddEntryButton.tsx
-│   │   │   ├── DeleteGoalButton.tsx
-│   │   │   ├── OkrForm.tsx
-│   │   │   ├── OkrProgressControls.tsx
-│   │   │   └── OkrStatusActions.tsx
-│   │   ├── onboarding/
-│   │   │   └── OnboardingForm.tsx   # Manager-select + name form for new users
-│   │   ├── performance/             # Scoring forms
-│   │   │   ├── AnnualScoreForm.tsx  # HR_ADMIN annual score override form
-│   │   │   └── QuarterlyScoringForm.tsx  # Manager quarterly 1-5 score form
-│   │   ├── theme/
-│   │   │   ├── ThemeProvider.tsx    # next-themes wrapper
-│   │   │   └── ThemeToggle.tsx      # Light/dark toggle button
-│   │   └── ui/                      # Shadcn/ui components (owned copies)
-│   │       ├── alert.tsx
-│   │       ├── avatar.tsx
-│   │       ├── badge.tsx
-│   │       ├── button.tsx
-│   │       ├── card.tsx
-│   │       ├── dialog.tsx
-│   │       ├── dropdown-menu.tsx
-│   │       ├── form.tsx
-│   │       ├── input.tsx
-│   │       ├── label.tsx
-│   │       ├── select.tsx
-│   │       ├── separator.tsx
-│   │       ├── sheet.tsx
-│   │       ├── table.tsx
-│   │       ├── tabs.tsx
-│   │       └── textarea.tsx
-│   └── lib/
-│       ├── actions/                 # Server Actions ('use server')
-│       │   ├── admin-actions.ts     # User management, role/manager assignment, score visibility
-│       │   ├── checkin-actions.ts   # Monthly check-in upsert (employee + manager sections)
-│       │   ├── guide-actions.ts     # Guide section CRUD
-│       │   ├── okr-actions.ts       # OKR + key result CRUD, status transitions
-│       │   ├── okr-progress-actions.ts  # Key result progress status + initiative completion
-│       │   ├── onboarding-actions.ts    # Profile setup, manager request, approve/decline
-│       │   ├── performance-actions.ts   # Quarterly scores + annual score upserts
-│       │   ├── period-actions.ts    # Auto-advance performance periods (ensureCurrentPeriod)
-│       │   ├── quarterly-checkin-actions.ts  # Quarterly check-in upsert
-│       │   └── user-actions.ts      # Profile self-update
-│       ├── auth/
-│       │   └── allowed-domains.ts   # Email domain whitelist (lunarrails.io, 40acres.pro, etc.)
-│       ├── constants/
-│       │   └── mood.ts              # Mood/energy label constants
-│       ├── supabase/
-│       │   ├── client.ts            # Browser Supabase client (createBrowserClient)
-│       │   └── server.ts            # Server Supabase client (createServerClient) + getOrProvisionProfile
-│       ├── types/
-│       │   └── database.ts          # All TypeScript interfaces + Database type map
-│       ├── __tests__/
-│       │   └── reminder-logic.test.ts  # Unit test for reminder scheduling logic
-│       ├── notifications.ts         # Resend email helpers (check-in submitted/reviewed, OKR approved)
-│       ├── reminder-logic.ts        # Logic for scheduling reminder emails
-│       ├── slack.ts                 # Slack notification helpers
-│       └── utils.ts                 # cn() class merger utility
+lunar-track/
+├── src/                          # Application source (Next.js App Router)
+│   ├── app/                      # Routes, layouts, global CSS
+│   ├── components/               # React UI (feature + ui primitives)
+│   ├── lib/                      # Server actions, Supabase, types, helpers
+│   └── proxy.ts                  # Next.js 16 request proxy (auth / gates)
 ├── supabase/
-│   └── migrations/                  # Sequential SQL migrations (run order matters)
-│       ├── 00001_foundation.sql     # profiles, org_closure, performance_periods, RLS, SECURITY DEFINER fns
-│       ├── 00002_core_features.sql  # okrs, okr_initiatives, checkins, RLS
-│       ├── 00003_performance_cycle.sql  # quarterly_okr_reviews, quarterly_scores, annual_scores, RLS
-│       ├── 00004_framework_guide.sql    # guide_sections table
-│       ├── 00005_quarterly_checkins.sql # quarterly_checkins table, RLS
-│       ├── 00006_company_values.sql     # company_values table + value_ratings JSONB on quarterly_scores
-│       ├── 00007_drop_quarterly_okr_reviews.sql  # Removes unused table
-│       ├── 00008_okr_progress.sql       # progress_status on key_results, completed on initiatives
-│       ├── 00009_mits_jsonb.sql         # Migrates MITs from fixed columns to JSONB arrays
-│       ├── 00010_org_structure.sql      # Seeds full Lunar Rails org roster + hierarchy
-│       ├── 00011_checkin_v2.sql         # Checkin v2 schema updates
-│       ├── 00012_live_reconciliation.sql  # Profile live-reconciliation RPC
-│       ├── 00013_auth_onboarding_hardening.sql  # is_onboarded, pending_manager_id on profiles
-│       ├── 00014_fix_postgrest_authenticator_grants.sql
-│       ├── 00015_fix_auth_identities.sql
-│       ├── 00016_mgr_private_note.sql   # mgr_private_note column on checkins + quarterly_checkins
-│       ├── 00017_ai_builder_and_values.sql  # AI builder fields, value_self_assessments on quarterly_checkins
-│       ├── 00018_domain_whitelist.sql   # DB-layer email domain restriction trigger
-│       ├── 00019_ai_builder_and_values.sql  # (duplicate slug — additive AI builder fields)
-│       ├── 00019_mood_tracking.sql      # mood_energy, mood_productivity on checkins
-│       ├── 00020_hr_admins_max_francesco.sql  # Seeds specific HR_ADMIN users
-│       ├── 00021_goals_soft_delete.sql  # deleted_at on okrs (soft delete)
-│       ├── 00022_cleanup_demo_data.sql  # Removes demo rows
-│       ├── 00023_pulse_options.sql      # pulse_options table for configurable mood labels
-│       └── 00024_pulse_options_ensure.sql  # Ensures pulse_options rows exist
+│   └── migrations/               # PostgreSQL schema, RLS, RPCs (00001–00031)
 ├── netlify/
-│   └── functions/                   # Netlify serverless functions (non-Next.js)
-├── docs/
-│   └── superpowers/                 # Planning documents (specs, plans)
-├── public/                          # Static assets (favicons, OG image)
-├── CLAUDE.md                        # Project-level AI assistant instructions
-├── AGENTS.md                        # Agent configuration
-├── components.json                  # Shadcn/ui configuration
+│   └── functions/                  # Scheduled email/Slack reminder handlers
+├── public/                       # Static assets (favicons, OG image, icons)
+├── scripts/                      # Deploy helpers (e.g. netlify-build.sh)
+├── docs/                         # Design notes and superpowers plans (reference)
+├── .planning/                    # GSD planning artifacts (not runtime)
+├── components.json               # Shadcn CLI config (aliases, Tailwind entry)
+├── next.config.ts                # Next config (minimal)
+├── netlify.toml                  # Netlify build, functions, cron schedules
+├── package.json                  # deps: next 16, supabase, zod, vitest
+├── tsconfig.json                 # @/* path alias → ./src/*
 ├── eslint.config.mjs
-├── netlify.toml                     # Netlify build + function config
-├── next.config.ts                   # Next.js config (minimal — no custom config)
-├── package.json
 ├── postcss.config.mjs
-└── tsconfig.json
+└── .env.example                  # Documented env var names (no secrets)
 ```
 
 ## Directory Purposes
 
-**`src/app/(protected)/`:**
-- Purpose: All authenticated application pages
-- Contains: Server Component pages that fetch data directly from Supabase, role-specific layouts
-- Key files: `layout.tsx` (auth gate), `dashboard/page.tsx` (primary landing)
+**`src/app/`:**
+- Purpose: File-system routing for pages, layouts, and route handlers.
+- Contains: `page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`, `route.ts`, `globals.css`.
+- Key files: `src/app/layout.tsx` (root fonts, ThemeProvider, NuqsAdapter), `src/app/(protected)/layout.tsx` (auth shell), `src/app/login/page.tsx`, `src/app/auth/callback/route.ts`.
 
-**`src/components/ui/`:**
-- Purpose: Shadcn/ui base components — owned copies, not imported from npm
-- Contains: Radix-based primitives styled with LR design tokens
-- Note: Customize here directly; do not install new Shadcn components without copying them in
+**`src/components/`:**
+- Purpose: Reusable UI; feature folders mirror product domains.
+- Contains: Client and server-safe components; Shadcn copies in `ui/`.
+- Key files: `src/components/layout/StandardLayout.tsx`, `src/components/checkins/EmployeeCheckinForm.tsx`, `src/components/ui/button.tsx`.
 
-**`src/lib/actions/`:**
-- Purpose: All write operations for the application
-- Contains: `'use server'` files grouped by domain
-- Pattern: Every action validates auth via `getCallerProfile()` before any DB write
-
-**`src/lib/types/database.ts`:**
-- Purpose: Single source of truth for all TypeScript types
-- Contains: All entity interfaces, the `Database` mapped type for Supabase client generics, enum types
-- Note: Manually maintained — must be kept in sync with migrations
+**`src/lib/`:**
+- Purpose: Server-side logic shared across routes (no `src/services/` layer).
+- Contains: `actions/`, `supabase/`, `types/`, `auth/`, `constants/`, integration helpers.
+- Key files: `src/lib/supabase/server.ts`, `src/lib/types/database.ts`, `src/lib/actions/checkin-actions.ts`, `src/lib/notifications.ts`.
 
 **`supabase/migrations/`:**
-- Purpose: Ordered SQL migration history
-- Contains: DDL, RLS policies, SECURITY DEFINER functions, seed data
-- Note: Two files share the `00019_` prefix — this is a naming collision in the migration history
+- Purpose: Versioned SQL for tables, indexes, RLS, and RPCs.
+- Contains: Sequential `000NN_*.sql` files applied via `npm run supabase:push`.
+- Key files: `00001_foundation.sql` (profiles, org_closure, periods), `00011_checkin_v2.sql`, `00025_security_fixes.sql`.
+
+**`netlify/functions/`:**
+- Purpose: Background jobs outside the Next.js request lifecycle.
+- Contains: `.mts` handlers importing shared logic from `src/lib/`.
+- Key files: `email-reminders.mts`, `slack-reminders.mts`.
+
+**`public/`:**
+- Purpose: Static files served as-is.
+- Contains: Favicons, `og-image.png`, brand SVGs.
+
+**`docs/`:**
+- Purpose: Human-written specs and implementation plans (not imported by app).
+- Contains: `docs/superpowers/specs/`, `docs/superpowers/plans/`, `docs/slack-reminders-setup.md`.
 
 ## Key File Locations
 
 **Entry Points:**
-- `src/app/page.tsx`: Root redirect
-- `src/app/(protected)/layout.tsx`: Auth + session bootstrap on every protected request
-- `src/app/auth/callback/route.ts`: OAuth callback handler
+- `src/app/page.tsx`: Root redirect to `/dashboard` or `/login`.
+- `src/proxy.ts`: Pre-handler auth and first-check-in gate (Next.js 16 proxy convention).
+- `src/app/auth/callback/route.ts`: Post-login session + profile provisioning.
+- `netlify/functions/email-reminders.mts`: Daily email reminder cron.
 
 **Configuration:**
-- `src/lib/auth/allowed-domains.ts`: Email domain whitelist
-- `components.json`: Shadcn/ui config (component paths, Tailwind config)
-- `netlify.toml`: Deployment config
+- `next.config.ts`: Next.js settings.
+- `tsconfig.json`: Strict TS; path alias `@/*` → `./src/*`.
+- `components.json`: Shadcn paths (`@/components`, `@/lib/utils`).
+- `netlify.toml`: Build command, function schedules, Next plugin.
+- `eslint.config.mjs`: ESLint 9 flat config.
+- `postcss.config.mjs`: Tailwind v4 PostCSS pipeline.
+- `.env.example`: Required public Supabase vars and optional integrations.
 
 **Core Logic:**
-- `src/lib/supabase/server.ts`: Server-side Supabase client + `getOrProvisionProfile()`
-- `src/lib/actions/period-actions.ts`: `ensureCurrentPeriod()` — period auto-management
-- `src/lib/types/database.ts`: All types
-- `src/lib/notifications.ts`: Email notification helpers
+- `src/lib/actions/*.ts`: All mutation entry points (14 modules).
+- `src/lib/supabase/server.ts`: `createClient()`, `getOrProvisionProfile()`.
+- `src/lib/types/database.ts`: Domain interfaces and partial Supabase `Database` type.
+- `src/lib/reminder-logic.ts`: Pure date/window helpers for cron jobs.
+- `src/lib/auth/allowed-domains.ts`: Email domain whitelist for login.
 
 **Testing:**
-- `src/lib/__tests__/reminder-logic.test.ts`: Only test file in the codebase
+- `src/lib/__tests__/reminder-logic.test.ts`: Vitest unit tests (only test file in repo).
+- `package.json` scripts: `npm test` / `npm run test:watch` (Vitest).
+
+## App Router Map (`src/app/`)
+
+| Route prefix | Purpose | Key files |
+|--------------|---------|-----------|
+| `/` | Auth redirect | `src/app/page.tsx` |
+| `/login` | Magic link sign-in | `src/app/login/page.tsx` |
+| `/onboarding` | First-run profile setup | `src/app/onboarding/page.tsx` |
+| `/dashboard` | Home hub (role-aware) | `src/app/(protected)/dashboard/page.tsx` |
+| `/checkins` | Monthly check-ins list/create/detail | `src/app/(protected)/checkins/**` |
+| `/quarterly-checkins` | Quarterly employee reviews | `src/app/(protected)/quarterly-checkins/**` |
+| `/okrs` | Goals (OKRs) CRUD | `src/app/(protected)/okrs/**` |
+| `/team` | Manager report list + member hub | `src/app/(protected)/team/**` |
+| `/scoring` | Manager quarterly 1–5 scoring | `src/app/(protected)/scoring/[employeeId]/[periodId]/page.tsx` |
+| `/annual-scores` | Annual roll-up / finalize | `src/app/(protected)/annual-scores/[employeeId]/page.tsx` |
+| `/my-performance` | Employee performance summary | `src/app/(protected)/my-performance/page.tsx` |
+| `/inbox` | Manager pending OKR approvals | `src/app/(protected)/inbox/page.tsx` |
+| `/org` | Org chart (read) | `src/app/(protected)/org/page.tsx` |
+| `/analytics` | HR/manager charts | `src/app/(protected)/analytics/page.tsx` |
+| `/guide` | Framework guide content | `src/app/(protected)/guide/page.tsx` |
+| `/settings` | Profile, notifications, appearance | `src/app/(protected)/settings/page.tsx` |
+| `/admin` | HR admin (users, org, values, scores, calibration) | `src/app/(protected)/admin/**` |
+
+**Route groups:**
+- `(protected)/` — does not affect URL; shares `src/app/(protected)/layout.tsx` and requires onboarding.
+
+## Component Organization (`src/components/`)
+
+| Folder | Responsibility | Example files |
+|--------|----------------|---------------|
+| `admin/` | HR admin tables, org tree, values, pulse options | `UsersTable.tsx`, `OrgTree.tsx` |
+| `analytics/` | Recharts visualizations | `ScoreDistributionChart.tsx` |
+| `auth/` | Login, sign-out, magic link | `MagicLinkForm.tsx` |
+| `checkins/` | Monthly/quarterly forms, MIT lists, mood | `EmployeeCheckinForm.tsx`, `MitPlanList.tsx` |
+| `dashboard/` | Dashboard widgets | `PulseCard.tsx`, `PendingApprovals.tsx` |
+| `guide/` | Editable guide sections | `GuideSectionEditor.tsx` |
+| `kudos/` | Peer recognition | `SendKudosSheet.tsx` |
+| `layout/` | App chrome | `Header.tsx`, `Sidebar.tsx`, `StandardLayout.tsx` |
+| `okrs/` | Goal forms and status | `OkrForm.tsx`, `OkrProgressControls.tsx` |
+| `onboarding/` | Onboarding wizards | `OnboardingForm.tsx` |
+| `org/` | Org chart visualization | `OrgChart.tsx` |
+| `performance/` | Scoring forms | `QuarterlyScoringForm.tsx` |
+| `profile/` | Profile settings UI | `ProfileSettingsForm.tsx` |
+| `settings/` | Settings page sections | `NotificationsSection.tsx` |
+| `team/` | Manager team tools | `InviteTeamMember.tsx` |
+| `theme/` | Dark/light provider | `ThemeProvider.tsx` |
+| `ui/` | Shadcn/Radix primitives | `button.tsx`, `select.tsx`, `form.tsx` |
+
+## Server Actions (`src/lib/actions/`)
+
+| File | Domain |
+|------|--------|
+| `checkin-actions.ts` | Monthly check-in employee/manager upsert, reopen |
+| `quarterly-checkin-actions.ts` | Quarterly check-in upsert/delete |
+| `okr-actions.ts` | Goal CRUD and status transitions |
+| `okr-progress-actions.ts` | Key result / initiative progress |
+| `performance-actions.ts` | Quarterly scores, visibility, annual finalize |
+| `period-actions.ts` | Auto-create/advance `performance_periods` |
+| `onboarding-actions.ts` | Onboarding submit, team request approve/decline |
+| `user-actions.ts` | Profile, role, manager assignment, notification prefs |
+| `team-actions.ts` | Invite team member |
+| `admin-actions.ts` | Deactivate user, company values, pulse options |
+| `guide-actions.ts` | Guide section updates |
+| `kudos-actions.ts` | Send/delete kudos |
+| `historical-review-actions.ts` | LLM extract + save past reviews |
 
 ## Naming Conventions
 
 **Files:**
-- Pages and layouts: `page.tsx`, `layout.tsx` (Next.js convention)
-- Components: PascalCase, descriptive noun phrases — `QuarterlyScoringForm.tsx`, `PendingApprovals.tsx`
-- Server Actions files: kebab-case, domain-grouped — `checkin-actions.ts`, `performance-actions.ts`
-- Utility files: camelCase — `utils.ts`, `notifications.ts`
+- **Pages:** `page.tsx` in kebab-case route folders (`[checkinId]`, `[employeeId]`).
+- **Layouts:** `layout.tsx` per segment; `loading.tsx`, `error.tsx` where needed.
+- **Components:** PascalCase `.tsx` (`EmployeeCheckinForm.tsx`); one default export component per file.
+- **Server Actions:** kebab-case `*-actions.ts` in `src/lib/actions/`.
+- **Migrations:** `000NN_snake_case_description.sql`.
+- **Netlify functions:** kebab-case `.mts` matching deployed name in `netlify.toml`.
 
 **Directories:**
-- Feature directories match route segment names: `checkins/`, `okrs/`, `quarterly-checkins/`
-- Component directories match feature: `src/components/checkins/`, `src/components/okrs/`
+- **Routes:** kebab-case (`quarterly-checkins`, `annual-scores`).
+- **Components:** lowercase domain folders (`checkins`, `okrs`).
+- **Route groups:** parentheses, e.g. `(protected)` — not in URL.
 
-**Exports:**
-- Pages: default export only (Next.js requirement)
-- Components: default export
-- Actions: named exports (each action is a named `async function`)
-- Types: named exports from `src/lib/types/database.ts`
+**Symbols:**
+- **React components:** PascalCase function components (`export default function DashboardPage`).
+- **Server Actions:** camelCase verbs (`upsertCheckinEmployee`, `ensureCurrentPeriod`).
+- **Types/interfaces:** PascalCase in `src/lib/types/database.ts` (`Profile`, `ReviewMit`).
+- **DB-aligned fields:** snake_case in types and FormData (`review_mits`, `okr_id`); user-facing copy says "Goal".
+
+**Imports:**
+- Use `@/` alias for all app imports (`@/components/...`, `@/lib/...`).
+- Order observed: external packages → `@/` absolute → relative (rare).
 
 ## Where to Add New Code
 
-**New page (authenticated):**
-- Add `src/app/(protected)/[feature]/page.tsx` as an async Server Component
-- Add `export const dynamic = 'force-dynamic'` at the top
-- Fetch data directly using `await createClient()` from `src/lib/supabase/server.ts`
-- Add nav link in `src/components/layout/Sidebar.tsx` if needed
+**New authenticated page:**
+- Primary code: `src/app/(protected)/<feature>/page.tsx`
+- Shared shell: automatic via `src/app/(protected)/layout.tsx`
+- HR-only: nest under `src/app/(protected)/admin/` and rely on `src/app/(protected)/admin/layout.tsx`
 
-**New mutation (Server Action):**
-- Add to the appropriate `src/lib/actions/[domain]-actions.ts` file
-- Start with `'use server'` directive
-- Call `getCallerProfile()` first, check `caller.role`
-- Use Zod schema for input validation
-- End with `revalidatePath('/relevant-path')`
-- Return `{ success: true }` or `{ error: string }`
+**New mutation (create/update/delete):**
+- Implementation: new or existing file in `src/lib/actions/<domain>-actions.ts` with `'use server'`
+- Validation: Zod schemas colocated in the action file
+- Do not add `src/app/api/` routes for domain writes
 
-**New interactive component:**
-- Add `'use client'` at top
-- Place in `src/components/[feature]/ComponentName.tsx`
-- Import Server Actions directly (Next.js handles the boundary)
-- Use Shadcn/ui components from `src/components/ui/`
+**New read-heavy view without mutation:**
+- Prefer async RSC `page.tsx` with `createClient()` queries
+- If queries grow beyond ~50 lines, extract to `src/lib/queries/<name>.ts` (convention to adopt — directory does not exist yet)
 
-**New DB table:**
-- Create `supabase/migrations/000XX_description.sql`
-- Define table, indexes, `ENABLE ROW LEVEL SECURITY`, and all RLS policies
-- Add TypeScript interface to `src/lib/types/database.ts`
-- Add to the `Database['public']['Tables']` map in the same file
+**New interactive UI:**
+- Feature component: `src/components/<domain>/<ComponentName>.tsx`
+- Add `'use client'` only when using hooks, browser APIs, or event handlers
+- Reuse primitives from `src/components/ui/`; style with `lr-*` tokens from `src/app/globals.css`
 
-**New Shadcn component:**
-- Run `npx shadcn@latest add [component]` (copies into `src/components/ui/`)
-- Apply LR design tokens in the copied file as needed
+**New Shadcn primitive:**
+- Run Shadcn CLI per `components.json` → lands in `src/components/ui/`
+- Override popover/select with project dropdown conventions (`side="bottom"`, `bg-lr-bg`)
+
+**New database table / RPC / policy:**
+- SQL: next sequential file in `supabase/migrations/000NN_<name>.sql`
+- Types: extend `src/lib/types/database.ts` (`Database` and exported interfaces)
+- Apply: `npm run supabase:push` (uses pooler URL from `.env.local`)
+
+**New scheduled / background job:**
+- Handler: `netlify/functions/<name>.mts`
+- Schedule: add `[functions."<name>"]` block in `netlify.toml`
+- Shared logic: pure functions in `src/lib/` (importable from both Next and Netlify)
+
+**New unit tests:**
+- Colocate under `src/lib/__tests__/` or next to module as `*.test.ts`
+- Run via `npm test` (Vitest)
+
+**New static asset:**
+- `public/<file>` — reference as `/file` from pages
 
 ## Special Directories
 
-**`supabase/migrations/`:**
-- Purpose: Sequential DB migration history
-- Generated: No — hand-authored
-- Committed: Yes
-
 **`.planning/`:**
-- Purpose: GSD planning artifacts (codebase maps, phase plans)
-- Generated: Yes (by GSD workflow commands)
-- Committed: Yes
+- Purpose: GSD roadmap, codebase maps, phase plans.
+- Generated: Partially agent-written.
+- Committed: Yes — planning context for humans/agents; not imported by app.
 
-**`netlify/functions/`:**
-- Purpose: Netlify serverless functions outside Next.js
-- Generated: No
-- Committed: Yes
+**`.netlify/`:**
+- Purpose: Local Netlify dev/build cache.
+- Generated: Yes.
+- Committed: No (typically gitignored).
 
-**`.next/`:**
-- Purpose: Next.js build output
-- Generated: Yes
-- Committed: No
+**`node_modules/`, `.next/`:**
+- Purpose: Dependencies and Next build output.
+- Generated: Yes.
+- Committed: No.
+
+**`docs/superpowers/`:**
+- Purpose: Feature design archives (check-in v2, manager improvements).
+- Generated: No.
+- Committed: Yes — reference only when implementing related features.
+
+**`src/components/ui/`:**
+- Purpose: Owned Shadcn component copies (not npm package).
+- Generated: Via Shadcn CLI init/add.
+- Committed: Yes — customize with LR tokens.
+
+**`supabase/.temp/`:**
+- Purpose: Supabase CLI local state.
+- Generated: Yes.
+- Committed: No.
+
+## Path Alias Reference
+
+From `tsconfig.json` / `components.json`:
+
+| Alias | Resolves to |
+|-------|-------------|
+| `@/*` | `src/*` |
+| `@/components` | `src/components` |
+| `@/components/ui` | `src/components/ui` |
+| `@/lib` | `src/lib` |
+| `@/lib/utils` | `src/lib/utils.ts` (`cn()` helper) |
+| `@/hooks` | `src/hooks` (alias configured; directory not present — create if adding hooks) |
+
+## Related Non-Source Areas
+
+- **`scripts/netlify-build.sh`:** Production build wrapper invoked by Netlify (`npm run build:deploy`).
+- **`deno.lock`:** Lockfile for Deno-used Netlify function tooling (if applicable).
+- **`AGENTS.md` / `CLAUDE.md`:** Agent-oriented project rules (stack, conventions, GSD workflow).
 
 ---
 
-*Structure analysis: 2026-05-23*
+*Structure analysis: 2026-06-04*
