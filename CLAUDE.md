@@ -177,6 +177,75 @@ Three dimensions, each rated 1–5. Labels are tooltips only — not shown in th
 Architecture not yet mapped. Follow existing patterns found in the codebase.
 <!-- GSD:architecture-end -->
 
+## Known Patterns & Decisions
+
+### Environment variables (Netlify)
+| Key | Purpose |
+|-----|---------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
+| `MAILTRAP_API_TOKEN` | Email notifications (NOT Resend — we use Mailtrap) |
+| `MAILTRAP_FROM` | Sender address, e.g. `noreply@lunarrails.io` |
+| `OPENAI_API_KEY` | "Extract with AI" on historical reviews (NOT Anthropic) |
+| `SLACK_WORKSPACE_TOKENS` | JSON map of domain → Slack bot token for reminders |
+
+`SUPABASE_SERVICE_ROLE_KEY` is no longer needed — invite flow uses SECURITY DEFINER RPCs.
+
+### Supabase project
+- **Production:** `ftlxbyzeypaqelygkzhc`
+- **Dev/local:** `xcdalomaepdxjzwysadc` (MCP is connected to this one only)
+- Never run migrations on dev — always use the Supabase SQL Editor on the production project.
+
+### Auth: magic link (OTP)
+- All 113 employees were bulk-imported. They log in via magic link, not Google OAuth.
+- `auth.users` rows must have all string token columns set to `''` (not NULL) — gotrue panics on NULL strings.
+- `raw_app_meta_data.providers` must be `["email"]` not `["google"]` for magic link users.
+- Allowed login domains are the single source of truth in `src/lib/auth/allowed-domains.ts`.
+
+### Org hierarchy
+- `org_closure` table stores ancestor/descendant pairs with depth.
+- After any bulk `profiles.manager_id` update, rebuild closure with:
+  ```sql
+  DELETE FROM org_closure WHERE depth > 0;
+  -- then re-insert via recursive CTE from profiles.manager_id
+  ```
+- `rebuild_closure_for_employee(employee_uuid, new_manager_uuid)` RPC handles individual reassignments.
+
+### Team invite (no service role)
+- `invite_team_member(p_email)` RPC — validates caller role, stores a `pending_invites` row.
+- `claim_pending_invite(p_email)` RPC — called in `getOrProvisionProfile` on first login, wires `manager_id`.
+- Migration: `supabase/migrations/00034_pending_invites.sql` (must be run on production).
+
+### `is_active` filter
+- Bulk-imported employees have `is_active = NULL` (never explicitly set).
+- Always use `.not('is_active', 'eq', false)` — **never** `.eq('is_active', true)`.
+- This includes NULL (imported) and true (manually activated). Only `false` (deactivated/left) is excluded.
+
+### Server Actions: slow operations
+- Use `after()` from `next/server` for email notifications and non-critical DB side-effects.
+- The main DB write must complete synchronously; `after()` runs post-response.
+- Already applied to: `upsertCheckinEmployee` (MIT carry + manager email), `upsertCheckinManager` (employee email), `reopenCheckin` (manager email).
+
+### Email notifications (Mailtrap)
+- All emails go through `src/lib/notifications.ts` → `sendEmail()` → Mailtrap API.
+- `baseTemplate(content)` + `ctaButton(label, url)` helpers used for all notifications.
+- Notifications fire via `after()` — never block the server action response.
+
+### Manager notes on monthly check-ins
+- `ManagerCheckinNotes` component (`src/components/checkins/ManagerCheckinNotes.tsx`).
+- `upsertCheckinManager` server action in `checkin-actions.ts`.
+- DB fields: `mgr_mit_notes`, `mgr_done_well`, `mgr_do_differently`, `mgr_support_commitments`, `mgr_private_note`, `manager_submitted_at`.
+- **Privacy:** `mgr_private_note` is stripped server-side before passing to the component for employee viewers. Never sent to the client for non-managers.
+- Employees only see manager notes after `manager_submitted_at` is set (not during draft).
+
+### Kudos recipient query
+- Both `getKudosFormData()` and the dashboard profiles query use `.not('is_active', 'eq', false)` — same is_active rule as above.
+
+### Open PRs (as of session end)
+- **#17** `fix/kudos-empty-recipients` — kudos sheet showed no recipients
+- **#18** `fix/checkin-submit-speed` — submit was slow (after() for email/carry)
+- **#19** `feat/manager-checkin-notes` — manager notes section on monthly check-ins
+
 <!-- GSD:skills-start source:skills/ -->
 ## Project Skills
 
