@@ -220,7 +220,7 @@ export default function EmployeeCheckinForm({
 
           {!readOnly && (
             <div className="flex items-center justify-end gap-3">
-              {savedAt && <span className="text-xs text-lr-muted">Saved {savedAt.toLocaleTimeString()}</span>}
+              {savedAt && <span className="text-xs text-lr-success">Draft saved {savedAt.toLocaleTimeString()} — find it under Check-ins</span>}
               <Button type="button" onClick={save} disabled={isPending} variant="outline" className="border-lr-border text-lr-text hover:bg-lr-surface">
                 {isPending ? 'Saving…' : 'Save Draft'}
               </Button>
@@ -255,7 +255,7 @@ export default function EmployeeCheckinForm({
               <Button type="button" onClick={submit} disabled={isPending} className="bg-lr-accent hover:bg-lr-accent/90 text-white">
                 {isPending ? 'Submitting…' : 'Submit Check-in'}
               </Button>
-              {savedAt && <span className="text-xs text-lr-muted">Saved {savedAt.toLocaleTimeString()}</span>}
+              {savedAt && <span className="text-xs text-lr-success">Draft saved {savedAt.toLocaleTimeString()} — find it under Check-ins</span>}
             </div>
           )}
         </div>
