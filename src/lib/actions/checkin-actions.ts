@@ -24,19 +24,27 @@ async function getCallerProfile(supabase: Awaited<ReturnType<typeof createClient
   return data as Profile | null
 }
 
+// Coerce any value to a length-bounded string and never throw. A single
+// legacy/imported MIT field (null description, number, over-long text) must not
+// reject the whole array and surface the opaque "Invalid MITs format" error.
+const boundedText = (max: number) =>
+  z
+    .preprocess((v) => (typeof v === 'string' ? v : v == null ? '' : String(v)), z.string())
+    .transform((s) => s.slice(0, max))
+
 const reviewMitSchema = z.object({
-  title: z.string().max(200),
-  description: z.string().max(500).default(''),
-  okr_id: z.string().nullable().default(null),
-  okr_label: z.string().nullable().default(null),
-  status: z.enum(['achieved', 'not_achieved']).default('not_achieved'),
+  title: boundedText(300),
+  description: boundedText(4000),
+  okr_id: z.string().nullable().catch(null),
+  okr_label: z.string().nullable().catch(null),
+  status: z.enum(['achieved', 'not_achieved']).catch('not_achieved'),
 })
 
 const planMitSchema = z.object({
-  title: z.string().max(200),
-  description: z.string().max(500).default(''),
-  okr_id: z.string().nullable().default(null),
-  okr_label: z.string().nullable().default(null),
+  title: boundedText(300),
+  description: boundedText(4000),
+  okr_id: z.string().nullable().catch(null),
+  okr_label: z.string().nullable().catch(null),
 })
 
 export async function upsertCheckinEmployee(formData: FormData): Promise<ActionResult> {
