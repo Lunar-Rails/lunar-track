@@ -1,18 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '@/lib/types/database'
-
-// Paths an onboarded-but-not-yet-checked-in employee may still reach
-const GATE_EXEMPT_PREFIXES = [
-  '/checkins',
-  '/guide',
-  '/login',
-  '/auth',
-  '/onboarding',
-  '/settings',
-  '/org',
-  '/team',
-]
+import { isGateExempt } from '@/lib/gate'
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -62,7 +51,7 @@ export async function middleware(request: NextRequest) {
 
   // First-check-in gate: onboarded employees must submit their first monthly
   // check-in before accessing the rest of the app.
-  if (user && !GATE_EXEMPT_PREFIXES.some((p) => pathname.startsWith(p))) {
+  if (user && !isGateExempt(pathname)) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: profileRow } = await (supabase as any)
       .from('profiles')
