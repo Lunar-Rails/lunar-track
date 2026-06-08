@@ -25,11 +25,11 @@ function initReviewMits(checkin: Checkin | null): ReviewMit[] {
   if (!checkin) return [{ title: '', description: '', okr_id: null, okr_label: null, status: 'not_achieved' }]
   if (checkin.mits && checkin.mits.length > 0) {
     return checkin.mits.map((m) => ({
-      title: m.title,
-      description: m.description,
+      title: m.title ?? '',
+      description: m.description ?? '',
       okr_id: (m as ReviewMit).okr_id ?? null,
       okr_label: (m as ReviewMit).okr_label ?? null,
-      status: (m as ReviewMit).status ?? 'not_achieved',
+      status: (m as ReviewMit).status === 'achieved' ? 'achieved' : 'not_achieved',
     }))
   }
   const legacy: ReviewMit[] = []
@@ -43,7 +43,12 @@ function initPlanMits(checkin: Checkin | null): PlanMit[] {
   if (!checkin?.next_mits || checkin.next_mits.length === 0) {
     return [{ title: '', description: '', okr_id: null, okr_label: null }]
   }
-  return checkin.next_mits
+  return checkin.next_mits.map((m) => ({
+    title: m.title ?? '',
+    description: m.description ?? '',
+    okr_id: m.okr_id ?? null,
+    okr_label: m.okr_label ?? null,
+  }))
 }
 
 type Step = 'review' | 'plan'
