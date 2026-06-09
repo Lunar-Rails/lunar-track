@@ -84,7 +84,7 @@ export default function MitPlanList({
                   </SelectContent>
                 </Select>
                 ) : (
-                  <p className="text-xs text-lr-muted italic">No quarterly goals added yet — add them in the OKRs section to link MITs.</p>
+                  <p className="text-xs text-lr-muted italic">No quarterly goals added yet — add them in the Dashboard.</p>
                 )}
               </div>
             </div>

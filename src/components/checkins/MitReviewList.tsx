@@ -103,7 +103,7 @@ export default function MitReviewList({ value, onChange, linkOptions = [], disab
                   </Select>
                 </div>
               ) : !disabled && linkOptions.length === 0 ? (
-                <p className="text-xs text-lr-muted italic">No quarterly goals added yet — add them in the OKRs section to link MITs.</p>
+                <p className="text-xs text-lr-muted italic">No quarterly goals added yet — add them in the Dashboard.</p>
               ) : (
                 mit.okr_id ? (
                   <p className="text-xs text-lr-accent">Goal: {mit.okr_label ?? mit.okr_id}</p>
