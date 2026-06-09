@@ -1,5 +1,8 @@
 import { redirect, notFound } from 'next/navigation'
+import Link from 'next/link'
+import { Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { Button } from '@/components/ui/button'
 import OkrForm from '@/components/okrs/OkrForm'
 import DeleteGoalButton from '@/components/okrs/DeleteGoalButton'
 import type { Okr, KeyResult, Initiative, PerformancePeriod } from '@/lib/types/database'
@@ -41,6 +44,13 @@ export default async function OkrDetailPage({ params }: { params: Promise<{ okrI
         <p className="text-kicker">{period?.name ?? 'Unknown Period'}</p>
         <div className="flex items-center gap-3 mt-1 flex-wrap">
           <h1 className="text-page-title">{okr.title}</h1>
+          {isOwner && !isDeleted && (
+            <Link href="/okrs/new" className="ml-auto">
+              <Button variant="outline" size="sm" className="border-lr-accent text-lr-accent hover:bg-lr-accent-dim gap-1.5">
+                <Plus className="h-3.5 w-3.5" /> Add another goal
+              </Button>
+            </Link>
+          )}
         </div>
         {okr.description && (
           <p className="text-body text-lr-muted mt-2">{okr.description}</p>

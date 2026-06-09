@@ -1,7 +1,8 @@
 'use client'
 
-import { useTransition, useState } from 'react'
+import { useTransition, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { CheckCircle2, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -19,6 +20,8 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
   const [isPending, startTransition] = useTransition()
   const [serverError, setServerError] = useState<string | null>(null)
   const [titleError, setTitleError] = useState<string | null>(null)
+  const [savedNotice, setSavedNotice] = useState<string | null>(null)
+  const titleRef = useRef<HTMLInputElement>(null)
 
   const openPeriod = periods.find(p => p.status === 'open')
   const periodId = existing?.period_id ?? defaultPeriodId ?? openPeriod?.id ?? ''
@@ -26,13 +29,14 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
   const [title, setTitle] = useState(existing?.title ?? '')
   const [description, setDescription] = useState(existing?.description ?? '')
 
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  // 'navigate' → open the saved goal; 'again' → reset the form to add another in place.
+  function save(mode: 'navigate' | 'again') {
     setTitleError(null)
     setServerError(null)
     if (!title.trim()) { setTitleError('Goal title is required'); return }
 
-    const payload = { periodId, title: title.trim(), description: description.trim() || undefined }
+    const goalTitle = title.trim()
+    const payload = { periodId, title: goalTitle, description: description.trim() || undefined }
 
     startTransition(async () => {
       const formData = new FormData()
@@ -46,10 +50,24 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
       }
       if ('error' in result) {
         setServerError(result.error)
+        return
+      }
+      if (mode === 'again') {
+        // Stay on the page and clear the form so the user can add the next goal.
+        setTitle('')
+        setDescription('')
+        setSavedNotice(`“${goalTitle}” saved — add another below.`)
+        router.refresh()
+        titleRef.current?.focus()
       } else {
         router.push('success' in result && result.id ? `/okrs/${result.id}` : '/okrs')
       }
     })
+  }
+
+  function onSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    save('navigate')
   }
 
   return (
@@ -58,8 +76,9 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
         <div className="space-y-1.5">
           <label className="text-section-label">Goal</label>
           <Input
+            ref={titleRef}
             value={title}
-            onChange={e => setTitle(e.target.value)}
+            onChange={e => { setTitle(e.target.value); if (savedNotice) setSavedNotice(null) }}
             placeholder="What do you want to achieve this quarter?"
             className="bg-lr-surface border-lr-border text-lr-text placeholder:text-lr-muted font-medium"
           />
@@ -77,16 +96,29 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
         </div>
       </div>
 
+      {savedNotice && (
+        <div className="rounded-[var(--radius-lr)] bg-lr-success/10 border border-lr-success/20 px-4 py-3 flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-lr-success shrink-0" />
+          <p className="text-sm text-lr-success">{savedNotice}</p>
+        </div>
+      )}
+
       {serverError && (
         <div className="rounded-[var(--radius-lr)] bg-lr-error-dim border border-lr-error/20 px-4 py-3">
           <p className="text-sm text-lr-error">{serverError}</p>
         </div>
       )}
 
-      <div className="flex gap-3">
+      <div className="flex flex-wrap gap-3">
         <Button type="submit" disabled={isPending} className="bg-lr-accent hover:bg-lr-accent-hover text-white">
           {isPending ? 'Saving…' : existing ? 'Save Changes' : 'Create Goal'}
         </Button>
+        {!existing && (
+          <Button type="button" variant="outline" disabled={isPending} onClick={() => save('again')}
+            className="border-lr-accent text-lr-accent hover:bg-lr-accent-dim gap-1.5">
+            <Plus className="h-4 w-4" /> Create &amp; add another
+          </Button>
+        )}
         <Button type="button" variant="outline" onClick={() => router.back()}
           className="border-lr-border text-lr-muted hover:text-lr-text">
           Cancel
