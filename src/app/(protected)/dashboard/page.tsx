@@ -134,7 +134,6 @@ export default async function DashboardPage() {
   let directReports: SubordinateRow[] = []
   let pendingRequests: { id: string; email: string; full_name: string | null; created_at: string }[] = []
   let pendingCheckins = 0
-  let pendingOkrs = 0
   if (profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data: subs } = await (supabase as any).rpc('get_subordinates', {
@@ -169,10 +168,6 @@ export default async function DashboardPage() {
       type CheckinRecord = { employee_id: string; employee_submitted_at: string | null; manager_submitted_at: string | null }
       const checkins = (checkinsRaw ?? []) as CheckinRecord[]
       pendingCheckins = checkins.filter((c) => c.employee_submitted_at && !c.manager_submitted_at).length
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: okrCountRaw } = await (supabase as any).rpc('get_pending_okr_count', { manager_uuid: profile.id })
-      pendingOkrs = (okrCountRaw as number) ?? 0
     }
   }
 
@@ -371,8 +366,8 @@ export default async function DashboardPage() {
       {(profile.role === 'MANAGER' || profile.role === 'HR_ADMIN') && (
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-5 shadow-[var(--shadow-lr-card)]">
           <h2 className="text-card-title mb-4">Pending actions</h2>
-          {pendingCheckins === 0 && pendingOkrs === 0 ? (
-            <p className="text-sm text-lr-cyan">All caught up — no pending reviews or approvals.</p>
+          {pendingCheckins === 0 ? (
+            <p className="text-sm text-lr-cyan">All caught up — no pending reviews.</p>
           ) : (
             <div className="space-y-2">
               {pendingCheckins > 0 && (
@@ -380,14 +375,6 @@ export default async function DashboardPage() {
                   <div className="flex items-center justify-between rounded-[var(--radius-lr)] border border-lr-gold/30 bg-lr-gold-dim px-3 py-2.5 hover:bg-lr-gold/10 transition-colors">
                     <span className="text-sm text-lr-gold">📋 {pendingCheckins} check-in{pendingCheckins !== 1 ? 's' : ''} to review</span>
                     <span className="text-xs text-lr-gold/70">Inbox →</span>
-                  </div>
-                </Link>
-              )}
-              {pendingOkrs > 0 && (
-                <Link href="/inbox">
-                  <div className="flex items-center justify-between rounded-[var(--radius-lr)] border border-lr-accent/20 bg-lr-accent-dim px-3 py-2.5 hover:bg-lr-accent/10 transition-colors">
-                    <span className="text-sm text-lr-accent">🎯 {pendingOkrs} goal{pendingOkrs !== 1 ? 's' : ''} to approve</span>
-                    <span className="text-xs text-lr-accent/70">Inbox →</span>
                   </div>
                 </Link>
               )}

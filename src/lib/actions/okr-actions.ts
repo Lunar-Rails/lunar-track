@@ -3,17 +3,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import type { Profile, Okr, OkrStatus } from '@/lib/types/database'
-import { notifyEmployeeOkrStatusChanged } from '@/lib/notifications'
+import type { Profile, Okr } from '@/lib/types/database'
 
 type ActionResult = { success: true; id?: string } | { error: string }
-
-const TRANSITIONS: Record<OkrStatus, { to: OkrStatus[]; role: 'owner' | 'manager' }[]> = {
-  DRAFT:              [{ to: ['PENDING_REVIEW'], role: 'owner' }],
-  PENDING_REVIEW:     [{ to: ['APPROVED', 'REVISION_REQUESTED'], role: 'manager' }],
-  REVISION_REQUESTED: [{ to: ['PENDING_REVIEW'], role: 'owner' }],
-  APPROVED:           [],
-}
 
 async function getCallerProfile(supabase: Awaited<ReturnType<typeof createClient>>): Promise<Profile | null> {
   const { data: { user } } = await supabase.auth.getUser()
@@ -197,82 +189,5 @@ export async function deleteOkr(formData: FormData): Promise<ActionResult> {
 
   revalidatePath('/okrs')
   revalidatePath('/dashboard')
-  return { success: true }
-}
-
-export async function transitionOkrStatus(formData: FormData): Promise<ActionResult> {
-  const supabase = await createClient()
-  const caller = await getCallerProfile(supabase)
-  if (!caller) return { error: 'Not authenticated' }
-
-  const schema = z.object({
-    okrId: z.string().uuid(),
-    toStatus: z.enum(['PENDING_REVIEW', 'APPROVED', 'REVISION_REQUESTED']),
-    comment: z.string().max(2000).optional(),
-  })
-
-  const parsed = schema.safeParse({
-    okrId: formData.get('okrId'),
-    toStatus: formData.get('toStatus'),
-    comment: formData.get('comment') || undefined,
-  })
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Invalid input' }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: okrRaw } = await (supabase as any).from('okrs').select('*').eq('id', parsed.data.okrId).single()
-  const okr = okrRaw as Okr | null
-  if (!okr) return { error: 'OKR not found' }
-
-  const validTransitions = TRANSITIONS[okr.status] ?? []
-  const matchingTransition = validTransitions.find(t => t.to.includes(parsed.data.toStatus))
-  if (!matchingTransition) return { error: `Cannot transition from ${okr.status} to ${parsed.data.toStatus}` }
-
-  if (matchingTransition.role === 'owner' && okr.employee_id !== caller.id) {
-    return { error: 'Only the OKR owner can perform this action' }
-  }
-  if (matchingTransition.role === 'manager') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: closureCheck } = await (supabase as any)
-      .from('org_closure')
-      .select('depth')
-      .eq('ancestor_id', caller.id)
-      .eq('descendant_id', okr.employee_id)
-      .gt('depth', 0)
-      .maybeSingle()
-    if (!closureCheck) return { error: "You are not this employee's manager" }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: transitionError } = await (supabase as any).from('okrs').update({
-    status: parsed.data.toStatus,
-    manager_comment: parsed.data.comment ?? null,
-    updated_at: new Date().toISOString(),
-  }).eq('id', parsed.data.okrId)
-  if (transitionError) return { error: 'Failed to update OKR status: ' + transitionError.message }
-
-  revalidatePath(`/okrs/${parsed.data.okrId}`)
-  revalidatePath('/okrs')
-  revalidatePath('/team')
-  revalidatePath('/inbox')
-  revalidatePath('/dashboard')
-
-  // Notify employee when manager approves or requests revision
-  if (matchingTransition.role === 'manager' &&
-      (parsed.data.toStatus === 'APPROVED' || parsed.data.toStatus === 'REVISION_REQUESTED')) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: emp } = await (supabase as any)
-      .from('profiles').select('email, full_name, notification_prefs').eq('id', okr.employee_id).single()
-    if (emp && emp.notification_prefs?.goal_status_updates !== false) {
-      await notifyEmployeeOkrStatusChanged({
-        employeeEmail: emp.email,
-        employeeName: emp.full_name,
-        okrTitle: okr.title,
-        newStatus: parsed.data.toStatus,
-        managerName: caller.full_name ?? caller.email,
-        comment: parsed.data.comment,
-      }).catch((err) => console.error('[okr-actions] notification failed:', err))
-    }
-  }
-
   return { success: true }
 }

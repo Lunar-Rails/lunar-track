@@ -42,9 +42,18 @@ export default async function ProtectedLayout({
       .map((s) => s.id)
 
     if (reportIds.length > 0) {
+      // Inbox badge = direct reports not yet scored for the open period.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data: okrCountRaw } = await (supabase as any).rpc('get_pending_okr_count', { manager_uuid: user!.id })
-      inboxCount = (okrCountRaw as number) ?? 0
+      const { data: openPeriodRaw } = await (supabase as any)
+        .from('performance_periods').select('id').eq('status', 'open').limit(1).maybeSingle()
+      if (openPeriodRaw) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: scoredRaw } = await (supabase as any)
+          .from('quarterly_scores').select('employee_id')
+          .in('employee_id', reportIds).eq('period_id', (openPeriodRaw as { id: string }).id)
+        const scored = new Set(((scoredRaw ?? []) as { employee_id: string }[]).map((s) => s.employee_id))
+        inboxCount = reportIds.filter((id) => !scored.has(id)).length
+      }
     }
   }
 
