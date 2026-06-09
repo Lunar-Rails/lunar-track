@@ -48,58 +48,73 @@ async function sendEmail(to: string, subject: string, html: string): Promise<voi
   }
 }
 
+// Shared font stack — matches the app (Inter body) with broad email-client fallbacks.
+const FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Helvetica, Arial, sans-serif"
+
 function baseTemplate(content: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
   <title>CiaoBob</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif; background: #09090f; color: #e2e2ea; margin: 0; padding: 0; }
-    .wrapper { padding: 40px 16px; }
-    .container { max-width: 560px; margin: 0 auto; background: #12121e; border-radius: 16px; border: 1px solid #1e1e30; overflow: hidden; }
-    .header { padding: 28px 32px 24px; border-bottom: 1px solid #1e1e30; }
-    .logo { display: inline-flex; align-items: center; gap: 8px; font-size: 17px; font-weight: 700; color: #fff; letter-spacing: -0.3px; text-decoration: none; }
-    .logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, #7c5cfc 0%, #5b3fd4 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 15px; line-height: 1; }
-    .body { padding: 32px; }
-    .content { font-size: 15px; line-height: 1.65; color: #b8b8c8; }
-    .content p { margin-bottom: 16px; }
+    body { margin: 0; padding: 0; background: #f4f4f8; }
+    .content { font-size: 15px; line-height: 1.65; color: #4a4a5e; }
+    .content p { margin: 0 0 16px; }
     .content p:last-child { margin-bottom: 0; }
-    .content strong { color: #e2e2ea; font-weight: 600; }
+    .content strong { color: #1a1a28; font-weight: 600; }
     .content a { color: #7c5cfc; text-decoration: underline; }
-    .cta-wrap { margin: 28px 0; }
-    .cta { display: inline-block; padding: 13px 26px; background: #7c5cfc; color: #fff !important; text-decoration: none !important; border-radius: 10px; font-weight: 600; font-size: 14px; letter-spacing: 0.1px; }
-    .footer { padding: 20px 32px; border-top: 1px solid #1e1e30; font-size: 12px; color: #4a4a60; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .footer a { color: #5a5a78; text-decoration: none; }
-    .footer a:hover { color: #7c5cfc; }
+    @media (max-width: 600px) {
+      .px { padding-left: 22px !important; padding-right: 22px !important; }
+    }
   </style>
 </head>
-<body>
-  <div class="wrapper">
-    <div class="container">
-      <div class="header">
-        <span class="logo">
-          <span class="logo-icon">🌙</span>
-          CiaoBob
-        </span>
-      </div>
-      <div class="body">
-        <div class="content">${content}</div>
-      </div>
-      <div class="footer">
-        <span>CiaoBob &mdash; Internal Performance Management</span>
-        <a href="${APP_URL}">Open app &rarr;</a>
-      </div>
-    </div>
-  </div>
+<body style="margin:0;padding:0;background:#f4f4f8;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f8;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:560px;background:#ffffff;border:1px solid #e7e7ef;border-radius:16px;overflow:hidden;">
+          <!-- Header -->
+          <tr>
+            <td class="px" style="padding:24px 32px;border-bottom:1px solid #eeeef4;">
+              <img src="${APP_URL}/logo-email.png" width="150" height="44" alt="CiaoBob" style="display:block;width:150px;height:44px;">
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td class="px content" style="padding:32px;font-family:${FONT};font-size:15px;line-height:1.65;color:#4a4a5e;">${content}</td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td class="px" style="padding:18px 32px;border-top:1px solid #eeeef4;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="font-family:${FONT};font-size:12px;color:#9a9aae;">CiaoBob &mdash; Internal Performance Management</td>
+                  <td align="right" style="font-family:${FONT};font-size:12px;"><a href="${APP_URL}" style="color:#7c5cfc;text-decoration:none;">Open app &rarr;</a></td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>`
 }
 
 function ctaButton(label: string, url: string): string {
-  return `<div class="cta-wrap"><a href="${url}" class="cta">${label}</a></div>`
+  // Table + bgcolor button — renders as a solid filled button in all clients incl. Outlook.
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:28px 0;">
+    <tr>
+      <td align="center" bgcolor="#7c5cfc" style="border-radius:10px;background-color:#7c5cfc;">
+        <a href="${url}" style="display:inline-block;padding:13px 28px;font-family:${FONT};font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:10px;letter-spacing:0.1px;">${label}</a>
+      </td>
+    </tr>
+  </table>`
 }
 
 // ────────────────────────────────────────────────────────────────────────────
