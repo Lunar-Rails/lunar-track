@@ -56,14 +56,16 @@ export default function MitPlanList({
             <div className="flex-1 space-y-3">
               <div className="space-y-1">
                 <Label className="text-caption">Title</Label>
-                <Input value={mit.title} onChange={(e) => update(index, { title: e.target.value })} disabled={disabled} placeholder="What is this MIT?" className="bg-lr-surface border-lr-border text-lr-text text-sm h-9" />
+                <Input value={mit.title} onChange={(e) => update(index, { title: e.target.value })} disabled={disabled} maxLength={300} placeholder="What is this MIT?" className="bg-lr-surface border-lr-border text-lr-text text-sm h-9" />
               </div>
               <div className="space-y-1">
                 <Label className="text-caption">What / description</Label>
-                <Textarea value={mit.description} onChange={(e) => update(index, { description: e.target.value })} disabled={disabled} placeholder="Describe the scope or success criteria…" className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[72px] resize-y" />
+                <Textarea value={mit.description} onChange={(e) => update(index, { description: e.target.value })} disabled={disabled} maxLength={4000} placeholder="Describe the scope or success criteria…" className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[72px] resize-y" />
+                <div className="flex justify-end"><span className="text-[10px] text-lr-muted">{mit.description.length}/4000</span></div>
               </div>
               <div className="space-y-1">
                 <Label className="text-caption">{linkLabel}</Label>
+                {linkOptions.length > 0 ? (
                 <Select value={mit.okr_id ?? UNRELATED} onValueChange={(v) => handleLinkChange(index, v)} disabled={disabled}>
                   <SelectTrigger className="bg-lr-surface border-lr-border text-lr-text text-sm h-9">
                     <SelectValue placeholder={`Link to ${linkLabel}…`} />
@@ -81,6 +83,9 @@ export default function MitPlanList({
                     <SelectItem value={UNRELATED} className="text-sm py-2.5 pl-3 pr-8 cursor-pointer"><span className="text-lr-muted italic">{noLinkLabel}</span></SelectItem>
                   </SelectContent>
                 </Select>
+                ) : (
+                  <p className="text-xs text-lr-muted italic">No quarterly goals added yet — add them in the OKRs section to link MITs.</p>
+                )}
               </div>
             </div>
             {!disabled && value.length > 1 && (

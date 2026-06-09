@@ -56,6 +56,7 @@ export default function MitReviewList({ value, onChange, linkOptions = [], disab
                   value={mit.title}
                   onChange={(e) => update(index, { title: e.target.value })}
                   disabled={disabled}
+                  maxLength={300}
                   placeholder="What was this MIT?"
                   className="bg-lr-surface border-lr-border text-lr-text text-sm h-9"
                 />
@@ -66,9 +67,11 @@ export default function MitReviewList({ value, onChange, linkOptions = [], disab
                   value={mit.description}
                   onChange={(e) => update(index, { description: e.target.value })}
                   disabled={disabled}
+                  maxLength={4000}
                   placeholder="Describe the scope or success criteria…"
                   className="bg-lr-surface border-lr-border text-lr-text text-sm min-h-[72px] resize-y"
                 />
+                <div className="flex justify-end"><span className="text-[10px] text-lr-muted">{mit.description.length}/4000</span></div>
               </div>
               {/* Goal selector — shown when there are options; read-only fallback when disabled */}
               {!disabled && linkOptions.length > 0 ? (
@@ -99,6 +102,8 @@ export default function MitReviewList({ value, onChange, linkOptions = [], disab
                     </SelectContent>
                   </Select>
                 </div>
+              ) : !disabled && linkOptions.length === 0 ? (
+                <p className="text-xs text-lr-muted italic">No quarterly goals added yet — add them in the OKRs section to link MITs.</p>
               ) : (
                 mit.okr_id ? (
                   <p className="text-xs text-lr-accent">Goal: {mit.okr_label ?? mit.okr_id}</p>

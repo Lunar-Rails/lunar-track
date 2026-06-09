@@ -25,11 +25,11 @@ function initReviewMits(checkin: Checkin | null): ReviewMit[] {
   if (!checkin) return [{ title: '', description: '', okr_id: null, okr_label: null, status: 'not_achieved' }]
   if (checkin.mits && checkin.mits.length > 0) {
     return checkin.mits.map((m) => ({
-      title: m.title,
-      description: m.description,
+      title: m.title ?? '',
+      description: m.description ?? '',
       okr_id: (m as ReviewMit).okr_id ?? null,
       okr_label: (m as ReviewMit).okr_label ?? null,
-      status: (m as ReviewMit).status ?? 'not_achieved',
+      status: (m as ReviewMit).status === 'achieved' ? 'achieved' : 'not_achieved',
     }))
   }
   const legacy: ReviewMit[] = []
@@ -43,7 +43,12 @@ function initPlanMits(checkin: Checkin | null): PlanMit[] {
   if (!checkin?.next_mits || checkin.next_mits.length === 0) {
     return [{ title: '', description: '', okr_id: null, okr_label: null }]
   }
-  return checkin.next_mits
+  return checkin.next_mits.map((m) => ({
+    title: m.title ?? '',
+    description: m.description ?? '',
+    okr_id: m.okr_id ?? null,
+    okr_label: m.okr_label ?? null,
+  }))
 }
 
 type Step = 'review' | 'plan'
@@ -88,36 +93,34 @@ export default function EmployeeCheckinForm({
     return fd
   }
 
-  function saveAndAdvance() {
-    setError(null)
-    startTransition(async () => {
-      const result = await upsertCheckinEmployee(buildFormData(false))
-      if ('error' in result) {
-        setError(result.error)
-      } else {
-        setSavedAt(new Date())
-        // Update URL silently if we got a new ID, then switch tab client-side (no page reload)
-        if (result.id && !pathname.includes(result.id)) {
-          window.history.replaceState(null, '', `/checkins/${result.id}`)
-        }
-        setStep('plan')
+  // Persist the current draft (no submit). Updates savedAt / error / URL.
+  async function persistDraft() {
+    const result = await upsertCheckinEmployee(buildFormData(false))
+    if ('error' in result) {
+      setError(result.error)
+    } else {
+      setSavedAt(new Date())
+      // Update URL silently if we got a new ID
+      if (result.id && !pathname.includes(result.id)) {
+        window.history.replaceState(null, '', `/checkins/${result.id}`)
       }
-    })
+    }
   }
 
+  // "Next Month": advance instantly using the same client-side tab switch as the
+  // numbered tab header, then persist the draft in the background. Navigation is
+  // never blocked or aborted by a slow/failed save the way save-then-advance was.
+  function goToNextMonth() {
+    setError(null)
+    setStep('plan')
+    void persistDraft()
+  }
+
+  // Explicit "Save Draft" button: blocks with a pending state ("Saving…").
   function save() {
     setError(null)
     startTransition(async () => {
-      const result = await upsertCheckinEmployee(buildFormData(false))
-      if ('error' in result) {
-        setError(result.error)
-      } else {
-        setSavedAt(new Date())
-        // Update URL silently if we got a new ID
-        if (result.id && !pathname.includes(result.id)) {
-          window.history.replaceState(null, '', `/checkins/${result.id}`)
-        }
-      }
+      await persistDraft()
     })
   }
 
@@ -216,9 +219,13 @@ export default function EmployeeCheckinForm({
           )}
 
           {!readOnly && (
-            <div className="flex justify-end">
-              <Button type="button" onClick={saveAndAdvance} disabled={isPending} className="bg-lr-accent hover:bg-lr-accent/90 text-white gap-2">
-                {isPending ? 'Saving…' : <>Next Month <ArrowRight className="h-4 w-4" /></>}
+            <div className="flex items-center justify-end gap-3">
+              {savedAt && <span className="text-xs text-lr-success">Draft saved {savedAt.toLocaleTimeString()} — find it under Check-ins</span>}
+              <Button type="button" onClick={save} disabled={isPending} variant="outline" className="border-lr-border text-lr-text hover:bg-lr-surface">
+                {isPending ? 'Saving…' : 'Save Draft'}
+              </Button>
+              <Button type="button" onClick={goToNextMonth} className="bg-lr-accent hover:bg-lr-accent/90 text-white gap-2">
+                Next Month <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           )}
@@ -248,7 +255,7 @@ export default function EmployeeCheckinForm({
               <Button type="button" onClick={submit} disabled={isPending} className="bg-lr-accent hover:bg-lr-accent/90 text-white">
                 {isPending ? 'Submitting…' : 'Submit Check-in'}
               </Button>
-              {savedAt && <span className="text-xs text-lr-muted">Saved {savedAt.toLocaleTimeString()}</span>}
+              {savedAt && <span className="text-xs text-lr-success">Draft saved {savedAt.toLocaleTimeString()} — find it under Check-ins</span>}
             </div>
           )}
         </div>
