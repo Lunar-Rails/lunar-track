@@ -57,51 +57,43 @@ function baseTemplate(content: string): string {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="dark light">
-  <meta name="supported-color-schemes" content="dark light">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
   <title>CiaoBob</title>
   <style>
-    body { margin: 0; padding: 0; background: #09090f; }
-    a { color: #a78bfa; }
-    .content { font-size: 15px; line-height: 1.65; color: #b8b8c8; }
+    body { margin: 0; padding: 0; background: #f4f4f8; }
+    .content { font-size: 15px; line-height: 1.65; color: #4a4a5e; }
     .content p { margin: 0 0 16px; }
     .content p:last-child { margin-bottom: 0; }
-    .content strong { color: #ececf4; font-weight: 600; }
-    .content a { color: #a78bfa; text-decoration: underline; }
+    .content strong { color: #1a1a28; font-weight: 600; }
+    .content a { color: #7c5cfc; text-decoration: underline; }
     @media (max-width: 600px) {
       .px { padding-left: 22px !important; padding-right: 22px !important; }
     }
   </style>
 </head>
-<body style="margin:0;padding:0;background:#09090f;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#09090f;">
+<body style="margin:0;padding:0;background:#f4f4f8;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f8;">
     <tr>
       <td align="center" style="padding:40px 16px;">
-        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:560px;background:#12121e;border:1px solid #23233a;border-radius:16px;overflow:hidden;">
+        <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:560px;background:#ffffff;border:1px solid #e7e7ef;border-radius:16px;overflow:hidden;">
           <!-- Header -->
           <tr>
-            <td class="px" style="padding:24px 32px;border-bottom:1px solid #23233a;">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                <tr>
-                  <td style="vertical-align:middle;padding-right:10px;line-height:0;">
-                    <img src="${APP_URL}/android-chrome-192x192.png" width="30" height="30" alt="CiaoBob" style="display:block;width:30px;height:30px;border-radius:8px;">
-                  </td>
-                  <td style="vertical-align:middle;font-family:${FONT};font-size:18px;font-weight:700;color:#ffffff;letter-spacing:-0.3px;">CiaoBob</td>
-                </tr>
-              </table>
+            <td class="px" style="padding:24px 32px;border-bottom:1px solid #eeeef4;">
+              <img src="${APP_URL}/logo-email.png" width="150" height="44" alt="CiaoBob" style="display:block;width:150px;height:44px;">
             </td>
           </tr>
           <!-- Body -->
           <tr>
-            <td class="px content" style="padding:32px;font-family:${FONT};font-size:15px;line-height:1.65;color:#b8b8c8;">${content}</td>
+            <td class="px content" style="padding:32px;font-family:${FONT};font-size:15px;line-height:1.65;color:#4a4a5e;">${content}</td>
           </tr>
           <!-- Footer -->
           <tr>
-            <td class="px" style="padding:18px 32px;border-top:1px solid #23233a;">
+            <td class="px" style="padding:18px 32px;border-top:1px solid #eeeef4;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td style="font-family:${FONT};font-size:12px;color:#5a5a72;">CiaoBob &mdash; Internal Performance Management</td>
-                  <td align="right" style="font-family:${FONT};font-size:12px;"><a href="${APP_URL}" style="color:#8a8aa8;text-decoration:none;">Open app &rarr;</a></td>
+                  <td style="font-family:${FONT};font-size:12px;color:#9a9aae;">CiaoBob &mdash; Internal Performance Management</td>
+                  <td align="right" style="font-family:${FONT};font-size:12px;"><a href="${APP_URL}" style="color:#7c5cfc;text-decoration:none;">Open app &rarr;</a></td>
                 </tr>
               </table>
             </td>
