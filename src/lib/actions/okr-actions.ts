@@ -110,7 +110,7 @@ export async function updateOkr(formData: FormData): Promise<ActionResult> {
   if (!caller) return { error: 'Not authenticated' }
 
   const okrId = formData.get('okrId') as string
-  if (!okrId) return { error: 'Missing OKR id' }
+  if (!okrId) return { error: 'Missing goal id' }
 
   const rawPayload = formData.get('payload')
   if (!rawPayload) return { error: 'Missing payload' }
@@ -123,14 +123,11 @@ export async function updateOkr(formData: FormData): Promise<ActionResult> {
     return { error: msg }
   }
 
-  // Verify ownership + editable status
+  // Verify ownership — goals are freely editable by their owner.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: okrRaw } = await (supabase as any).from('okrs').select('*').eq('id', okrId).single()
   const okr = okrRaw as Okr | null
-  if (!okr || okr.employee_id !== caller.id) return { error: 'OKR not found' }
-  if (okr.status !== 'DRAFT' && okr.status !== 'REVISION_REQUESTED') {
-    return { error: 'Cannot edit an OKR that is pending review or approved' }
-  }
+  if (!okr || okr.employee_id !== caller.id) return { error: 'Goal not found' }
 
   // Update objective
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -187,19 +184,16 @@ export async function deleteOkr(formData: FormData): Promise<ActionResult> {
   if (!caller) return { error: 'Not authenticated' }
 
   const okrId = formData.get('okrId') as string
-  if (!okrId) return { error: 'Missing OKR id' }
+  if (!okrId) return { error: 'Missing goal id' }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: okrRaw } = await (supabase as any).from('okrs').select('employee_id, status').eq('id', okrId).single()
-  const okr = okrRaw as { employee_id: string; status: OkrStatus } | null
-  if (!okr || okr.employee_id !== caller.id) return { error: 'OKR not found' }
-  if (okr.status === 'APPROVED' || okr.status === 'PENDING_REVIEW') {
-    return { error: 'Cannot delete an OKR that is pending review or approved' }
-  }
+  const { data: okrRaw } = await (supabase as any).from('okrs').select('employee_id').eq('id', okrId).single()
+  const okr = okrRaw as { employee_id: string } | null
+  if (!okr || okr.employee_id !== caller.id) return { error: 'Goal not found' }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: deleteError } = await (supabase as any).from('okrs').update({ deleted_at: new Date().toISOString() }).eq('id', okrId)
-  if (deleteError) return { error: 'Failed to delete OKR: ' + deleteError.message }
+  if (deleteError) return { error: 'Failed to delete goal: ' + deleteError.message }
 
   revalidatePath('/okrs')
   revalidatePath('/dashboard')
