@@ -504,6 +504,9 @@ export default async function TeamMemberPage({
                             <div className="h-full bg-lr-accent/60" style={{ width: `${pct}%` }} />
                           </div>
                         )}
+                        {okr.description && (
+                          <p className="px-3 pt-2 text-[11px] text-lr-muted leading-snug whitespace-pre-wrap">{okr.description}</p>
+                        )}
                         {linked.length > 0 ? (
                           <div className="px-3 py-2 space-y-1.5">
                             {linked.map(({ month, mit }, i) => (

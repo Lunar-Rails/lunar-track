@@ -167,9 +167,6 @@ export default async function TeamPage({
   const { data: subsRaw } = await (supabase as any).rpc('get_subordinates', { manager_uuid: user.id })
   const directReports = ((subsRaw ?? []) as SubordinateRow[]).filter((s) => s.depth === 1)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: pendingOkrCount } = await (supabase as any).rpc('get_pending_okr_count', { manager_uuid: user.id })
-
   const now = new Date()
   const month = now.getMonth() + 1
   const year = now.getFullYear()
@@ -387,11 +384,6 @@ export default async function TeamPage({
           <h1 className="text-page-title">My Team</h1>
           <p className="text-body text-lr-muted mt-1">
             {directReports.length} direct report{directReports.length !== 1 ? 's' : ''}
-            {(pendingOkrCount as number) > 0 && (
-              <span className="ml-3 text-lr-gold">
-                · {pendingOkrCount} Goal{(pendingOkrCount as number) !== 1 ? 's' : ''} pending review
-              </span>
-            )}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

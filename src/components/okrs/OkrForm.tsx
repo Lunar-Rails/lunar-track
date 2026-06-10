@@ -2,7 +2,7 @@
 
 import { useTransition, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, Plus } from 'lucide-react'
+import { CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -13,9 +13,12 @@ interface OkrFormProps {
   periods: PerformancePeriod[]
   defaultPeriodId?: string
   existing?: Pick<Okr, 'id' | 'period_id' | 'title' | 'description'>
+  // 'navigate' (default) opens the new goal after create; 'stay' keeps the user on
+  // the page (form resets, new goal appears in the list above) — used on /okrs/new.
+  afterCreate?: 'navigate' | 'stay'
 }
 
-export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormProps) {
+export default function OkrForm({ periods, defaultPeriodId, existing, afterCreate = 'navigate' }: OkrFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [serverError, setServerError] = useState<string | null>(null)
@@ -29,8 +32,7 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
   const [title, setTitle] = useState(existing?.title ?? '')
   const [description, setDescription] = useState(existing?.description ?? '')
 
-  // 'navigate' → open the saved goal; 'again' → reset the form to add another in place.
-  function save(mode: 'navigate' | 'again') {
+  function save() {
     setTitleError(null)
     setServerError(null)
     if (!title.trim()) { setTitleError('Goal title is required'); return }
@@ -52,16 +54,16 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
         setServerError(result.error)
         return
       }
-      if (mode === 'again') {
-        // Stay on the page and clear the form so the user can add the next goal.
-        setTitle('')
-        setDescription('')
-        setSavedNotice(`“${goalTitle}” saved — add another below.`)
-        router.refresh()
-        titleRef.current?.focus()
-      } else if (existing) {
+      if (existing) {
         // Editing an existing goal → return to its (read-only) detail view.
         router.push(`/okrs/${existing.id}`)
+      } else if (afterCreate === 'stay') {
+        // Stay on the page; the new goal appears in the list above and the form resets.
+        setTitle('')
+        setDescription('')
+        setSavedNotice(`“${goalTitle}” added to your goals.`)
+        router.refresh()
+        titleRef.current?.focus()
       } else {
         router.push('success' in result && result.id ? `/okrs/${result.id}` : '/okrs')
       }
@@ -70,7 +72,7 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault()
-    save('navigate')
+    save()
   }
 
   return (
@@ -116,12 +118,6 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
         <Button type="submit" disabled={isPending} className="bg-lr-accent hover:bg-lr-accent-hover text-white">
           {isPending ? 'Saving…' : existing ? 'Save Changes' : 'Create Goal'}
         </Button>
-        {!existing && (
-          <Button type="button" variant="outline" disabled={isPending} onClick={() => save('again')}
-            className="border-lr-accent text-lr-accent hover:bg-lr-accent-dim gap-1.5">
-            <Plus className="h-4 w-4" /> Create &amp; add another
-          </Button>
-        )}
         <Button type="button" variant="outline" onClick={() => existing ? router.push(`/okrs/${existing.id}`) : router.back()}
           className="border-lr-border text-lr-muted hover:text-lr-text">
           Cancel
