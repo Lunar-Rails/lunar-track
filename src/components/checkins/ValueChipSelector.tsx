@@ -13,6 +13,7 @@ interface ValueChipSelectorProps {
 
 export default function ValueChipSelector({ companyValues, value, onChange, disabled = false }: ValueChipSelectorProps) {
   const selectedIds = new Set(value.map((a) => a.value_id))
+  const descById = new Map(companyValues.map((cv) => [cv.id, cv.description]))
 
   function toggle(cv: CompanyValue) {
     if (disabled) return
@@ -38,6 +39,7 @@ export default function ValueChipSelector({ companyValues, value, onChange, disa
               type="button"
               onClick={() => toggle(cv)}
               disabled={disabled}
+              title={cv.description}
               className={[
                 'rounded-full px-4 py-1.5 text-sm font-medium border transition-colors',
                 selected ? 'bg-lr-accent/20 border-lr-accent text-lr-accent' : 'bg-lr-surface border-lr-border text-lr-muted hover:border-lr-accent/50',
@@ -55,6 +57,9 @@ export default function ValueChipSelector({ companyValues, value, onChange, disa
           {value.map((assessment) => (
             <div key={assessment.value_id} className="rounded-[var(--radius-lr-lg)] border-l-2 border-lr-accent bg-lr-surface p-4 space-y-2">
               <Label className="text-caption text-lr-accent">{assessment.value_name}</Label>
+              {descById.get(assessment.value_id) && (
+                <p className="text-xs text-lr-muted leading-snug">{descById.get(assessment.value_id)}</p>
+              )}
               <Textarea
                 value={assessment.description}
                 onChange={(e) => updateDescription(assessment.value_id, e.target.value)}
