@@ -1,6 +1,6 @@
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Plus } from 'lucide-react'
+import { Plus, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { Button } from '@/components/ui/button'
 import OkrForm from '@/components/okrs/OkrForm'
@@ -13,8 +13,9 @@ type OkrWithHierarchy = Okr & {
   key_results: (KeyResult & { initiatives: Initiative[] })[]
 }
 
-export default async function OkrDetailPage({ params }: { params: Promise<{ okrId: string }> }) {
+export default async function OkrDetailPage({ params, searchParams }: { params: Promise<{ okrId: string }>; searchParams: Promise<{ edit?: string }> }) {
   const { okrId } = await params
+  const { edit } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
@@ -36,6 +37,7 @@ export default async function OkrDetailPage({ params }: { params: Promise<{ okrI
 
   const isOwner = okr.employee_id === user.id
   const isDeleted = !!okr.deleted_at
+  const editing = isOwner && !isDeleted && edit === '1'
 
   return (
     <div className="space-y-6">
@@ -44,7 +46,7 @@ export default async function OkrDetailPage({ params }: { params: Promise<{ okrI
         <p className="text-kicker">{period?.name ?? 'Unknown Period'}</p>
         <div className="flex items-center gap-3 mt-1 flex-wrap">
           <h1 className="text-page-title">{okr.title}</h1>
-          {isOwner && !isDeleted && (
+          {isOwner && !isDeleted && !editing && (
             <Link href="/okrs/new" className="ml-auto">
               <Button variant="outline" size="sm" className="border-lr-accent text-lr-accent hover:bg-lr-accent-dim gap-1.5">
                 <Plus className="h-3.5 w-3.5" /> Add another goal
@@ -52,7 +54,7 @@ export default async function OkrDetailPage({ params }: { params: Promise<{ okrI
             </Link>
           )}
         </div>
-        {okr.description && (
+        {okr.description && !editing && (
           <p className="text-body text-lr-muted mt-2">{okr.description}</p>
         )}
         {isDeleted && (
@@ -60,15 +62,19 @@ export default async function OkrDetailPage({ params }: { params: Promise<{ okrI
         )}
       </div>
 
-      {/* Edit form — only if owner and not deleted */}
-      {isOwner && !isDeleted && <OkrForm periods={periods} existing={okr} />}
-
-      {/* Delete button — only if owner and not deleted */}
-      {isOwner && !isDeleted && (
-        <div className="pt-2">
+      {/* Edit form when ?edit=1; otherwise a read-only view with Edit / Delete actions */}
+      {editing ? (
+        <OkrForm periods={periods} existing={okr} />
+      ) : isOwner && !isDeleted ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href={`/okrs/${okr.id}?edit=1`}>
+            <Button variant="outline" className="border-lr-border text-lr-text hover:bg-lr-surface gap-1.5">
+              <Pencil className="h-4 w-4" /> Edit goal
+            </Button>
+          </Link>
           <DeleteGoalButton okrId={okr.id} />
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

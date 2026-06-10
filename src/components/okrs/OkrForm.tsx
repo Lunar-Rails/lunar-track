@@ -59,6 +59,9 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
         setSavedNotice(`“${goalTitle}” saved — add another below.`)
         router.refresh()
         titleRef.current?.focus()
+      } else if (existing) {
+        // Editing an existing goal → return to its (read-only) detail view.
+        router.push(`/okrs/${existing.id}`)
       } else {
         router.push('success' in result && result.id ? `/okrs/${result.id}` : '/okrs')
       }
@@ -119,7 +122,7 @@ export default function OkrForm({ periods, defaultPeriodId, existing }: OkrFormP
             <Plus className="h-4 w-4" /> Create &amp; add another
           </Button>
         )}
-        <Button type="button" variant="outline" onClick={() => router.back()}
+        <Button type="button" variant="outline" onClick={() => existing ? router.push(`/okrs/${existing.id}`) : router.back()}
           className="border-lr-border text-lr-muted hover:text-lr-text">
           Cancel
         </Button>
