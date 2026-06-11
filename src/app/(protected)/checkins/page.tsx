@@ -23,10 +23,25 @@ function daysUntil(dateStr: string): number {
   return Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
 }
 
-export default async function CheckinsPage() {
+export default async function CheckinsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const { tab: tabParam } = await searchParams
+  const tab: 'monthly' | 'quarterly' | 'weekly' =
+    tabParam === 'quarterly' ? 'quarterly' : tabParam === 'weekly' ? 'weekly' : 'monthly'
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
+
+  let weeklyCheckins: { id: string; week_start: string; problems: string | null }[] = []
+  if (tab === 'weekly') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase as any)
+      .from('weekly_checkins')
+      .select('id, week_start, problems')
+      .eq('employee_id', user.id)
+      .order('week_start', { ascending: false })
+    weeklyCheckins = data ?? []
+  }
 
   // Fetch profile to get manager_id
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -62,6 +77,10 @@ export default async function CheckinsPage() {
     .order('month', { ascending: false })
   if (checkinsErr) console.error('[checkins] fetch failed:', checkinsErr.message)
   const checkins = (checkinsRaw ?? []) as CheckinWithPeriod[]
+
+  const tabBase = 'inline-flex items-center gap-1.5 px-4 py-2 rounded-[var(--radius-lr-md)] text-sm font-medium transition-colors'
+  const tabActive = 'bg-lr-accent text-white'
+  const tabInactive = 'text-lr-muted hover:text-lr-text hover:bg-lr-surface'
 
   return (
     <div className="space-y-6">
@@ -106,7 +125,19 @@ export default async function CheckinsPage() {
         )}
       </div>
 
-      {checkins.length === 0 ? (
+      <div className="flex items-center gap-2 border-b border-lr-border pb-3">
+        <Link href="/checkins?tab=monthly" className={`${tabBase} ${tab === 'monthly' ? tabActive : tabInactive}`}>
+          Monthly
+        </Link>
+        <Link href="/checkins?tab=quarterly" className={`${tabBase} ${tab === 'quarterly' ? tabActive : tabInactive}`}>
+          Quarterly
+        </Link>
+        <Link href="/checkins?tab=weekly" className={`${tabBase} ${tab === 'weekly' ? tabActive : tabInactive}`}>
+          Weekly <span className="text-[10px] uppercase tracking-wide opacity-70">Beta</span>
+        </Link>
+      </div>
+
+      {tab === 'monthly' && (checkins.length === 0 ? (
         <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-12 text-center">
           <p className="text-body text-lr-muted">No check-ins yet.</p>
           {openPeriod && (
@@ -152,6 +183,38 @@ export default async function CheckinsPage() {
               </Link>
             )
           })}
+        </div>
+      ))}
+
+      {tab === 'quarterly' && (
+        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-12 text-center">
+          <p className="text-body text-lr-muted">Quarterly reviews are managed from the performance review pages.</p>
+        </div>
+      )}
+
+      {tab === 'weekly' && (
+        <div className="space-y-3">
+          <div className="flex justify-end">
+            <Link href="/weekly-checkins/new">
+              <Button className="bg-lr-accent hover:bg-lr-accent/90 text-white text-sm">New weekly check-in</Button>
+            </Link>
+          </div>
+          {weeklyCheckins.length === 0 ? (
+            <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-12 text-center">
+              <p className="text-body text-lr-muted">No weekly check-ins yet.</p>
+            </div>
+          ) : (
+            weeklyCheckins.map((w) => (
+              <Link key={w.id} href={`/weekly-checkins/${w.id}`}>
+                <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-4 hover:bg-lr-surface transition-colors">
+                  <p className="text-sm font-medium text-lr-text">
+                    Week of {new Date(`${w.week_start}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}
+                  </p>
+                  {w.problems?.trim() && <p className="text-caption text-lr-muted mt-0.5 line-clamp-1">⚠ {w.problems}</p>}
+                </div>
+              </Link>
+            ))
+          )}
         </div>
       )}
     </div>
