@@ -10,6 +10,7 @@ import {
   Network,
   ClipboardList,
   CalendarCheck,
+  CalendarDays,
   BarChart2,
   Settings2,
   Menu,
@@ -22,6 +23,7 @@ interface NavItem {
   href: string
   label: string
   icon: React.ComponentType<{ className?: string }>
+  beta?: boolean
 }
 
 interface MobileNavProps {
@@ -37,6 +39,7 @@ export default function MobileNav({ role }: MobileNavProps) {
   ]
 
   const myWorkNav: NavItem[] = [
+    { href: '/weekly-checkins', label: 'Weekly Check-ins', icon: CalendarDays, beta: true },
     { href: '/checkins', label: 'Monthly Check-ins', icon: ClipboardList },
     { href: '/quarterly-checkins', label: 'Quarterly Reviews', icon: CalendarCheck },
   ]
@@ -127,7 +130,12 @@ function MobileNavLink({
       )}
     >
       <Icon className="h-4 w-4 shrink-0" />
-      {item.label}
+      <span className="truncate">{item.label}</span>
+      {item.beta && (
+        <span className="ml-auto shrink-0 rounded-full bg-lr-accent-dim px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-lr-accent">
+          Beta
+        </span>
+      )}
     </Link>
   )
 }
