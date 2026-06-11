@@ -76,16 +76,16 @@ export default function WeeklyCheckinForm({ weekStart, existing, mitOptions, rea
           className="bg-lr-surface border-lr-border text-lr-text text-sm resize-y" />
       </section>
 
-      {/* Plan (max 2) */}
+      {/* WIT — Wildly Important Tasks (max 2) */}
       <section className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass p-5 space-y-3">
         <div>
-          <Label className="text-section-label">Plan <span className="text-lr-muted">— up to 2 tasks for this week</span></Label>
+          <Label className="text-section-label">WIT <span className="text-lr-muted">— Wildly Important Tasks (your top 1–2 this week)</span></Label>
         </div>
         {plan.map((t, i) => (
           <div key={i} className="rounded-[var(--radius-lr)] border border-lr-border bg-lr-surface p-3 space-y-2">
             <div className="flex items-start gap-2">
               <Input value={t.title} onChange={(e) => updateTask(i, { title: e.target.value })} disabled={readOnly || isPending}
-                maxLength={300} placeholder="Task for this week" className="bg-lr-surface border-lr-border text-lr-text text-sm h-9" />
+                maxLength={300} placeholder="Your Wildly Important Task" className="bg-lr-surface border-lr-border text-lr-text text-sm h-9" />
               {!readOnly && plan.length > 1 && (
                 <button type="button" onClick={() => removeTask(i)} className="mt-1 text-lr-muted hover:text-lr-error" aria-label="Remove task">
                   <Trash2 className="h-4 w-4" />
@@ -114,7 +114,7 @@ export default function WeeklyCheckinForm({ weekStart, existing, mitOptions, rea
         {!readOnly && plan.length < 2 && (
           <Button type="button" variant="outline" size="sm" onClick={addTask}
             className="w-full gap-1.5 border-lr-accent text-lr-accent hover:bg-lr-accent-dim text-xs">
-            <Plus className="h-3.5 w-3.5" /> Add task
+            <Plus className="h-3.5 w-3.5" /> Add WIT
           </Button>
         )}
       </section>
