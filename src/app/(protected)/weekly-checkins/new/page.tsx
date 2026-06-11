@@ -32,7 +32,7 @@ export default async function NewWeeklyCheckinPage() {
       <div>
         <p className="text-kicker">Week of {FMT(weekStart)}</p>
         <h1 className="text-page-title mt-1">Weekly Check-in <span className="text-sm font-normal text-lr-muted">(Beta)</span></h1>
-        <p className="text-body text-lr-muted mt-1">Progress · Plan · Problem</p>
+        <p className="text-body text-lr-muted mt-1">Progress · WIT · Problem</p>
       </div>
       <WeeklyCheckinForm weekStart={weekStart} existing={null} mitOptions={mitOptions} />
     </div>

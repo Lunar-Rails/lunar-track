@@ -13,10 +13,13 @@ export default async function WeeklyCheckinsPage() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data } = await (supabase as any)
     .from('weekly_checkins')
-    .select('id, week_start, problems')
+    .select('id, week_start, problems, plan_tasks')
     .eq('employee_id', user.id)
     .order('week_start', { ascending: false })
-  const weeks = (data ?? []) as { id: string; week_start: string; problems: string | null }[]
+  const weeks = (data ?? []) as {
+    id: string; week_start: string; problems: string | null
+    plan_tasks: { title: string }[] | null
+  }[]
 
   return (
     <div className="space-y-6">
@@ -25,7 +28,7 @@ export default async function WeeklyCheckinsPage() {
           <h1 className="text-page-title">
             Weekly Check-ins <span className="text-sm font-normal text-lr-muted">(Beta)</span>
           </h1>
-          <p className="text-body text-lr-muted mt-1">Progress · Plan · Problem — a quick weekly 3Ps</p>
+          <p className="text-body text-lr-muted mt-1">Progress · WIT · Problem — a quick weekly check-in</p>
         </div>
         <Link href="/weekly-checkins/new">
           <Button className="bg-lr-accent hover:bg-lr-accent/90 text-white text-sm">New weekly check-in</Button>
@@ -45,6 +48,12 @@ export default async function WeeklyCheckinsPage() {
                 <p className="text-sm font-medium text-lr-text">
                   Week of {new Date(`${w.week_start}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}
                 </p>
+                {(() => {
+                  const wits = (w.plan_tasks ?? []).map((t) => t.title).filter((s) => s?.trim())
+                  return wits.length > 0 ? (
+                    <p className="text-caption text-lr-accent mt-0.5 line-clamp-1">WIT: {wits.join(' · ')}</p>
+                  ) : null
+                })()}
                 {w.problems?.trim() && (
                   <p className="text-caption text-lr-muted mt-0.5 line-clamp-1">⚠ {w.problems}</p>
                 )}
