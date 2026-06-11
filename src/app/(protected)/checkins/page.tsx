@@ -25,8 +25,7 @@ function daysUntil(dateStr: string): number {
 
 export default async function CheckinsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const { tab: tabParam } = await searchParams
-  const tab: 'monthly' | 'quarterly' | 'weekly' =
-    tabParam === 'quarterly' ? 'quarterly' : tabParam === 'weekly' ? 'weekly' : 'monthly'
+  const tab: 'monthly' | 'weekly' = tabParam === 'weekly' ? 'weekly' : 'monthly'
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -129,9 +128,6 @@ export default async function CheckinsPage({ searchParams }: { searchParams: Pro
         <Link href="/checkins?tab=monthly" className={`${tabBase} ${tab === 'monthly' ? tabActive : tabInactive}`}>
           Monthly
         </Link>
-        <Link href="/checkins?tab=quarterly" className={`${tabBase} ${tab === 'quarterly' ? tabActive : tabInactive}`}>
-          Quarterly
-        </Link>
         <Link href="/checkins?tab=weekly" className={`${tabBase} ${tab === 'weekly' ? tabActive : tabInactive}`}>
           Weekly <span className="text-[10px] uppercase tracking-wide opacity-70">Beta</span>
         </Link>
@@ -186,11 +182,6 @@ export default async function CheckinsPage({ searchParams }: { searchParams: Pro
         </div>
       ))}
 
-      {tab === 'quarterly' && (
-        <div className="rounded-[var(--radius-lr-lg)] border border-lr-border bg-lr-glass backdrop-blur-[8px] p-12 text-center">
-          <p className="text-body text-lr-muted">Quarterly reviews are managed from the performance review pages.</p>
-        </div>
-      )}
 
       {tab === 'weekly' && (
         <div className="space-y-3">
