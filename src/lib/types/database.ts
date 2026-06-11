@@ -162,6 +162,24 @@ export interface Checkin {
   updated_at: string
 }
 
+export interface WeeklyPlanTask {
+  title: string
+  mit_id: string | null
+  mit_label: string | null
+}
+
+export interface WeeklyCheckin {
+  id: string
+  employee_id: string
+  week_start: string            // 'YYYY-MM-DD' (Monday)
+  progress: string | null
+  plan_tasks: WeeklyPlanTask[]
+  problems: string | null
+  last_minute_requests: string | null
+  created_at: string
+  updated_at: string
+}
+
 /**
  * @deprecated Status is no longer stored per-OKR in the quarterly check-in.
  * The live OKR state (key result statuses, initiative completion) is the source of truth.
