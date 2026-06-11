@@ -3,7 +3,9 @@ import { createClient } from '@/lib/supabase/server'
 import EmployeeCheckinForm from '@/components/checkins/EmployeeCheckinForm'
 import MonthSelector from '@/components/checkins/MonthSelector'
 import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
-import type { PerformancePeriod } from '@/lib/types/database'
+import WeeklyHighlights from '@/components/checkins/WeeklyHighlights'
+import { monthRange } from '@/lib/week'
+import type { PerformancePeriod, WeeklyCheckin } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,6 +76,14 @@ export default async function NewCheckinPage({
     year = free.year
   }
 
+  const { start, endExclusive } = monthRange(year, month)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: weeksRaw } = await (supabase as any)
+    .from('weekly_checkins').select('*').eq('employee_id', user.id)
+    .gte('week_start', start).lt('week_start', endExclusive).order('week_start', { ascending: true })
+  const weeks = (weeksRaw ?? []) as WeeklyCheckin[]
+  const monthlyMitTitles: string[] = []
+
   // Fetch profile + manager email for calendar invite
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: profileRaw } = await (supabase as any)
@@ -139,6 +149,7 @@ export default async function NewCheckinPage({
         okrOptions={okrOptions}
         readOnly={false}
       />
+      <WeeklyHighlights weeks={weeks} monthlyMitTitles={monthlyMitTitles} />
     </div>
   )
 }
