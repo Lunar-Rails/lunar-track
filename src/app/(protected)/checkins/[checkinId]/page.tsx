@@ -5,7 +5,9 @@ import EmployeeCheckinForm from '@/components/checkins/EmployeeCheckinForm'
 import ScheduleCallButton from '@/components/checkins/ScheduleCallButton'
 import ReopenCheckinButton from '@/components/checkins/ReopenCheckinButton'
 import ManagerCheckinNotes from '@/components/checkins/ManagerCheckinNotes'
-import type { Checkin, PerformancePeriod, Profile } from '@/lib/types/database'
+import WeeklyHighlights from '@/components/checkins/WeeklyHighlights'
+import { monthRange } from '@/lib/week'
+import type { Checkin, PerformancePeriod, Profile, WeeklyCheckin } from '@/lib/types/database'
 
 export const dynamic = 'force-dynamic'
 
@@ -93,6 +95,14 @@ export default async function CheckinDetailPage({
     managerEmail = mgr?.email ?? null
   }
 
+  const { start, endExclusive } = monthRange(checkin.year, checkin.month)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: weeksRaw } = await (supabase as any)
+    .from('weekly_checkins').select('*').eq('employee_id', checkin.employee_id)
+    .gte('week_start', start).lt('week_start', endExclusive).order('week_start', { ascending: true })
+  const weeks = (weeksRaw ?? []) as WeeklyCheckin[]
+  const monthlyMitTitles = ((checkin.mits ?? []) as { title: string }[]).map((m) => m.title).filter(Boolean)
+
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -133,6 +143,8 @@ export default async function CheckinDetailPage({
         okrOptions={okrOptions}
         readOnly={!isOwner || employeeSubmitted}
       />
+
+      <WeeklyHighlights weeks={weeks} monthlyMitTitles={monthlyMitTitles} />
 
       {/* Manager notes — shown to manager (editable) and to employee after manager submits */}
       {employeeSubmitted && (isManager || !!checkin.manager_submitted_at) && (
